@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Search - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Search & Test Query</h1>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <form id="search-form" onsubmit="return performSearch(event)">
+        <div class="form-group" style="display:flex; gap:0.5rem;">
+            <input type="text" id="search-input" class="form-control" placeholder="Enter your search query..." required style="flex:1;">
+            <button type="submit" class="btn btn-primary" id="search-btn">Search</button>
+        </div>
+    </form>
+</div>
+
+<div id="results-area" style="display:none;">
+    <details open>
+        <summary><h3 style="display:inline;">Step 1: Query Processing</h3></summary>
+        <div class="card">
+            <div class="detail-list">
+                <div class="detail-item">
+                    <span class="detail-label">Normalized Query:</span>
+                    <span class="detail-value" id="normalized-query">-</span>
+                </div>
+            </div>
+        </div>
+    </details>
+
+    <details open>
+        <summary><h3 style="display:inline;">Step 2: BM25 Results</h3></summary>
+        <div class="card">
+            <div class="table-container">
+                <table class="data-table" id="bm25-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Document Title</th>
+                            <th>Chunk Preview</th>
+                            <th>BM25 Score</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <details open>
+        <summary><h3 style="display:inline;">Step 3: Semantic Results</h3></summary>
+        <div class="card">
+            <div class="table-container">
+                <table class="data-table" id="semantic-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Document Title</th>
+                            <th>Chunk Preview</th>
+                            <th>Similarity Score</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <details open>
+        <summary><h3 style="display:inline;">Step 4: Merged Candidates</h3></summary>
+        <div class="card">
+            <div class="table-container">
+                <table class="data-table" id="merged-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Document Title</th>
+                            <th>Chunk Preview</th>
+                            <th>BM25 Score</th>
+                            <th>Semantic Score</th>
+                            <th>Hybrid Score</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+
+    <details open>
+        <summary><h3 style="display:inline;">Step 5: Final Results</h3></summary>
+        <div class="card">
+            <div class="table-container">
+                <table class="data-table" id="final-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Document Title</th>
+                            <th>Chunk Preview</th>
+                            <th>Final Score</th>
+                            <th>Explanation</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+</div>
+
+<script>
+async function performSearch(e) {
+    e.preventDefault();
+    var query = document.getElementById('search-input').value.trim();
+    if (!query) return;
+
+    var btn = document.getElementById('search-btn');
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+
+    try {
+        var resp = await fetch('/search/api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        });
+        var data = await resp.json();
+
+        document.getElementById('results-area').style.display = 'block';
+
+        document.getElementById('normalized-query').textContent = data.normalized_query || query;
+
+        var bm25Body = document.querySelector('#bm25-table tbody');
+        bm25Body.innerHTML = '';
+        (data.bm25_results || []).forEach(function(r, i) {
+            bm25Body.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.bm25_score.toFixed(4) + '</td></tr>';
+        });
+
+        var semBody = document.querySelector('#semantic-table tbody');
+        semBody.innerHTML = '';
+        (data.semantic_results || []).forEach(function(r, i) {
+            semBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.semantic_score.toFixed(4) + '</td></tr>';
+        });
+
+        var mergedBody = document.querySelector('#merged-table tbody');
+        mergedBody.innerHTML = '';
+        (data.merged_candidates || []).forEach(function(r, i) {
+            mergedBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + (r.bm25_score||0).toFixed(4) + '</td><td>' + (r.semantic_score||0).toFixed(4) + '</td><td>' + r.hybrid_score.toFixed(4) + '</td></tr>';
+        });
+
+        var finalBody = document.querySelector('#final-table tbody');
+        finalBody.innerHTML = '';
+        (data.final_results || []).forEach(function(r, i) {
+            var expl = 'BM25=' + (r.bm25_score||0).toFixed(4) + ' Sem=' + (r.semantic_score||0).toFixed(4) + ' RRF=' + r.hybrid_score.toFixed(4);
+            finalBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.hybrid_score.toFixed(4) + '</td><td>' + esc(expl) + '</td></tr>';
+        });
+    } catch (err) {
+        alert('Search failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Search';
+    }
+}
+
+function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+</script>
+{% endblock %}

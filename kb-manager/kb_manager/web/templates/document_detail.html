@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ document.title }} - KB Manager{% endblock %}
+
+{% block header %}
+<h1>{{ document.title }}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <a href="/documents" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="detail-grid">
+    <div class="card">
+        <h3>Document Information</h3>
+        <div class="detail-list">
+            <div class="detail-item">
+                <span class="detail-label">Title:</span>
+                <span class="detail-value">{{ document.title }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Domain:</span>
+                <span class="detail-value">{{ document.domain }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Category:</span>
+                <span class="detail-value">{{ document.category }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Status:</span>
+                <span class="badge badge-{{ document.status }}">{{ document.status }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Version:</span>
+                <span class="detail-value">{{ document.version }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Chunk Count:</span>
+                <span class="detail-value">{{ document.chunk_count }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Source Path:</span>
+                <span class="detail-value"><code>{{ document.source_path }}</code></span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Created At:</span>
+                <span class="detail-value">{{ document.created_at }}</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-label">Updated At:</span>
+                <span class="detail-value">{{ document.updated_at }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Document Chunks</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ordinal</th>
+                    <th>Type</th>
+                    <th>Heading Path</th>
+                    <th>Token Count</th>
+                    <th>Quality Score</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for chunk in chunks %}
+                <tr>
+                    <td>{{ chunk.ordinal }}</td>
+                    <td>{{ chunk.chunk_type }}</td>
+                    <td>{{ chunk.heading_path }}</td>
+                    <td>{{ chunk.token_count }}</td>
+                    <td>{{ chunk.quality_score or '-' }}</td>
+                    <td>
+                        {% if chunk.is_verified %}
+                        <span class="badge badge-success">Verified</span>
+                        {% else %}
+                        <span class="badge badge-warning">Unverified</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button onclick="toggleEdit('{{ chunk.id }}')" class="btn btn-secondary btn-sm">Edit</button>
+                        {% if not chunk.is_verified %}
+                        <form method="post" action="/chunks/{{ chunk.id }}/verify" style="display:inline">
+                            <button type="submit" class="btn btn-success btn-sm">Verify</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr id="edit-{{ chunk.id }}" style="display:none">
+                    <td colspan="7">
+                        <form method="post" action="/chunks/{{ chunk.id }}/edit" class="edit-form">
+                            <textarea name="content" class="form-control" rows="3">{{ chunk.content }}</textarea>
+                            <button type="submit" class="btn btn-success btn-sm">Save</button>
+                            <button type="button" onclick="toggleEdit('{{ chunk.id }}')" class="btn btn-secondary btn-sm">Cancel</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function toggleEdit(chunkId) {
+    var row = document.getElementById('edit-' + chunkId);
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+</script>
+{% endblock %}

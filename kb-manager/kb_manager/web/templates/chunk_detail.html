@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Chunk Detail - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Chunk Detail</h1>
+{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <a href="/documents/{{ chunk.document_id }}" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="card">
+    <div class="detail-list">
+        <div class="detail-item">
+            <span class="detail-label">ID:</span>
+            <span class="detail-value"><code>{{ chunk.id }}</code></span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Document ID:</span>
+            <span class="detail-value"><a href="/documents/{{ chunk.document_id }}">{{ chunk.document_id }}</a></span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Ordinal:</span>
+            <span class="detail-value">{{ chunk.ordinal }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Type:</span>
+            <span class="detail-value">{{ chunk.chunk_type }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Heading Path:</span>
+            <span class="detail-value">{{ chunk.heading_path }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Token Count:</span>
+            <span class="detail-value">{{ chunk.token_count }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Embedding Model:</span>
+            <span class="detail-value">{{ chunk.embedding_model or '-' }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Quality Score:</span>
+            <span class="detail-value">{{ chunk.quality_score or '-' }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Verification Status:</span>
+            {% if chunk.is_verified %}
+            <span class="badge badge-success">Verified</span>
+            {% else %}
+            <span class="badge badge-warning">Unverified</span>
+            {% endif %}
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Created At:</span>
+            <span class="detail-value">{{ chunk.created_at }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Content</h3>
+    <div class="content-preview">
+        <pre>{{ chunk.content }}</pre>
+    </div>
+
+    <div class="toolbar" style="margin-top: 1rem;">
+        {% if not chunk.is_verified %}
+        <form method="post" action="/chunks/{{ chunk.id }}/verify" style="display:inline">
+            <button type="submit" class="btn btn-success">Verify</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if chunk.keywords %}
+<div class="card">
+    <h3>Keywords</h3>
+    <div class="keywords-list">
+        {% for kw in chunk.keywords %}
+        <span class="keyword-tag">{{ kw }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

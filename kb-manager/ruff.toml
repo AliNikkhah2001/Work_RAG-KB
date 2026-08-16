@@ -1,0 +1,33 @@
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "TCH",  # flake8-type-checking
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # function call in default argument
+    "RUF001", # ambiguous Unicode char in string (intentional Persian text)
+    "RUF002", # ambiguous Unicode char in docstring
+    "RUF003", # ambiguous Unicode char in comment
+]
+
+[lint.isort]
+known-first-party = ["kb_manager"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

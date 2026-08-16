@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Job Status - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Job Status</h1>
+{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <a href="/pipeline" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="card">
+    <div class="detail-list">
+        <div class="detail-item">
+            <span class="detail-label">ID:</span>
+            <span class="detail-value"><code>{{ job.id }}</code></span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Type:</span>
+            <span class="detail-value">{{ job.job_type }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Status:</span>
+            <span class="badge badge-{{ job.status }}">{{ job.status }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Started:</span>
+            <span class="detail-value">{{ job.started_at or '-' }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Completed:</span>
+            <span class="detail-value">{{ job.completed_at or '-' }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Total Documents:</span>
+            <span class="detail-value">{{ job.documents_total }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Successful Documents:</span>
+            <span class="detail-value">{{ job.documents_ok }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Failed Documents:</span>
+            <span class="detail-value">{{ job.documents_failed }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Chunks:</span>
+            <span class="detail-value">{{ job.chunks_total }}</span>
+        </div>
+    </div>
+
+    {% if job.documents_total > 0 %}
+    <div class="progress-container">
+        <h4>Progress</h4>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ (job.documents_ok / job.documents_total * 100)|int }}%"></div>
+        </div>
+        <p>{{ job.documents_ok }} of {{ job.documents_total }} documents processed</p>
+    </div>
+    {% endif %}
+
+    {% if job.error_log %}
+    <div class="error-log">
+        <h4>Errors</h4>
+        <pre>{{ job.error_log }}</pre>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Dashboard</h1>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ doc_count }}</div>
+        <div class="stat-label">Total Documents</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ chunk_count }}</div>
+        <div class="stat-label">Total Chunks</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Documents by Domain</h3>
+        <div class="bar-chart">
+            {% for domain, count in domain_counts.items() %}
+            <div class="bar-row">
+                <span class="bar-label">{{ domain }}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {{ (count / (domain_counts.values()|list|first or 1) * 100)|int }}%"></div>
+                </div>
+                <span class="bar-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3>Documents by Category</h3>
+        <div class="bar-chart">
+            {% for category, count in category_counts.items() %}
+            <div class="bar-row">
+                <span class="bar-label">{{ category }}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {{ (count / (category_counts.values()|list|first or 1) * 100)|int }}%"></div>
+                </div>
+                <span class="bar-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

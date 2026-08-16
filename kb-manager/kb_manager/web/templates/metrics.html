@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Metrics Summary - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Metrics Summary</h1>
+{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <a href="/monitoring" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ avg_chunks }}</div>
+        <div class="stat-label">Avg Chunks per Document</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_tokens }}</div>
+        <div class="stat-label">Total Tokens</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ avg_quality }}</div>
+        <div class="stat-label">Avg Quality Score</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ success_rate }}%</div>
+        <div class="stat-label">Job Success Rate</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Documents by Domain</h3>
+        <div class="bar-chart">
+            {% for domain, count in domain_counts.items() %}
+            <div class="bar-row">
+                <span class="bar-label">{{ domain }}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {{ (count / (domain_counts.values()|list|first or 1) * 100)|int }}%"></div>
+                </div>
+                <span class="bar-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3>Documents by Category</h3>
+        <div class="bar-chart">
+            {% for category, count in category_counts.items() %}
+            <div class="bar-row">
+                <span class="bar-label">{{ category }}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {{ (count / (category_counts.values()|list|first or 1) * 100)|int }}%"></div>
+                </div>
+                <span class="bar-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Job Statistics</h3>
+    <div class="detail-list">
+        <div class="detail-item">
+            <span class="detail-label">Total Jobs:</span>
+            <span class="detail-value">{{ total_jobs }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Successful Jobs:</span>
+            <span class="detail-value">{{ successful_jobs }}</span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Success Rate:</span>
+            <span class="detail-value">{{ success_rate }}%</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

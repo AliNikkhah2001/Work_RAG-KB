@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Chunks - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Chunk Management</h1>
+{% endblock %}
+
+{% block content %}
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Parent Document</th>
+                <th>Ordinal</th>
+                <th>Type</th>
+                <th>Heading Path</th>
+                <th>Token Count</th>
+                <th>Quality Score</th>
+                <th>Verified</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for chunk in chunks %}
+            <tr>
+                <td><code>{{ chunk.id[:8] }}...</code></td>
+                <td><a href="/documents/{{ chunk.document_id }}">{{ chunk.document_id[:8] }}...</a></td>
+                <td>{{ chunk.ordinal }}</td>
+                <td>{{ chunk.chunk_type }}</td>
+                <td>{{ chunk.heading_path or "-" }}</td>
+                <td>{{ chunk.token_count }}</td>
+                <td>{{ "%.2f"|format(chunk.quality_score) if chunk.quality_score else "-" }}</td>
+                <td>
+                    {% if chunk.is_verified %}
+                    <span class="badge badge-verified">Verified</span>
+                    {% else %}
+                    <span class="badge badge-draft">Unverified</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="pagination">
+    {% if page > 1 %}
+    <a href="?page={{ page - 1 }}" class="btn btn-secondary">Previous</a>
+    {% endif %}
+    <span class="page-info">Page {{ page }} of {{ total_pages }} (Total: {{ total }})</span>
+    {% if page < total_pages %}
+    <a href="?page={{ page + 1 }}" class="btn btn-secondary">Next</a>
+    {% endif %}
+</div>
+{% endblock %}

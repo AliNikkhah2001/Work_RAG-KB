@@ -1,0 +1,18 @@
+database:
+  host: localhost
+  port: 5432
+  name: kb_manager
+  user: postgres
+  password: postgres
+
+embedding:
+  model_name: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  dimensions: 384
+  batch_size: 64
+  device: cpu
+
+chunking:
+  strategy: semantic
+  max_tokens: 512
+  min_tokens: 100
+  overlap_tokens: 50

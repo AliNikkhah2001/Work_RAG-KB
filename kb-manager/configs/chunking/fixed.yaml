@@ -1,0 +1,4 @@
+strategy: fixed
+max_tokens: 512
+min_tokens: 100
+overlap_tokens: 50

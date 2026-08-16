@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Staleness Report - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Staleness Report</h1>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_docs }}</div>
+        <div class="stat-label">Total Documents</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ fresh_count }}</div>
+        <div class="stat-label">Fresh Documents</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stale_count }}</div>
+        <div class="stat-label">Stale Documents</div>
+    </div>
+</div>
+
+<div class="toolbar">
+    <a href="/monitoring" class="btn btn-secondary">Back</a>
+</div>
+
+<div class="card">
+    <h3>Stale Documents</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Domain</th>
+                    <th>Last Updated</th>
+                    <th>Content Hash</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in stale_documents %}
+                <tr>
+                    <td><a href="/documents/{{ doc.id }}">{{ doc.title }}</a></td>
+                    <td>{{ doc.domain }}</td>
+                    <td>{{ doc.updated_at }}</td>
+                    <td><code>{{ doc.content_hash[:16] if doc.content_hash else '-' }}{% if doc.content_hash %}...{% endif %}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

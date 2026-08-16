@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Monitoring - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Monitoring Dashboard</h1>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ doc_count }}</div>
+        <div class="stat-label">Total Documents</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ chunk_count }}</div>
+        <div class="stat-label">Total Chunks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ job_count }}</div>
+        <div class="stat-label">Total Jobs</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ retrieval_count }}</div>
+        <div class="stat-label">Retrieval Requests</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Documents by Status</h3>
+        <div class="bar-chart">
+            {% for status, count in status_counts.items() %}
+            <div class="bar-row">
+                <span class="bar-label">{{ status }}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: {{ (count / (status_counts.values()|list|first or 1) * 100)|int }}%"></div>
+                </div>
+                <span class="bar-value">{{ count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3>Chunk Verification Status</h3>
+        <div class="bar-chart">
+            <div class="bar-row">
+                <span class="bar-label">Verified</span>
+                <div class="bar-container">
+                    <div class="bar-fill bar-success" style="width: {{ (verified_count / (chunk_count or 1) * 100)|int }}%"></div>
+                </div>
+                <span class="bar-value">{{ verified_count }}</span>
+            </div>
+            <div class="bar-row">
+                <span class="bar-label">Unverified</span>
+                <div class="bar-container">
+                    <div class="bar-fill bar-warning" style="width: {{ (unverified_count / (chunk_count or 1) * 100)|int }}%"></div>
+                </div>
+                <span class="bar-value">{{ unverified_count }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toolbar">
+    <a href="/monitoring/staleness" class="btn btn-primary">Staleness Report</a>
+    <a href="/monitoring/metrics" class="btn btn-primary">Metrics Summary</a>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Version History - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Version History: {{ document.title }}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="toolbar">
+        <a href="/versions" class="btn btn-secondary">Back</a>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Content Hash</th>
+                    <th>Chunk Count</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in versions %}
+                <tr>
+                    <td>{{ v.version }}</td>
+                    <td><code>{{ v.content_hash[:16] }}...</code></td>
+                    <td>{{ v.chunk_count or '-' }}</td>
+                    <td>{{ v.created_at }}</td>
+                    <td>
+                        {% if v.version != document.version %}
+                        <form method="post" action="/versions/{{ document.id }}/rollback/{{ v.id }}" style="display:inline">
+                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Are you sure you want to rollback to this version?')">Rollback</button>
+                        </form>
+                        {% else %}
+                        <span class="badge badge-success">Current</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,6 @@
+Sheet names: ['Sheet2']
+('reason_code', 'model_name', 'model_id', 'brief_explanation', 'detailed_explanation', 'reason_text', 'improvement_suggestions', 'bin_score', 'bin_impact', 'feature_score', 'feature_impact', 'local_score', 'bin_details', 'keywords', 'feature_name', 'data_source', 'Category')
+(None, 'حقیقی_اصلی', 'ICS.Credit.I-V.2', None, None, None, None, -15.563, 'زیاد', 23.9, 'زیاد', None, '[-inf, 0.5)', None, 'aaReltiveAvgOutMainL6xL12M', 'CBS', None)
+(None, 'حقیقی_اصلی', 'ICS.Credit.I-V.2', None, None, None, None, -1.276, 'کم', 23.9, 'زیاد', None, '[0.5, 0.7)', None, 'aaReltiveAvgOutMainL6xL12M', 'CBS', None)
+(None, 'حقیقی_اصلی', 'ICS.Credit.I-V.2', None, None, None, None, 3.759, 'زیاد', 23.9, 'زیاد', None, '[0.7, 0.9)', None, 'aaReltiveAvgOutMainL6xL12M', 'CBS', None)
+(None, 'حقیقی_اصلی', 'ICS.Credit.I-V.2', None, None, None, None, 5.368, 'زیاد', 23.9, 'زیاد', None, '[0.9, 0.95)', None, 'aaReltiveAvgOutMainL6xL12M', 'CBS', None)

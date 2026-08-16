@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Versions - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Version Management</h1>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3>Versioned Documents</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Domain</th>
+                    <th>Current Version</th>
+                    <th>Version Count</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td>{{ doc.title }}</td>
+                    <td>{{ doc.domain }}</td>
+                    <td>{{ doc.version }}</td>
+                    <td>{{ doc.versions|length }}</td>
+                    <td>
+                        <a href="/versions/{{ doc.id }}" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

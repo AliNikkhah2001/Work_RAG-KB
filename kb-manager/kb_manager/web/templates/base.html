@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}KB Manager{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>KB Manager</h2>
+                <p class="subtitle">Knowledge Base Management System</p>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Dashboard</a></li>
+                <li><a href="/documents" class="nav-link {% if '/documents' in request.url.path %}active{% endif %}">Documents</a></li>
+                <li><a href="/chunks" class="nav-link {% if '/chunks' in request.url.path %}active{% endif %}">Chunks</a></li>
+                <li><a href="/pipeline" class="nav-link {% if '/pipeline' in request.url.path %}active{% endif %}">Pipeline</a></li>
+                <li><a href="/versions" class="nav-link {% if '/versions' in request.url.path %}active{% endif %}">Versions</a></li>
+                <li><a href="/monitoring" class="nav-link {% if '/monitoring' in request.url.path %}active{% endif %}">Monitoring</a></li>
+                <li><a href="/search" class="nav-link {% if '/search' in request.url.path %}active{% endif %}">Search</a></li>
+            </ul>
+        </nav>
+        <main class="main-content">
+            <header class="content-header">
+                {% block header %}{% endblock %}
+            </header>
+            <div class="content-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>
