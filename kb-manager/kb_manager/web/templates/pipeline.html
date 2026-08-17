@@ -9,6 +9,10 @@
 <div class="toolbar">
     <div class="pipeline-actions">
         <form method="post" action="/pipeline/run" style="display:inline">
+            <select name="parent_scope">
+                <option value="sheet" {% if chunking_config.parent_scope == "sheet" %}selected{% endif %}>Parent: per sheet</option>
+                <option value="document" {% if chunking_config.parent_scope == "document" %}selected{% endif %}>Parent: per document</option>
+            </select>
             <input type="hidden" name="job_type" value="full">
             <button type="submit" class="btn btn-warning">Full Rebuild</button>
         </form>
@@ -16,6 +20,7 @@
             <input type="hidden" name="job_type" value="incremental">
             <button type="submit" class="btn btn-primary">Incremental</button>
         </form>
+        <span class="muted">Chunking: {{ chunking_config.strategy }}, max {{ chunking_config.max_tokens }} tok, parent scope {{ chunking_config.parent_scope }}</span>
     </div>
 </div>
 
