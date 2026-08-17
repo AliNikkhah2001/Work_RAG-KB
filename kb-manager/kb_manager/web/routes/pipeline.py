@@ -17,6 +17,9 @@ router = APIRouter()
 @router.get("")
 async def pipeline_status(request: Request):
     """Show pipeline status page with run history."""
+    from kb_manager.config import load_config
+
+    config = load_config()
     async with db.session() as session:
         result = await session.execute(
             select(IngestionJob).order_by(IngestionJob.created_at.desc()).limit(50)
@@ -38,18 +41,26 @@ async def pipeline_status(request: Request):
         {
             "jobs": jobs,
             "current_job": current_job,
+            "chunking_config": config.chunking,
         },
     )
 
 
 @router.post("/run")
-async def run_pipeline(request: Request, job_type: str = Form("incremental")):
+async def run_pipeline(
+    request: Request,
+    job_type: str = Form("incremental"),
+    parent_scope: str = Form("sheet"),
+):
     """Trigger a pipeline run."""
+    if parent_scope not in ("sheet", "document"):
+        parent_scope = "sheet"
     async with db.session() as session:
         job = IngestionJob(
             job_type=job_type,
             status="pending",
             started_at=datetime.now(UTC),
+            error_log=f"parent_scope={parent_scope}",
         )
         session.add(job)
 

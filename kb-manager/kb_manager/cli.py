@@ -25,11 +25,27 @@ def main() -> None:
 @click.option("--source-dir", "-s", type=click.Path(exists=True), help="Source directory")
 @click.option("--full", is_flag=True, help="Full rebuild (ignore changes)")
 @click.option("--model", "-m", default=None, help="Embedding model name")
-def ingest(source_dir: str | None, full: bool, model: str | None) -> None:
+@click.option(
+    "--parent-scope",
+    type=click.Choice(["sheet", "document"], case_sensitive=False),
+    default=None,
+    help="Parent chunk scope: one parent per sheet or per document (default: config)",
+)
+def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: str | None) -> None:
     """Ingest documents into the knowledge base."""
     config = load_config()
     if source_dir:
         config = type(config)(**{**config.__dict__, "source_dir": source_dir})
+    if parent_scope:
+        old_chunking = config.chunking
+        config = type(config)(
+            **{
+                **config.__dict__,
+                "chunking": type(old_chunking)(
+                    **{**old_chunking.__dict__, "parent_scope": parent_scope.lower()}
+                ),
+            }
+        )
 
     console.print("[bold blue]Starting ingestion pipeline...[/]")
 
@@ -49,7 +65,14 @@ def ingest(source_dir: str | None, full: bool, model: str | None) -> None:
 
                 parser = get_parser
                 preprocessor = PreprocessingPipeline()
-                chunker = get_chunker(config.chunking.strategy)
+                chunker = get_chunker(
+                    config.chunking.strategy,
+                    max_tokens=config.chunking.max_tokens,
+                    min_tokens=config.chunking.min_tokens,
+                    overlap_tokens=config.chunking.overlap_tokens,
+                    parent_scope=config.chunking.parent_scope,
+                    parent_max_tokens=config.chunking.parent_max_tokens,
+                )
                 embedder = get_embedder(
                     "sentence_transformer",
                     model_name=model or config.embedding.model_name,

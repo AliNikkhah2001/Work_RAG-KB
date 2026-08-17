@@ -306,6 +306,8 @@ class PipelineOrchestrator:
                 "document_id": doc.id,
                 "doc_type": doc_type,
                 "sheets": parsed.sheets,
+                "parent_scope": getattr(self._chunker, "parent_scope", "sheet"),
+                "parent_max_tokens": getattr(self._chunker, "parent_max_tokens", 1536),
             },
         )
 
@@ -335,14 +337,14 @@ class PipelineOrchestrator:
         # --- Store chunks ---
         # First pass: store all chunks and build parent ID map
         chunk_id_map: dict[int, str] = {}  # ordinal → db_chunk.id
-        parent_id_map: dict[str, str] = {}  # sheet_name → parent_chunk.id
+        parent_id_map: dict[str, str] = {}  # parent_key → parent_chunk.id
         
         all_chunks_to_store = []
         
         for chunk in chunks:
             # Check if this is a parent chunk
             is_parent = chunk.metadata.get("is_parent", False)
-            sheet_name = chunk.metadata.get("sheet_name", "")
+            parent_key = chunk.metadata.get("parent_key", chunk.metadata.get("sheet_name", ""))
             
             if is_parent:
                 # Store parent first
@@ -358,10 +360,10 @@ class PipelineOrchestrator:
                     doc_metadata=chunk.metadata,
                 )
                 all_chunks_to_store.append(db_chunk)
-                parent_id_map[sheet_name] = None  # placeholder, will update after flush
+                parent_id_map[parent_key] = None  # placeholder, will update after flush
             else:
                 # Store child, will set parent_id later
-                parent_id = parent_id_map.get(sheet_name)
+                parent_id = parent_id_map.get(parent_key)
                 db_chunk = DBChunk(
                     document_id=doc.id,
                     parent_id=parent_id,  # will be None initially, update later
@@ -386,7 +388,7 @@ class PipelineOrchestrator:
         # Build the parent_id_map with actual IDs
         for chunk in chunks:
             if chunk.metadata.get("is_parent", False):
-                sheet_name = chunk.metadata.get("sheet_name", "")
+                parent_key = chunk.metadata.get("parent_key", chunk.metadata.get("sheet_name", ""))
                 # Find the DB chunk we just stored
                 cur_parent_id = None
                 for db_chunk in all_chunks_to_store:
@@ -394,13 +396,13 @@ class PipelineOrchestrator:
                         cur_parent_id = db_chunk.id
                         break
                 if cur_parent_id:
-                    parent_id_map[sheet_name] = cur_parent_id
+                    parent_id_map[parent_key] = cur_parent_id
         
         # Update children with parent_id
         for chunk in chunks:
             if not chunk.metadata.get("is_parent", False):
-                sheet_name = chunk.metadata.get("sheet_name", "")
-                parent_id = parent_id_map.get(sheet_name)
+                parent_key = chunk.metadata.get("parent_key", chunk.metadata.get("sheet_name", ""))
+                parent_id = parent_id_map.get(parent_key)
                 if parent_id:
                     # Find the child DB chunk and update parent_id
                     for db_chunk in all_chunks_to_store:
