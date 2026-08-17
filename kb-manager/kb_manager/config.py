@@ -69,10 +69,16 @@ class ChunkingConfig:
 
 
 @dataclass(frozen=True)
+class ParserConfig:
+    xlsx_engine: str = "auto"  # "auto" | "openpyxl" | "calamine"
+
+
+@dataclass(frozen=True)
 class AppConfig:
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
+    parser: ParserConfig = field(default_factory=ParserConfig)
     source_dir: str = str(PROJECT_ROOT / "data")
     output_dir: str = str(PROJECT_ROOT / "data" / "processed")
     web_host: str = "0.0.0.0"
@@ -105,6 +111,9 @@ def load_config() -> AppConfig:
             max_tokens=int(os.getenv("KB_CHUNK_MAX", "512")),
             parent_max_tokens=int(os.getenv("KB_CHUNK_PARENT_MAX", "1536")),
             parent_scope=os.getenv("KB_CHUNK_PARENT_SCOPE", "sheet"),
+        ),
+        parser=ParserConfig(
+            xlsx_engine=os.getenv("KB_XLSX_ENGINE", "auto"),
         ),
         source_dir=os.getenv("KB_SOURCE_DIR", str(PROJECT_ROOT / "data")),
         output_dir=os.getenv("KB_OUTPUT_DIR", str(PROJECT_ROOT / "data" / "processed")),

@@ -211,7 +211,11 @@ class PipelineOrchestrator:
 
         files: list[str] = []
         for path in root.rglob("*"):
-            if path.is_file() and path.suffix.lower() in self._SUPPORTED_EXTENSIONS:
+            if not path.is_file():
+                continue
+            if path.name.startswith("~$"):
+                continue  # Microsoft Office temporary lock files
+            if path.suffix.lower() in self._SUPPORTED_EXTENSIONS:
                 files.append(str(path.resolve()))
         files.sort()
         return files

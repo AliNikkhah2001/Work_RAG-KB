@@ -1,3 +1,0 @@
-Total queries: 800
-First query: استانداردهای کدگذاری نوع شرکت، جنسیت و وضعیت تاهل چیست؟
-Expected chunk: 504bb823-4cdd-4266-9e0d-08d56bd4a14c
