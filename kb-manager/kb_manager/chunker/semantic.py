@@ -70,10 +70,14 @@ class SemanticChunker(BaseChunker):
         max_tokens: int = 512,
         min_tokens: int = 64,
         overlap_tokens: int = _OVERLAP_TOKENS,
+        parent_scope: str = "sheet",
+        parent_max_tokens: int = 1536,
     ) -> None:
         self.max_tokens = max_tokens
         self.min_tokens = min_tokens
         self.overlap_tokens = overlap_tokens
+        self.parent_scope = parent_scope
+        self.parent_max_tokens = parent_max_tokens
 
     # ------------------------------------------------------------------
     # Public API
@@ -146,22 +150,35 @@ class SemanticChunker(BaseChunker):
 
         Each row becomes a single chunk.  For ``qa_pair`` rows, the content
         is formatted with Persian field names and newlines.  Incomplete rows
-        (missing answer) are skipped with a warning.
+        (missing question or answer) are skipped with a warning.
 
-        Returns both child chunks and parent chunks (aggregated per sheet
-        or per document depending on configuration).
+        Parent chunks aggregate child chunks.  The ``parent_scope`` metadata
+        key (falling back to the constructor default) selects:
+        * ``"sheet"`` - one parent per worksheet.
+        * ``"document"`` - one parent per document (all sheets combined).
+
+        Children are linked to their parent via the ``parent_key`` metadata
+        field (the sheet name for ``"sheet"`` scope, ``"document"`` otherwise).
+
+        Returns both child and parent chunks.
         """
         chunks: list[Chunk] = []
         parent_chunks: list[Chunk] = []
         ordinal = 0
         skipped_incomplete = 0
+        parent_scope = metadata.get("parent_scope") or self.parent_scope
+        if parent_scope not in ("sheet", "document"):
+            parent_scope = "sheet"
+
+        # Track per-sheet child groups so parents can be built for either scope.
+        sheet_groups: list[tuple[str, str, list[Chunk]]] = []
 
         for sheet in sheets:
             headers = sheet.get("headers", [])
             rows = sheet.get("rows", [])
             sheet_name = sheet.get("name", "")
             schema = sheet.get("schema", "")
-            child_texts: list[str] = []
+            sheet_children: list[Chunk] = []
 
             for row in rows:
                 # Build field map
@@ -218,12 +235,48 @@ class SemanticChunker(BaseChunker):
                     },
                 )
                 chunks.append(chunk)
-                child_texts.append(content)
+                sheet_children.append(chunk)
                 ordinal += 1
 
-            # --- Phase 3: Create parent chunk per sheet ---
-            if child_texts:
-                parent_content = "\n\n".join(child_texts)
+            sheet_groups.append((sheet_name, schema, sheet_children))
+
+        if skipped_incomplete:
+            import logging
+            logging.getLogger(__name__).warning(
+                "Skipped %d incomplete QA rows (missing question or answer)",
+                skipped_incomplete,
+            )
+
+        # --- Phase 3: Create parent chunks per configured scope ---
+        if parent_scope == "document":
+            all_children: list[Chunk] = []
+            for _, _, sheet_children in sheet_groups:
+                all_children.extend(sheet_children)
+            if all_children:
+                parent_content = "\n\n".join(c.content for c in all_children)
+                parent_chunk = Chunk(
+                    content=parent_content,
+                    ordinal=0,
+                    chunk_type=f"{doc_type}_parent",
+                    heading_path="",
+                    keywords=[],
+                    token_count=_estimate_tokens(parent_content),
+                    metadata={
+                        **metadata,
+                        "is_parent": True,
+                        "parent_scope": "document",
+                        "parent_key": "document",
+                        "child_count": len(all_children),
+                    },
+                )
+                parent_chunks.append(parent_chunk)
+                for child in all_children:
+                    child.metadata["parent_key"] = "document"
+        else:
+            for sheet_name, schema, sheet_children in sheet_groups:
+                if not sheet_children:
+                    continue
+                parent_content = "\n\n".join(c.content for c in sheet_children)
                 parent_chunk = Chunk(
                     content=parent_content,
                     ordinal=0,
@@ -236,14 +289,16 @@ class SemanticChunker(BaseChunker):
                         "sheet_name": sheet_name,
                         "schema": schema,
                         "is_parent": True,
-                        "child_count": len(child_texts),
+                        "parent_scope": "sheet",
+                        "parent_key": sheet_name,
+                        "child_count": len(sheet_children),
                     },
                 )
                 parent_chunks.append(parent_chunk)
 
                 # Link children to this parent
-                for child in chunks[-len(child_texts):]:
-                    child.metadata["parent_sheet"] = sheet_name
+                for child in sheet_children:
+                    child.metadata["parent_key"] = sheet_name
 
         if skipped_incomplete:
             import logging
@@ -254,8 +309,8 @@ class SemanticChunker(BaseChunker):
 
         # Return both child and parent chunks
         all_chunks = chunks + parent_chunks
-        return self._apply_overlap(chunks)
-    
+        return self._apply_overlap(all_chunks)
+
     def _apply_overlap(self, chunks: list[Chunk]) -> list[Chunk]:
         """Apply overlap between consecutive chunks.
         
@@ -440,28 +495,6 @@ class SemanticChunker(BaseChunker):
             )
             chunks.append(chunk)
         return self._apply_overlap(chunks)
-
-    def _apply_overlap(self, chunks: list[Chunk]) -> list[Chunk]:
-        if self.overlap_tokens <= 0 or len(chunks) < 2:
-            return chunks
-
-        enriched: list[Chunk] = [chunks[0]]
-        for i in range(1, len(chunks)):
-            prev_words = chunks[i - 1].content.split()
-            overlap_word_count = max(1, self.overlap_tokens // 2)
-            overlap_text = " ".join(prev_words[-overlap_word_count:])
-            new_content = f"...\u200c{overlap_text}\u200c...\n{chunks[i].content}"
-            enriched.append(
-                Chunk(
-                    content=new_content,
-                    ordinal=chunks[i].ordinal,
-                    chunk_type=chunks[i].chunk_type,
-                    heading_path=chunks[i].heading_path,
-                    keywords=list(chunks[i].keywords),
-                    metadata=dict(chunks[i].metadata),
-                )
-            )
-        return enriched
 
 
 # ======================================================================

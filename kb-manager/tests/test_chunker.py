@@ -99,6 +99,7 @@ class TestContentFormat:
         headers: list[str],
         row: list[str],
         schema: str = "crm_qa",
+        doc_type: str = "qa_pair",
     ) -> str:
         sheets = [
             {
@@ -110,7 +111,7 @@ class TestContentFormat:
         ]
         chunks = chunker.chunk(
             "",
-            metadata={"doc_type": "qa_pair", "sheets": sheets},
+            metadata={"doc_type": doc_type, "sheets": sheets},
         )
         children = [c for c in chunks if not c.metadata.get("is_parent", False)]
         assert children
@@ -141,6 +142,7 @@ class TestContentFormat:
             ["reason_code", "model", "detailed_explanation"],
             ["RC1", "M1", "توضیح کامل"],
             schema="reason_code",
+            doc_type="reason_detail",
         )
         assert "کد دلیل" in content
         assert "مدل" in content
@@ -154,6 +156,79 @@ class TestContentFormat:
         )
         assert "custom_field" in content
         assert "مقدار سفارشی" in content
+
+
+class TestParentScope:
+    """Parent chunks aggregate children per-sheet or per-document."""
+
+    @staticmethod
+    def _sheets() -> list[dict]:
+        return [
+            {
+                "name": "s1",
+                "schema": "crm_qa",
+                "headers": ["question", "answer"],
+                "rows": [["q1", "a1"], ["q2", "a2"]],
+            },
+            {
+                "name": "s2",
+                "schema": "crm_qa",
+                "headers": ["question", "answer"],
+                "rows": [["q3", "a3"]],
+            },
+        ]
+
+    @staticmethod
+    def _children(chunks):
+        return [c for c in chunks if not c.metadata.get("is_parent", False)]
+
+    @staticmethod
+    def _parents(chunks):
+        return [c for c in chunks if c.metadata.get("is_parent", False)]
+
+    def test_sheet_scope_one_parent_per_sheet(self, chunker: SemanticChunker):
+        chunker.parent_scope = "sheet"
+        chunks = chunker.chunk("", metadata={"doc_type": "qa_pair", "sheets": self._sheets()})
+        parents = self._parents(chunks)
+        children = self._children(chunks)
+
+        assert len(parents) == 2
+        assert {p.metadata["parent_key"] for p in parents} == {"s1", "s2"}
+        assert len(children) == 3
+        # Each child links to its sheet's parent key.
+        assert {c.metadata["parent_key"] for c in children} == {"s1", "s2"}
+
+    def test_document_scope_one_parent_for_document(self, chunker: SemanticChunker):
+        chunker.parent_scope = "document"
+        chunks = chunker.chunk("", metadata={"doc_type": "qa_pair", "sheets": self._sheets()})
+        parents = self._parents(chunks)
+        children = self._children(chunks)
+
+        assert len(parents) == 1
+        assert parents[0].metadata["parent_key"] == "document"
+        assert len(children) == 3
+        # Every child is linked to the single document parent.
+        assert all(c.metadata["parent_key"] == "document" for c in children)
+
+    def test_parent_scope_from_metadata_overrides(self, chunker: SemanticChunker):
+        chunker.parent_scope = "sheet"
+        chunks = chunker.chunk(
+            "",
+            metadata={"doc_type": "qa_pair", "sheets": self._sheets(), "parent_scope": "document"},
+        )
+        parents = self._parents(chunks)
+        assert len(parents) == 1
+        assert parents[0].metadata["parent_key"] == "document"
+
+    def test_parent_chunks_aggregate_child_content(self, chunker: SemanticChunker):
+        chunker.parent_scope = "sheet"
+        chunker.overlap_tokens = 0
+        chunks = chunker.chunk("", metadata={"doc_type": "qa_pair", "sheets": self._sheets()})
+        parents = self._parents(chunks)
+        s1_parent = next(p for p in parents if p.metadata["parent_key"] == "s1")
+        assert "q1" in s1_parent.content
+        assert "q2" in s1_parent.content
+        assert "q3" not in s1_parent.content
 
 
 class TestFixedChunker:
