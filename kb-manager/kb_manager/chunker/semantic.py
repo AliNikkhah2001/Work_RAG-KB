@@ -180,7 +180,10 @@ class SemanticChunker(BaseChunker):
                         k in fields
                         for k in ("answer", "briefanswer", "brief_answer")
                     )
-                    if has_question and not has_answer:
+                    # A QA row is incomplete if it is missing the question or
+                    # the answer.  Such rows are skipped (never serve a user),
+                    # and a warning is logged with the count.
+                    if not has_question or not has_answer:
                         skipped_incomplete += 1
                         continue
 
