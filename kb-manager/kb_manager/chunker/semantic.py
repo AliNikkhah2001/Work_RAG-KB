@@ -72,12 +72,46 @@ class SemanticChunker(BaseChunker):
         overlap_tokens: int = _OVERLAP_TOKENS,
         parent_scope: str = "sheet",
         parent_max_tokens: int = 1536,
+        dedup_questions: bool = False,
     ) -> None:
         self.max_tokens = max_tokens
         self.min_tokens = min_tokens
         self.overlap_tokens = overlap_tokens
         self.parent_scope = parent_scope
         self.parent_max_tokens = parent_max_tokens
+        self.dedup_questions = dedup_questions
+        self._seen_questions: set[str] = set()
+        self._dedup_skipped = 0
+        self._qa_kept = 0
+
+    def reset_dedup(self) -> None:
+        """Forget seen questions and reset dedup counters (start of a rebuild)."""
+        self._seen_questions.clear()
+        self._dedup_skipped = 0
+        self._qa_kept = 0
+
+    def dedup_stats(self) -> dict[str, int | bool]:
+        """Return cumulative QA dedup counters across all chunk() calls."""
+        return {
+            "enabled": self.dedup_questions,
+            "qa_rows_kept": self._qa_kept,
+            "duplicates_skipped": self._dedup_skipped,
+            "distinct_questions": len(self._seen_questions),
+        }
+
+    @staticmethod
+    def _normalize_question(q: str) -> str:
+        """Normalize a question so near-identical Persian phrasings collapse."""
+        s = (
+            q.strip()
+            .replace("\u064a", "\u06cc")  # Arabic yeh -> Persian yeh
+            .replace("\u0643", "\u06a9")  # Arabic kaf -> Persian kaf
+            .replace("\u0671", "\u0627")  # alif wasla -> alef
+            .replace("\u200c", " ")  # ZWNJ -> space
+            .replace("؟", "")
+            .replace("?", "")
+        )
+        return re.sub(r"\s+", " ", s).strip()
 
     # ------------------------------------------------------------------
     # Public API
@@ -207,6 +241,16 @@ class SemanticChunker(BaseChunker):
                 if not fields:
                     continue
 
+                # --- Phase 1b: Deduplicate QA rows by normalized question text ---
+                if doc_type == "qa_pair" and self.dedup_questions:
+                    norm_q = self._normalize_question(fields.get("question", ""))
+                    if not norm_q:
+                        continue
+                    if norm_q in self._seen_questions:
+                        self._dedup_skipped += 1
+                        continue
+                    self._seen_questions.add(norm_q)
+
                 # --- Phase 2: Structured format with Persian field names ---
                 if doc_type in ("qa_pair", "reason_detail"):
                     content = self._format_qa_content(fields, schema)
@@ -236,6 +280,8 @@ class SemanticChunker(BaseChunker):
                 )
                 chunks.append(chunk)
                 sheet_children.append(chunk)
+                if doc_type == "qa_pair":
+                    self._qa_kept += 1
                 ordinal += 1
 
             sheet_groups.append((sheet_name, schema, sheet_children))

@@ -1,10 +1,10 @@
 {
   "documents": 355,
-  "chunks_total": 8291,
-  "qa_chunks": 3088,
-  "body_chunks": 5203,
-  "distinct_questions": 977,
-  "duplicate_instances": 2111,
-  "questions_with_gt1_copies": 820,
-  "questions_with_gt5_copies": 137
+  "chunks_total": 6208,
+  "qa_chunks": 974,
+  "body_chunks": 5234,
+  "distinct_questions": 974,
+  "duplicate_instances": 0,
+  "questions_with_gt1_copies": 0,
+  "questions_with_gt5_copies": 0
 }

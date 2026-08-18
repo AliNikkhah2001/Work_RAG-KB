@@ -66,6 +66,7 @@ class ChunkingConfig:
     overlap_tokens: int = 50
     parent_max_tokens: int = 1536
     parent_scope: str = "sheet"  # "sheet" or "document"
+    dedup_questions: bool = False  # keep one canonical chunk per normalized question
 
 
 @dataclass(frozen=True)
@@ -124,6 +125,7 @@ def load_config() -> AppConfig:
             max_tokens=int(os.getenv("KB_CHUNK_MAX", "512")),
             parent_max_tokens=int(os.getenv("KB_CHUNK_PARENT_MAX", "1536")),
             parent_scope=os.getenv("KB_CHUNK_PARENT_SCOPE", "sheet"),
+            dedup_questions=os.getenv("KB_CHUNK_DEDUP_QUESTIONS", "false").lower() == "true",
         ),
         parser=ParserConfig(
             xlsx_engine=os.getenv("KB_XLSX_ENGINE", "auto"),

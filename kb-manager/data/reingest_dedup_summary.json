@@ -1,0 +1,91 @@
+{
+  "combined": {
+    "documents_processed": 371,
+    "documents_created": 355,
+    "chunks_created": 6208,
+    "documents_failed": 16,
+    "errors": [
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\آرشیو\\سوالات پیشنهادی.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\آرشیو\\نمونه سوال واحد کسب و کار.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\آیین نامه‌ها\\قانون بانک مرکزی جمهوری اسلامی ایران.pdf",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\اطلاعات شرکت\\آرشیو\\Empyoees.docx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\سوالات پیشنهادی.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\لیست API محصول\\لیستAPI.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\مفاهیم پایه اعتبارسنجی\\آرشیو\\PublicQuesions_Individual.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\مفاهیم پایه اعتبارسنجی\\آرشیو\\PublicQuestions_Cheque.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\مفاهیم پایه اعتبارسنجی\\آرشیو\\PublicQuestions_Company.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\مفاهیم پایه اعتبارسنجی\\آرشیو\\پرسش و پاسخ تامین کنندگان.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\واژه های معادل یا متفاوت\\واژه های معادل یا متفاوت.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\پرسش و پاسخ تامین کنندگان\\آرشیو\\پرسش و پاسخ مربوط به دیتا و تامین کنندگان-کامنت واحد داده.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\پرسش و پاسخ تامین کنندگان\\آرشیو\\پرسش و پاسخ مربوط به دیتا و تامین کنندگان.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\extracted_new\\31Tir1405\\‫دریافت API\\آرشیو\\دسترسیAPI.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\1405-05-20\\UserStory\\UserStory.xlsx",
+        "error": "Processing failed (see logs for details)"
+      },
+      {
+        "file": "C:\\Users\\10225\\Downloads\\KB\\1405-05-20\\اهمیت متوسط\\لیست API محصول\\لیستAPI.xlsx",
+        "error": "Processing failed (see logs for details)"
+      }
+    ],
+    "elapsed_seconds": 206.8
+  },
+  "dedup": {
+    "enabled": true,
+    "qa_rows_kept": 974,
+    "duplicates_skipped": 2114,
+    "distinct_questions": 974
+  },
+  "counts": {
+    "documents": 355,
+    "chunks_total": 6208,
+    "qa_chunks": 974,
+    "body_chunks": 5234,
+    "distinct_questions": 974,
+    "duplicate_instances": 0,
+    "questions_with_gt1_copies": 0,
+    "questions_with_gt5_copies": 0
+  }
+}
