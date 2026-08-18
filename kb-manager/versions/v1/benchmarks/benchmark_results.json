@@ -1,0 +1,2466 @@
+{
+  "version": "live-kb",
+  "created_at": "2026-08-18T11:45:19.984465+00:00",
+  "top_k": 5,
+  "total_queries": 120,
+  "by_format": {
+    "conversational": {
+      "queries": 20,
+      "hit_rate": 0.75,
+      "top1_hit_rate": 0.05,
+      "mrr": 0.295,
+      "avg_rank": 3.0,
+      "avg_latency_ms": 2200.1
+    },
+    "keyword_only": {
+      "queries": 20,
+      "hit_rate": 0.15,
+      "top1_hit_rate": 0.0,
+      "mrr": 0.0367,
+      "avg_rank": 4.33,
+      "avg_latency_ms": 2124.9
+    },
+    "paraphrase": {
+      "queries": 20,
+      "hit_rate": 0.75,
+      "top1_hit_rate": 0.05,
+      "mrr": 0.2892,
+      "avg_rank": 3.0,
+      "avg_latency_ms": 2178.2
+    },
+    "reworded": {
+      "queries": 20,
+      "hit_rate": 0.65,
+      "top1_hit_rate": 0.1,
+      "mrr": 0.3083,
+      "avg_rank": 2.54,
+      "avg_latency_ms": 2156.3
+    },
+    "typo": {
+      "queries": 20,
+      "hit_rate": 0.9,
+      "top1_hit_rate": 0.05,
+      "mrr": 0.3408,
+      "avg_rank": 3.0,
+      "avg_latency_ms": 2128.0
+    },
+    "verbatim": {
+      "queries": 20,
+      "hit_rate": 0.9,
+      "top1_hit_rate": 0.05,
+      "mrr": 0.3233,
+      "avg_rank": 3.28,
+      "avg_latency_ms": 4519.4
+    }
+  },
+  "overall": {
+    "queries": 120,
+    "hit_rate": 0.6833,
+    "top1_hit_rate": 0.05,
+    "mrr": 0.2656,
+    "avg_rank": 3.04,
+    "avg_latency_ms": 2551.2
+  },
+  "queries": [
+    {
+      "query": "در طول ماه جاری تسهیلاتی را خاتمه داده‌ام. چه زمانی این موضوع در گزارش اعتبارسنجی اعمال می‌گردد",
+      "expected_ids": [
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.895,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 49480.1,
+      "retrieved_ids": [
+        "a9cafdfe-55f8-44e5-aefd-e399ea916e93",
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657",
+        "f2576b82-db20-4693-bd3a-330445ea2acb",
+        "c171f470-528f-40d4-beb7-7098648b04a9",
+        "5d97ca22-b1e7-4e85-92f0-388ce6b4a0ef"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که در طول ماه جاری تسهیلاتی را خاتمه داده‌ام. چه زمانی این موضوع در خروجی اعتبارسنجی اعمال می‌گردد؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.586,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2480.0,
+      "retrieved_ids": [
+        "a9cafdfe-55f8-44e5-aefd-e399ea916e93",
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657",
+        "f2576b82-db20-4693-bd3a-330445ea2acb",
+        "c171f470-528f-40d4-beb7-7098648b04a9",
+        "5d97ca22-b1e7-4e85-92f0-388ce6b4a0ef"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید همان‌طور که اشاره شد طول اعتبارسنجی تسهیلاتی را خاتمه داده‌ام. چه جاری خروجی می‌گردد؟؟",
+      "expected_ids": [
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.37,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2345.3,
+      "retrieved_ids": [
+        "a9cafdfe-55f8-44e5-aefd-e399ea916e93",
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657",
+        "f2576b82-db20-4693-bd3a-330445ea2acb",
+        "1da9fb4c-15a8-4b09-b35c-e9862a74be04",
+        "b42dc341-7e97-4fb6-a06c-6d9ce7d88216"
+      ]
+    },
+    {
+      "query": "بازه زمانی تسویه مدل: حقیقی‌...",
+      "expected_ids": [
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.045,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2193.7,
+      "retrieved_ids": [
+        "0bbe1321-1e46-4033-a93b-23dcd91bd2d9",
+        "0e2a1373-b8b9-4183-ba45-460ceacc649b",
+        "75bedaf6-1449-41ed-909a-31d47aad053a",
+        "cd6446ca-7da6-421f-87f7-587e14331127",
+        "a6adf10f-158f-4e02-b96d-2c6f724f5edf"
+      ]
+    },
+    {
+      "query": "در طول ماه جاری تسهیلاتی را خاتمه دادهام. چه زمانی این موضوع در گزارش اعتبارسنجی اعمال می‌گردد؟",
+      "expected_ids": [
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.842,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 1995.6,
+      "retrieved_ids": [
+        "a9cafdfe-55f8-44e5-aefd-e399ea916e93",
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657",
+        "f2576b82-db20-4693-bd3a-330445ea2acb",
+        "c171f470-528f-40d4-beb7-7098648b04a9",
+        "5d97ca22-b1e7-4e85-92f0-388ce6b4a0ef"
+      ]
+    },
+    {
+      "query": "راستی، در طول ماه جاری تسهیلاتی را خاتمه داده‌ام. چه زمانی این موضوع در گزارش اعتبارسنجی اعمال می‌گردد . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.708,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2153.8,
+      "retrieved_ids": [
+        "a9cafdfe-55f8-44e5-aefd-e399ea916e93",
+        "4ab8b0ed-5673-45bc-94db-b40f8a974657",
+        "f2576b82-db20-4693-bd3a-330445ea2acb",
+        "c171f470-528f-40d4-beb7-7098648b04a9",
+        "5d97ca22-b1e7-4e85-92f0-388ce6b4a0ef"
+      ]
+    },
+    {
+      "query": "دسترسی شرکت‌های فناوری مالی به داده‌ها چگونه امکان‌پذیر است",
+      "expected_ids": [
+        "630a2e7c-24a7-40a8-ba01-734a4d744080"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.846,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1917.9,
+      "retrieved_ids": [
+        "0aa2f3ab-59f5-4b95-8b3f-fb8980b24a3f",
+        "4e3a0483-78fd-4118-9dfa-3e5718723f28",
+        "630a2e7c-24a7-40a8-ba01-734a4d744080",
+        "79e6d288-fde2-414a-9512-087b0236d7f0",
+        "bc920f11-4db3-4146-b102-cf5ff6e22134"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که ورود شرکت‌های فناوری مالی به داده‌ها چگونه امکان‌پذیر است؟؟",
+      "expected_ids": [
+        "630a2e7c-24a7-40a8-ba01-734a4d744080"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.526,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2039.7,
+      "retrieved_ids": [
+        "0aa2f3ab-59f5-4b95-8b3f-fb8980b24a3f",
+        "4e3a0483-78fd-4118-9dfa-3e5718723f28",
+        "630a2e7c-24a7-40a8-ba01-734a4d744080",
+        "7f394d5e-965c-445a-9178-a06c0d010513",
+        "adfea0bb-feba-4769-9322-66fdaa144421"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم در این بخش ورود فناوری به شرکت‌های چگونه است؟؟",
+      "expected_ids": [
+        "630a2e7c-24a7-40a8-ba01-734a4d744080"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.25,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1869.7,
+      "retrieved_ids": [
+        "0aa2f3ab-59f5-4b95-8b3f-fb8980b24a3f",
+        "4e3a0483-78fd-4118-9dfa-3e5718723f28",
+        "630a2e7c-24a7-40a8-ba01-734a4d744080",
+        "7f394d5e-965c-445a-9178-a06c0d010513",
+        "adfea0bb-feba-4769-9322-66fdaa144421"
+      ]
+    },
+    {
+      "query": "اعتراض اطلاعات پایگاه داده داده اعتباری آیین‌نامه مدیریت داده‌ها",
+      "expected_ids": [
+        "630a2e7c-24a7-40a8-ba01-734a4d744080"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.105,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 1957.6,
+      "retrieved_ids": [
+        "acbdc937-3768-4855-a545-699b4c021965",
+        "288022d1-f1c8-4b7f-9f8e-4b567f1b4e10",
+        "b913e0d6-06eb-49ff-92ea-5ad56545ccdd",
+        "bee8b63f-2940-4f97-ab25-f74ad98c3e59",
+        "3824bd50-a797-436c-88de-7ccca1faeff6"
+      ]
+    },
+    {
+      "query": "دسترسی شرکتهای فناوری مالی به داده‌ها چگونه امکان‌پذیر است؟",
+      "expected_ids": [
+        "630a2e7c-24a7-40a8-ba01-734a4d744080"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.769,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1754.8,
+      "retrieved_ids": [
+        "0aa2f3ab-59f5-4b95-8b3f-fb8980b24a3f",
+        "4e3a0483-78fd-4118-9dfa-3e5718723f28",
+        "630a2e7c-24a7-40a8-ba01-734a4d744080",
+        "79e6d288-fde2-414a-9512-087b0236d7f0",
+        "2a7677b1-aa00-4838-b9ba-9fc947f8de05"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، دسترسی شرکت‌های فناوری مالی به داده‌ها چگونه امکان‌پذیر است . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "630a2e7c-24a7-40a8-ba01-734a4d744080"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.55,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1901.7,
+      "retrieved_ids": [
+        "0aa2f3ab-59f5-4b95-8b3f-fb8980b24a3f",
+        "4e3a0483-78fd-4118-9dfa-3e5718723f28",
+        "630a2e7c-24a7-40a8-ba01-734a4d744080",
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3"
+      ]
+    },
+    {
+      "query": "آیا تغییر شغل یا محل سکونت بر رتبه اعتباری تاثیر دارد",
+      "expected_ids": [
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.833,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2135.1,
+      "retrieved_ids": [
+        "d0896aee-904b-4d97-9ad1-12683e29491c",
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75",
+        "0f8a15f4-c4b4-40bb-965d-d7abcefe17c1",
+        "da83e39d-1a02-4acd-a235-8a5f88fe1aba",
+        "76a71645-acfa-4c45-9ee9-55e66a613184"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم آیا تغییر شغل یا محل رتبه بر سکونت اعتباری تاثیر دارد؟؟",
+      "expected_ids": [
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.667,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2134.4,
+      "retrieved_ids": [
+        "d0896aee-904b-4d97-9ad1-12683e29491c",
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75",
+        "0f8a15f4-c4b4-40bb-965d-d7abcefe17c1",
+        "da83e39d-1a02-4acd-a235-8a5f88fe1aba",
+        "7a1d13c0-80ba-46e5-afbe-c807f8ebec37"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که همان‌طور که اشاره شد آیا شغل تغییر یا سکونت تاثیر دارد؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.292,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 1993.1,
+      "retrieved_ids": [
+        "d0896aee-904b-4d97-9ad1-12683e29491c",
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75",
+        "76a71645-acfa-4c45-9ee9-55e66a613184",
+        "6ffc882c-a0a2-40ec-bbfe-bcd90309adeb",
+        "7a1d13c0-80ba-46e5-afbe-c807f8ebec37"
+      ]
+    },
+    {
+      "query": "امتیاز اعتباری عوامل غیرمالی تاهل تعداد فرزندان مدل: حقیقی و حقوقی‌...",
+      "expected_ids": [
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.048,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 1889.2,
+      "retrieved_ids": [
+        "0f368be7-f7e5-4a00-932c-31fc2f35ed46",
+        "e66d1f46-05a4-44a8-8b1b-e66b0fdeab2d",
+        "bbf97ec8-6edf-4f2b-94a1-27092ef8654c",
+        "a18818f3-c151-42e6-ae81-1af84c8d9bd2",
+        "2ae50734-c9ec-4fb4-b843-5ef56c9dbc5f"
+      ]
+    },
+    {
+      "query": "آیا تغییر شغل یا محل سکونت بر رتبه اعتبارى تاثیر دارد؟",
+      "expected_ids": [
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.833,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2136.8,
+      "retrieved_ids": [
+        "d0896aee-904b-4d97-9ad1-12683e29491c",
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75",
+        "76a71645-acfa-4c45-9ee9-55e66a613184",
+        "6ffc882c-a0a2-40ec-bbfe-bcd90309adeb",
+        "7a1d13c0-80ba-46e5-afbe-c807f8ebec37"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، آیا تغییر شغل یا محل سکونت بر رتبه اعتباری تاثیر دارد . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.476,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2092.0,
+      "retrieved_ids": [
+        "d0896aee-904b-4d97-9ad1-12683e29491c",
+        "2f55b4b0-5735-4cad-ad2e-e69d00f77d75",
+        "0f8a15f4-c4b4-40bb-965d-d7abcefe17c1",
+        "da83e39d-1a02-4acd-a235-8a5f88fe1aba",
+        "76a71645-acfa-4c45-9ee9-55e66a613184"
+      ]
+    },
+    {
+      "query": "20- آیا امکان دارد بدهی مالیاتی‌ام بدون اطلاع قبلی در گزارش اعتباری من ظاهر شود",
+      "expected_ids": [
+        "3480722c-0630-41bf-9b94-9559659d4283"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.875,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2128.0,
+      "retrieved_ids": [
+        "0613e0c6-1f31-47a3-97f2-2cfb6988cb9c",
+        "b2566e02-88a6-4585-bd6c-aee3d0ab44ad",
+        "3480722c-0630-41bf-9b94-9559659d4283",
+        "34032ad6-5920-4df0-8eb1-80f57d39928c",
+        "af11d23c-3db5-450e-8ca5-63d99501551e"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم 20- در امکان دارد بدهی مالیاتی‌ام بدون اطلاع قبلی آیا خروجی اعتباری من ظاهر شود؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "3480722c-0630-41bf-9b94-9559659d4283"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.583,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2065.0,
+      "retrieved_ids": [
+        "0613e0c6-1f31-47a3-97f2-2cfb6988cb9c",
+        "3480722c-0630-41bf-9b94-9559659d4283",
+        "34032ad6-5920-4df0-8eb1-80f57d39928c",
+        "b2566e02-88a6-4585-bd6c-aee3d0ab44ad",
+        "af11d23c-3db5-450e-8ca5-63d99501551e"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید بر اساس اسناد 20- آیا بدهی در خروجی اعتباری ظاهر من شود؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "3480722c-0630-41bf-9b94-9559659d4283"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.269,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2098.7,
+      "retrieved_ids": [
+        "0613e0c6-1f31-47a3-97f2-2cfb6988cb9c",
+        "b2566e02-88a6-4585-bd6c-aee3d0ab44ad",
+        "3480722c-0630-41bf-9b94-9559659d4283",
+        "34032ad6-5920-4df0-8eb1-80f57d39928c",
+        "af11d23c-3db5-450e-8ca5-63d99501551e"
+      ]
+    },
+    {
+      "query": "بدهی مالیاتی وصول رتبه اعتباری مدل: حقیقی و حقوقی‌...",
+      "expected_ids": [
+        "3480722c-0630-41bf-9b94-9559659d4283"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.143,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1834.7,
+      "retrieved_ids": [
+        "b2566e02-88a6-4585-bd6c-aee3d0ab44ad",
+        "0613e0c6-1f31-47a3-97f2-2cfb6988cb9c",
+        "3480722c-0630-41bf-9b94-9559659d4283",
+        "34032ad6-5920-4df0-8eb1-80f57d39928c",
+        "27c8db20-2eaa-4fda-9bda-dc9d6d35cc65"
+      ]
+    },
+    {
+      "query": "20- آیا امکان دارد بدهی مالیاتیام بدون اطلاع قبلی در گزراش اعتباری من ظاهر شود؟",
+      "expected_ids": [
+        "3480722c-0630-41bf-9b94-9559659d4283"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.706,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1933.6,
+      "retrieved_ids": [
+        "0613e0c6-1f31-47a3-97f2-2cfb6988cb9c",
+        "b2566e02-88a6-4585-bd6c-aee3d0ab44ad",
+        "3480722c-0630-41bf-9b94-9559659d4283",
+        "34032ad6-5920-4df0-8eb1-80f57d39928c",
+        "af11d23c-3db5-450e-8ca5-63d99501551e"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، 20- آیا امکان دارد بدهی مالیاتی‌ام بدون اطلاع قبلی در گزارش اعتباری من ظاهر شود؟",
+      "expected_ids": [
+        "3480722c-0630-41bf-9b94-9559659d4283"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.833,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2268.5,
+      "retrieved_ids": [
+        "0613e0c6-1f31-47a3-97f2-2cfb6988cb9c",
+        "3480722c-0630-41bf-9b94-9559659d4283",
+        "34032ad6-5920-4df0-8eb1-80f57d39928c",
+        "b2566e02-88a6-4585-bd6c-aee3d0ab44ad",
+        "af11d23c-3db5-450e-8ca5-63d99501551e"
+      ]
+    },
+    {
+      "query": "آیا داده‌های ورودی باید دارای تاریخ ایجاد و تاریخ آخرین به‌روزرسانی باشند",
+      "expected_ids": [
+        "8a5a145e-4f73-44f6-b169-6338809d630b"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.857,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2045.2,
+      "retrieved_ids": [
+        "89d4d435-a16f-41ab-9ac8-8495dcd282c5",
+        "cc8b0c75-104d-4906-b713-a6ebae1a6fea",
+        "8a5a145e-4f73-44f6-b169-6338809d630b",
+        "9c1d3a6b-fd63-447f-863d-a4592226900f",
+        "6e930bde-8fbf-4b61-adc7-9a71f1c27f82"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که آیا داده‌های ورودی آخرین دارای تاریخ ایجاد و تاریخ باید به‌روزرسانی باشند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "8a5a145e-4f73-44f6-b169-6338809d630b"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.65,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1929.5,
+      "retrieved_ids": [
+        "89d4d435-a16f-41ab-9ac8-8495dcd282c5",
+        "cc8b0c75-104d-4906-b713-a6ebae1a6fea",
+        "8a5a145e-4f73-44f6-b169-6338809d630b",
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که همان‌طور که اشاره شد آیا داده‌های ورودی باید ایجاد به‌روزرسانی باشند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "8a5a145e-4f73-44f6-b169-6338809d630b"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.346,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2013.9,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "cc8b0c75-104d-4906-b713-a6ebae1a6fea",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba",
+        "89d4d435-a16f-41ab-9ac8-8495dcd282c5"
+      ]
+    },
+    {
+      "query": "اعتبارسنجی صحت ساختاری پایگاه داده داده اعتباری الگو غیرعادی مدیریت داده‌ها",
+      "expected_ids": [
+        "8a5a145e-4f73-44f6-b169-6338809d630b"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.045,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 1909.3,
+      "retrieved_ids": [
+        "eda13e62-1461-43d4-a80f-97a8fef23b77",
+        "97e6b77c-6d9d-41d9-b5a5-40eccb4acfa3",
+        "22b96916-e7bc-453c-bb2f-cecacfbc6290",
+        "cc8b0c75-104d-4906-b713-a6ebae1a6fea",
+        "2a03c3b0-2c5e-4679-930f-91fdc7ab03e5"
+      ]
+    },
+    {
+      "query": "آیا دادههای ورودی باید دارای تاریخ ایجاد و تاریخ آخرین به‌روزرسانی باشند؟",
+      "expected_ids": [
+        "8a5a145e-4f73-44f6-b169-6338809d630b"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.786,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1853.5,
+      "retrieved_ids": [
+        "cc8b0c75-104d-4906-b713-a6ebae1a6fea",
+        "89d4d435-a16f-41ab-9ac8-8495dcd282c5",
+        "8a5a145e-4f73-44f6-b169-6338809d630b",
+        "9c1d3a6b-fd63-447f-863d-a4592226900f",
+        "3d850ac3-60e1-4720-a9cc-6bb15b8cafdc"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، آیا داده‌های ورودی باید دارای تاریخ ایجاد و تاریخ آخرین به‌روزرسانی باشند؟",
+      "expected_ids": [
+        "8a5a145e-4f73-44f6-b169-6338809d630b"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.812,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2080.8,
+      "retrieved_ids": [
+        "cc8b0c75-104d-4906-b713-a6ebae1a6fea",
+        "89d4d435-a16f-41ab-9ac8-8495dcd282c5",
+        "8a5a145e-4f73-44f6-b169-6338809d630b",
+        "9c1d3a6b-fd63-447f-863d-a4592226900f",
+        "6e930bde-8fbf-4b61-adc7-9a71f1c27f82"
+      ]
+    },
+    {
+      "query": "آیا شرکت اعتبارسنجی ایران با شرکت‌های اعتبارسنجی بین‌المللی تبادل اطلاعات دارد",
+      "expected_ids": [
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.833,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 1915.2,
+      "retrieved_ids": [
+        "de222462-0798-45b3-8f8f-78e141162250",
+        "8da1d05d-27e5-4783-9b54-f2eb8aebf669",
+        "66a544dc-408a-4fd3-80b1-bbe946aca22e",
+        "5f4a05f5-00eb-42e3-bab4-bac4d735cb09",
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که آیا شرکت اعتبارسنجی ایران با شرکت‌های اعتبارسنجی بین‌المللی تبادل اطلاعات دارد؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.55,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2093.9,
+      "retrieved_ids": [
+        "de222462-0798-45b3-8f8f-78e141162250",
+        "8da1d05d-27e5-4783-9b54-f2eb8aebf669",
+        "66a544dc-408a-4fd3-80b1-bbe946aca22e",
+        "5f4a05f5-00eb-42e3-bab4-bac4d735cb09",
+        "91869164-4826-4ddd-a6e0-6859a7e78b60"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که در عمل آیا ایران با شرکت‌های تبادل دارد؟؟",
+      "expected_ids": [
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.316,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 1919.8,
+      "retrieved_ids": [
+        "91869164-4826-4ddd-a6e0-6859a7e78b60",
+        "de222462-0798-45b3-8f8f-78e141162250",
+        "d1f70213-54fe-4da8-bfd8-dc2ab6454e23",
+        "8da1d05d-27e5-4783-9b54-f2eb8aebf669",
+        "66a544dc-408a-4fd3-80b1-bbe946aca22e"
+      ]
+    },
+    {
+      "query": "تجدیدنظر رفتار مالی رتبه اعتباری تامین کننده مدل: حقیقی و حقوقی‌...",
+      "expected_ids": [
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.0,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2040.1,
+      "retrieved_ids": [
+        "de222462-0798-45b3-8f8f-78e141162250",
+        "8da1d05d-27e5-4783-9b54-f2eb8aebf669",
+        "66a544dc-408a-4fd3-80b1-bbe946aca22e",
+        "5f4a05f5-00eb-42e3-bab4-bac4d735cb09",
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ]
+    },
+    {
+      "query": "آیا شرکت اعتبارسنجی ایران با شرکتهای اعتبارسنجی بین‌المللی تبادل اطلاعات دارد؟",
+      "expected_ids": [
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.833,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2038.4,
+      "retrieved_ids": [
+        "de222462-0798-45b3-8f8f-78e141162250",
+        "8da1d05d-27e5-4783-9b54-f2eb8aebf669",
+        "66a544dc-408a-4fd3-80b1-bbe946aca22e",
+        "5f4a05f5-00eb-42e3-bab4-bac4d735cb09",
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ]
+    },
+    {
+      "query": "سلام، آیا شرکت اعتبارسنجی ایران با شرکت‌های اعتبارسنجی بین‌المللی تبادل اطلاعات دارد . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "061f3795-c09a-4f08-8792-4488ac9317d1"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.588,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2147.3,
+      "retrieved_ids": [
+        "de222462-0798-45b3-8f8f-78e141162250",
+        "8da1d05d-27e5-4783-9b54-f2eb8aebf669",
+        "66a544dc-408a-4fd3-80b1-bbe946aca22e",
+        "5f4a05f5-00eb-42e3-bab4-bac4d735cb09",
+        "91869164-4826-4ddd-a6e0-6859a7e78b60"
+      ]
+    },
+    {
+      "query": "شخص حقیقی چگونه می‌تواند گزارش اعتبارسنجی چک خود را دریافت کند",
+      "expected_ids": [
+        "4ead6719-6fe0-4ad3-a32b-bbc23f7e18cf"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.833,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2168.3,
+      "retrieved_ids": [
+        "e4f8ab17-0633-4a3b-a8c6-660f6bec8168",
+        "2e8e18c1-5cf1-4518-a4e6-7c8c95695ffe",
+        "bedd084d-35ca-49d5-a43d-d59273e80981",
+        "655ea803-0957-4a6b-a6fd-d07f1830c4a9",
+        "60f083dc-fd77-423b-9b6a-5e1a4d49a216"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که شخص حقیقی چگونه می‌تواند خروجی اعتبارسنجی چک خود را دریافت کند؟؟",
+      "expected_ids": [
+        "4ead6719-6fe0-4ad3-a32b-bbc23f7e18cf"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.5,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2371.0,
+      "retrieved_ids": [
+        "62cbbd99-f939-417c-9a1b-55d7f6681091",
+        "e93627f7-12ad-4321-9ad7-11b5ead93860",
+        "ca200326-a1d2-4c3f-b718-9ba3ef188f77",
+        "4ad3fe62-9fed-47e9-8b17-ae5ec4ba1e70",
+        "5f9d2d8f-8168-4839-8480-767ffa68916c"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید همان‌طور که اشاره شد شخص دریافت چک می‌تواند را خود کند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "4ead6719-6fe0-4ad3-a32b-bbc23f7e18cf"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.333,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2369.9,
+      "retrieved_ids": [
+        "72a03ca4-42fc-4b63-b877-14c0fe7ee8b6",
+        "04e79c30-e899-4497-890b-5c89be717545",
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "7d22ad19-4593-4ed7-9b52-5140456084d4",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3"
+      ]
+    },
+    {
+      "query": "حقیقی چگونه تواند گزارش اعتبارسنجی دریافت",
+      "expected_ids": [
+        "4ead6719-6fe0-4ad3-a32b-bbc23f7e18cf"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.545,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2232.2,
+      "retrieved_ids": [
+        "9b6ea565-a26a-4473-b757-4a05025c1f7d",
+        "62cbbd99-f939-417c-9a1b-55d7f6681091",
+        "e4f8ab17-0633-4a3b-a8c6-660f6bec8168",
+        "2e8e18c1-5cf1-4518-a4e6-7c8c95695ffe",
+        "bedd084d-35ca-49d5-a43d-d59273e80981"
+      ]
+    },
+    {
+      "query": "شخص حقیقی چگونه میتواند گزارش اعتبارسنجی چک خود را دریافت کند؟",
+      "expected_ids": [
+        "4ead6719-6fe0-4ad3-a32b-bbc23f7e18cf"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.75,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2214.5,
+      "retrieved_ids": [
+        "e4f8ab17-0633-4a3b-a8c6-660f6bec8168",
+        "2e8e18c1-5cf1-4518-a4e6-7c8c95695ffe",
+        "68e9e46d-fc01-493e-a9a7-597ce99fac5f",
+        "bedd084d-35ca-49d5-a43d-d59273e80981",
+        "ab16086a-9499-47aa-87e1-006cf37435b3"
+      ]
+    },
+    {
+      "query": "ببخشید، شخص حقیقی چگونه می‌شهد گزارش اعتبارسنجی چک خود را دریافت کند . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "4ead6719-6fe0-4ad3-a32b-bbc23f7e18cf"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.45,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2407.9,
+      "retrieved_ids": [
+        "cb58cf7a-943c-481a-9935-b4b201260f53",
+        "e4f8ab17-0633-4a3b-a8c6-660f6bec8168",
+        "2e8e18c1-5cf1-4518-a4e6-7c8c95695ffe",
+        "7ca128b0-b82c-4711-a84f-a1d85c608bf1",
+        "bedd084d-35ca-49d5-a43d-d59273e80981"
+      ]
+    },
+    {
+      "query": "داده‌های مربوط به بدهی بیمه‌ای و تامین اجتماعی چگونه پردازش می‌شوند",
+      "expected_ids": [
+        "85d6d859-deac-475c-8f32-f6435f746a04"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.867,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2391.1,
+      "retrieved_ids": [
+        "1ce7b33c-9b69-4529-82db-1a172eb21067",
+        "403c4ec9-1fe7-46fa-a4c7-06f2f2bb0d99",
+        "85d6d859-deac-475c-8f32-f6435f746a04",
+        "3e0c3c2a-1809-40ea-b698-efe77a3d52cd",
+        "103fb891-57fa-4f97-ace2-20fa16453889"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که داده‌های مربوط به بدهی بیمه‌ای و تامین اجتماعی چگونه پردازش می‌شوند؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "85d6d859-deac-475c-8f32-f6435f746a04"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.56,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2297.7,
+      "retrieved_ids": [
+        "1ce7b33c-9b69-4529-82db-1a172eb21067",
+        "403c4ec9-1fe7-46fa-a4c7-06f2f2bb0d99",
+        "85d6d859-deac-475c-8f32-f6435f746a04",
+        "3e0c3c2a-1809-40ea-b698-efe77a3d52cd",
+        "103fb891-57fa-4f97-ace2-20fa16453889"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که بر اساس اسناد داده‌های بدهی پردازش اجتماعی چگونه و می‌شوند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "85d6d859-deac-475c-8f32-f6435f746a04"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.375,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2160.3,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba",
+        "2832a659-4274-464d-8a02-91511db83402",
+        "25677fe7-5ef2-4aaa-8db2-93ef94bbf0bd"
+      ]
+    },
+    {
+      "query": "تامین‌کنندگان محجورین پایگاه داده داده اعتباری اخذ اعتبار مدیریت داده‌ها",
+      "expected_ids": [
+        "85d6d859-deac-475c-8f32-f6435f746a04"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.091,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2323.2,
+      "retrieved_ids": [
+        "520db7f6-affc-4109-99d8-0e35b7df6f10",
+        "7e973cf1-1775-4cad-bc10-4cfb5b572a10",
+        "bf2fe09f-60c5-43fd-a864-4b90fbc88e84",
+        "f642bd83-6ca1-4aa3-a8f1-852c8372bed8",
+        "cd88860d-4020-4cae-8ff4-c40e485fe82f"
+      ]
+    },
+    {
+      "query": "دادههای مربوط به بدهی بیمه‌ای و تامین اجتماعی چگونه پردازش می‌شوند؟",
+      "expected_ids": [
+        "85d6d859-deac-475c-8f32-f6435f746a04"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.8,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2191.9,
+      "retrieved_ids": [
+        "1ce7b33c-9b69-4529-82db-1a172eb21067",
+        "403c4ec9-1fe7-46fa-a4c7-06f2f2bb0d99",
+        "85d6d859-deac-475c-8f32-f6435f746a04",
+        "3e0c3c2a-1809-40ea-b698-efe77a3d52cd",
+        "103fb891-57fa-4f97-ace2-20fa16453889"
+      ]
+    },
+    {
+      "query": "راستی، داده‌های مربوط به بدهی بیمه‌ای و تامین اجتماعی چگونه پردازش میشن؟",
+      "expected_ids": [
+        "85d6d859-deac-475c-8f32-f6435f746a04"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.75,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2227.0,
+      "retrieved_ids": [
+        "1ce7b33c-9b69-4529-82db-1a172eb21067",
+        "403c4ec9-1fe7-46fa-a4c7-06f2f2bb0d99",
+        "85d6d859-deac-475c-8f32-f6435f746a04",
+        "3e0c3c2a-1809-40ea-b698-efe77a3d52cd",
+        "103fb891-57fa-4f97-ace2-20fa16453889"
+      ]
+    },
+    {
+      "query": "اگر در حین دریافت گزارش، مشکل فنی پیش بیاید و پول کسر شده باشد، چیکار باید بکنم",
+      "expected_ids": [
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.889,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2268.8,
+      "retrieved_ids": [
+        "922394e4-8e0d-4d8f-a915-ad7fdbd9c4c9",
+        "0c0f0880-f4e5-439c-b9a2-6c64f5f49c1c",
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04",
+        "faf43fc1-26f0-4ec3-ab86-fb341837a305",
+        "22cd4798-0763-42d8-8631-8898ba01c6cc"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید اگر در حین دریافت خروجی، مشکل فنی پیش بیاید و پول کسر شده باشد، چیکار باید بکنم؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.667,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2128.4,
+      "retrieved_ids": [
+        "922394e4-8e0d-4d8f-a915-ad7fdbd9c4c9",
+        "0c0f0880-f4e5-439c-b9a2-6c64f5f49c1c",
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04",
+        "faf43fc1-26f0-4ec3-ab86-fb341837a305",
+        "22cd4798-0763-42d8-8631-8898ba01c6cc"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم بر اساس اسناد اگر در باید فنی پیش بیاید پول شده باشد، خروجی، بکنم؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.357,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2018.9,
+      "retrieved_ids": [
+        "922394e4-8e0d-4d8f-a915-ad7fdbd9c4c9",
+        "0c0f0880-f4e5-439c-b9a2-6c64f5f49c1c",
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04",
+        "faf43fc1-26f0-4ec3-ab86-fb341837a305",
+        "b4674235-df87-47bf-bddb-399159039bb7"
+      ]
+    },
+    {
+      "query": "تایید کد رضایت‌نامه امن ISMS مدل: حقوقی‌...",
+      "expected_ids": [
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.0,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2130.1,
+      "retrieved_ids": [
+        "ab7c43ef-0efe-45e8-b96d-3b5a56771de5",
+        "ce2d6561-5dc3-454a-abd7-9298f1de184b",
+        "9a7622b0-6ebf-4a33-ac43-52869b5801f4",
+        "43e5a39a-2147-446e-9d08-0484fe9c4900",
+        "8dee4838-114d-4eb9-be80-390dd67b271d"
+      ]
+    },
+    {
+      "query": "اگر در حین دریافت گزراش، مشکل فنی پیش بیاید و پول کسر شده باشد، چیکار باید بکنم؟",
+      "expected_ids": [
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.889,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2220.2,
+      "retrieved_ids": [
+        "922394e4-8e0d-4d8f-a915-ad7fdbd9c4c9",
+        "0c0f0880-f4e5-439c-b9a2-6c64f5f49c1c",
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04",
+        "faf43fc1-26f0-4ec3-ab86-fb341837a305",
+        "22cd4798-0763-42d8-8631-8898ba01c6cc"
+      ]
+    },
+    {
+      "query": "سلام، اگر در حین دریافت گزارش، مشکل فنی پیش بیاید و پول کسر شده باشد، چیکار باید بکنم . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.696,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2252.2,
+      "retrieved_ids": [
+        "922394e4-8e0d-4d8f-a915-ad7fdbd9c4c9",
+        "0c0f0880-f4e5-439c-b9a2-6c64f5f49c1c",
+        "2dd1cace-35cd-4da7-9d27-33ae10d5cb04",
+        "faf43fc1-26f0-4ec3-ab86-fb341837a305",
+        "22cd4798-0763-42d8-8631-8898ba01c6cc"
+      ]
+    },
+    {
+      "query": "چرا داده‌ها باید به صورت فصلی گزارش شوند",
+      "expected_ids": [
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.8,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 1988.5,
+      "retrieved_ids": [
+        "a3b8c972-b934-4c92-927a-613fa7878f18",
+        "3e2fa80a-efaf-4a70-9e39-fa4e4ef130bd",
+        "a198d4c4-23d0-4845-aad8-4d752d645039",
+        "35a36c43-4ded-4e58-a735-6a3076ca7d2b",
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید چرا داده‌ها باید به صورت فصلی خروجی شوند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.533,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2036.7,
+      "retrieved_ids": [
+        "72a03ca4-42fc-4b63-b877-14c0fe7ee8b6",
+        "7d22ad19-4593-4ed7-9b52-5140456084d4",
+        "04e79c30-e899-4497-890b-5c89be717545",
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که طبق متن چرا به فصلی خروجی شوند؟؟",
+      "expected_ids": [
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.167,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2068.1,
+      "retrieved_ids": [
+        "4f0e7e6f-60c9-44a1-a2ee-8c3e0666fde4",
+        "a3b8c972-b934-4c92-927a-613fa7878f18",
+        "a198d4c4-23d0-4845-aad8-4d752d645039",
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a",
+        "33d39174-a0e3-4086-8325-f18608dcebf5"
+      ]
+    },
+    {
+      "query": "داده دسته‌ای بی‌نام پایگاه داده داده اعتباری حریم خصوصی مدیریت داده‌ها",
+      "expected_ids": [
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.111,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2230.0,
+      "retrieved_ids": [
+        "a3395a17-6326-442e-ab80-f9b7313e2374",
+        "4237d043-026a-46f6-956a-d953163f55ca",
+        "6f314d5d-d7f8-40fb-ba9e-ecd7b6ebb67a",
+        "2a03c3b0-2c5e-4679-930f-91fdc7ab03e5",
+        "cd918898-4115-4582-93f8-274bd55194b0"
+      ]
+    },
+    {
+      "query": "چرا دادهها باید به صورت فصلی گزراش شوند؟",
+      "expected_ids": [
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.545,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2262.3,
+      "retrieved_ids": [
+        "a3b8c972-b934-4c92-927a-613fa7878f18",
+        "a198d4c4-23d0-4845-aad8-4d752d645039",
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a",
+        "3e2fa80a-efaf-4a70-9e39-fa4e4ef130bd",
+        "35a36c43-4ded-4e58-a735-6a3076ca7d2b"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، چرا داده‌ها باید به صورت فصلی گزارش شوند . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.421,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2205.0,
+      "retrieved_ids": [
+        "a3b8c972-b934-4c92-927a-613fa7878f18",
+        "3e2fa80a-efaf-4a70-9e39-fa4e4ef130bd",
+        "a198d4c4-23d0-4845-aad8-4d752d645039",
+        "35a36c43-4ded-4e58-a735-6a3076ca7d2b",
+        "175e3f80-ee50-4dc2-a2d6-954e6454169a"
+      ]
+    },
+    {
+      "query": "5-     آیا سابقه استفاده از کارت اعتباری و پرداخت به موقع اون، امتیازم رو بالا میبره",
+      "expected_ids": [
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.875,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 1969.8,
+      "retrieved_ids": [
+        "c9cd369e-c0f5-49ec-b1d6-92490dc6011b",
+        "6905922a-87f0-4b7a-9a53-948386be4e44",
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9",
+        "60ffd4e8-85d4-4eda-b244-c4751d794488",
+        "bf88f35d-a7b7-4c99-a6d0-34432b28c3f4"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم 5- آیا سابقه استفاده از کارت اعتباری و تسویه به موقع اون، امتیازم رو بالا میبره؟؟",
+      "expected_ids": [
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.65,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2150.3,
+      "retrieved_ids": [
+        "c9cd369e-c0f5-49ec-b1d6-92490dc6011b",
+        "6905922a-87f0-4b7a-9a53-948386be4e44",
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9",
+        "60ffd4e8-85d4-4eda-b244-c4751d794488",
+        "bf88f35d-a7b7-4c99-a6d0-34432b28c3f4"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که در این بخش 5- آیا تسویه از کارت رو به استفاده بالا میبره؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.296,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2296.2,
+      "retrieved_ids": [
+        "c9cd369e-c0f5-49ec-b1d6-92490dc6011b",
+        "6905922a-87f0-4b7a-9a53-948386be4e44",
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9",
+        "60ffd4e8-85d4-4eda-b244-c4751d794488",
+        "bf88f35d-a7b7-4c99-a6d0-34432b28c3f4"
+      ]
+    },
+    {
+      "query": "مبلغ چک مدت تاخیر بازپرداخت قسط مدل: حقیقی و حقوقی‌...",
+      "expected_ids": [
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.043,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2355.4,
+      "retrieved_ids": [
+        "2971347e-bd7f-4b2d-a90c-33be7692b6fa",
+        "d625db7e-0fd0-4384-9613-9d12d87677af",
+        "adda249a-eeed-4ec3-8aab-29d86e311761",
+        "7e45fdd4-c55d-4249-bf46-3e677fcd2129",
+        "5f96241b-d2da-49e2-973d-f5b55d685189"
+      ]
+    },
+    {
+      "query": "5-     آیا سابقه استفاده از کارت اعتبارى و پرداخت به موقع اون، امتیازم رو بالا میبره؟",
+      "expected_ids": [
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.875,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2245.7,
+      "retrieved_ids": [
+        "c9cd369e-c0f5-49ec-b1d6-92490dc6011b",
+        "6905922a-87f0-4b7a-9a53-948386be4e44",
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9",
+        "60ffd4e8-85d4-4eda-b244-c4751d794488",
+        "bf88f35d-a7b7-4c99-a6d0-34432b28c3f4"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، 5-     آیا سابقه استفاده از کارت اعتباری و پرداخت به موقع اون، امتیازم رو بالا میبره . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.56,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2171.6,
+      "retrieved_ids": [
+        "c9cd369e-c0f5-49ec-b1d6-92490dc6011b",
+        "6905922a-87f0-4b7a-9a53-948386be4e44",
+        "67d1a0f3-7687-4beb-86b2-6728fd1444b9",
+        "60ffd4e8-85d4-4eda-b244-c4751d794488",
+        "bf88f35d-a7b7-4c99-a6d0-34432b28c3f4"
+      ]
+    },
+    {
+      "query": "آیا امتیاز اعتبارسنجی چک به‌عنوان یکی از معیارهای الزامی قانون برای صدور دسته‌چک به متقاضیان محسوب می‌شود",
+      "expected_ids": [
+        "f703d73a-59db-4746-a119-b826dc3d5f5c"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.882,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2211.8,
+      "retrieved_ids": [
+        "f1a04249-91b8-40d4-9893-a0d5fcde988f",
+        "0db01cf0-f928-4ec6-a3a6-eb5b7ca741e8",
+        "ad66b018-e2bf-4125-a6cf-0ba2a0120248",
+        "cf50315c-80a2-4b54-984f-84d350395e48",
+        "8f0ced58-44ec-486c-9b7b-d5bea0fbc14e"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم آیا امتیاز اعتبارسنجی چک به‌عنوان یکی از صدور الزامی قانون برای معیارهای دسته‌چک به متقاضیان محسوب می‌شود؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "f703d73a-59db-4746-a119-b826dc3d5f5c"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.727,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2120.7,
+      "retrieved_ids": [
+        "f1a04249-91b8-40d4-9893-a0d5fcde988f",
+        "0db01cf0-f928-4ec6-a3a6-eb5b7ca741e8",
+        "ad66b018-e2bf-4125-a6cf-0ba2a0120248",
+        "cf50315c-80a2-4b54-984f-84d350395e48",
+        "8f0ced58-44ec-486c-9b7b-d5bea0fbc14e"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که همان‌طور که اشاره شد آیا اعتبارسنجی چک از برای الزامی معیارهای صدور به محسوب می‌شود؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "f703d73a-59db-4746-a119-b826dc3d5f5c"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.407,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2148.0,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "f1a04249-91b8-40d4-9893-a0d5fcde988f",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "0db01cf0-f928-4ec6-a3a6-eb5b7ca741e8",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba"
+      ]
+    },
+    {
+      "query": "سال سابقه غیرصیادی مدل: چک‌...",
+      "expected_ids": [
+        "f703d73a-59db-4746-a119-b826dc3d5f5c"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.0,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2090.6,
+      "retrieved_ids": [
+        "a0fc1e82-2bac-4019-9ec4-0861286156fb",
+        "ec165652-64be-4397-bc8a-cac262c72d16",
+        "274ce577-4f0c-4399-9f5f-054f39c72a51",
+        "f5cc2106-9409-45a5-8187-f24c3429216f",
+        "9043afdc-733b-4d62-a1cb-a5a3db5004f3"
+      ]
+    },
+    {
+      "query": "آیا امتیاز اعتبارسنجی چک به‌عنوان یکی از معیارهای الزامی قانون برای صدور دسته‌چک به متقاضیان محسوب میشود؟",
+      "expected_ids": [
+        "f703d73a-59db-4746-a119-b826dc3d5f5c"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.824,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2175.2,
+      "retrieved_ids": [
+        "f1a04249-91b8-40d4-9893-a0d5fcde988f",
+        "0db01cf0-f928-4ec6-a3a6-eb5b7ca741e8",
+        "ad66b018-e2bf-4125-a6cf-0ba2a0120248",
+        "cf50315c-80a2-4b54-984f-84d350395e48",
+        "8f0ced58-44ec-486c-9b7b-d5bea0fbc14e"
+      ]
+    },
+    {
+      "query": "سلام، آیا امتیاز اعتبارسنجی چک به‌عنوان یکی از معیارهای الزامی قانون برای صدور دسته‌چک به متقاضیان محسوب میشه . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "f703d73a-59db-4746-a119-b826dc3d5f5c"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.583,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2439.4,
+      "retrieved_ids": [
+        "f1a04249-91b8-40d4-9893-a0d5fcde988f",
+        "0db01cf0-f928-4ec6-a3a6-eb5b7ca741e8",
+        "ad66b018-e2bf-4125-a6cf-0ba2a0120248",
+        "cf50315c-80a2-4b54-984f-84d350395e48",
+        "8f0ced58-44ec-486c-9b7b-d5bea0fbc14e"
+      ]
+    },
+    {
+      "query": "آیا میتونم ببینم که چه کسانی تاکنون گزارش اعتباری من رو درخواست کردن",
+      "expected_ids": [
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.857,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2270.5,
+      "retrieved_ids": [
+        "f09bdb98-8772-403b-91a7-5cc983417bea",
+        "98aa2266-330e-4c73-8447-b71cec1bc722",
+        "5c96fd47-266d-4678-b465-1cdea932e2d4",
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d",
+        "bbd2933d-ea53-477e-bf63-d540243dbb4d"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید آیا میتونم ببینم که چه کسانی تاکنون اعتباری خروجی من رو درخواست کردن؟؟",
+      "expected_ids": [
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.647,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2208.4,
+      "retrieved_ids": [
+        "f09bdb98-8772-403b-91a7-5cc983417bea",
+        "98aa2266-330e-4c73-8447-b71cec1bc722",
+        "5c96fd47-266d-4678-b465-1cdea932e2d4",
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d",
+        "bbd2933d-ea53-477e-bf63-d540243dbb4d"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که همان‌طور که اشاره شد آیا کسانی رو تاکنون من ببینم درخواست کردن؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.346,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2122.6,
+      "retrieved_ids": [
+        "f09bdb98-8772-403b-91a7-5cc983417bea",
+        "98aa2266-330e-4c73-8447-b71cec1bc722",
+        "5c96fd47-266d-4678-b465-1cdea932e2d4",
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d",
+        "bbd2933d-ea53-477e-bf63-d540243dbb4d"
+      ]
+    },
+    {
+      "query": "بانک رضایت گزارش اعتباری کد تایید مدل: حقیقی و حقوقی‌...",
+      "expected_ids": [
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.095,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2239.5,
+      "retrieved_ids": [
+        "0d91aedc-6873-4231-9925-f237b603dfdc",
+        "383266b2-4c77-4305-91b3-743eb65a33cc",
+        "41ced414-87b9-4260-a30b-5c82e5849811",
+        "9a5c50eb-1846-47c9-8979-fb3cfd7e7c6c",
+        "3a745614-cb5b-4933-9e45-8dfb6bc7c412"
+      ]
+    },
+    {
+      "query": "آیا میتونم ببینم که چه کسانی تاکنون گزراش اعتبارى من رو درخواست کردن؟",
+      "expected_ids": [
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.733,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2126.1,
+      "retrieved_ids": [
+        "f09bdb98-8772-403b-91a7-5cc983417bea",
+        "98aa2266-330e-4c73-8447-b71cec1bc722",
+        "5c96fd47-266d-4678-b465-1cdea932e2d4",
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d",
+        "bbd2933d-ea53-477e-bf63-d540243dbb4d"
+      ]
+    },
+    {
+      "query": "ببخشید، آیا میتونم ببینم که چه کسانی تاکنون گزارش اعتباری من رو درخواست کردن؟",
+      "expected_ids": [
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.929,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2063.6,
+      "retrieved_ids": [
+        "f09bdb98-8772-403b-91a7-5cc983417bea",
+        "98aa2266-330e-4c73-8447-b71cec1bc722",
+        "5c96fd47-266d-4678-b465-1cdea932e2d4",
+        "8e0e721d-3824-4ee7-8864-4ab41f3a1e6d",
+        "bbd2933d-ea53-477e-bf63-d540243dbb4d"
+      ]
+    },
+    {
+      "query": "آیا امکان دریافت گزارش اعتباری تنها برای شرکت‌هایی است که در سامانه مالیات ثبت‌نام کرده‌اند",
+      "expected_ids": [
+        "8bab4fe4-2098-414e-9560-085995b85131"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.895,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2097.5,
+      "retrieved_ids": [
+        "9ce02709-c298-4d20-b52c-95ccadc12e71",
+        "c1a2b1eb-abb6-476a-9a77-0e7eb1b41047",
+        "9d08b17f-8e25-48c7-8d89-c2d9a666bf65",
+        "8bab4fe4-2098-414e-9560-085995b85131",
+        "17ca156e-9084-46ce-8928-7be685f3dc51"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید آیا امکان دریافت خروجی شرکت‌هایی تنها برای اعتباری است که در سامانه مالیات ثبت‌نام کرده‌اند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "8bab4fe4-2098-414e-9560-085995b85131"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.708,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2089.4,
+      "retrieved_ids": [
+        "9ce02709-c298-4d20-b52c-95ccadc12e71",
+        "c1a2b1eb-abb6-476a-9a77-0e7eb1b41047",
+        "9d08b17f-8e25-48c7-8d89-c2d9a666bf65",
+        "8bab4fe4-2098-414e-9560-085995b85131",
+        "17ca156e-9084-46ce-8928-7be685f3dc51"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که در عمل آیا دریافت خروجی اعتباری مالیات در سامانه تنها کرده‌اند؟؟",
+      "expected_ids": [
+        "8bab4fe4-2098-414e-9560-085995b85131"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.375,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2190.6,
+      "retrieved_ids": [
+        "8bab4fe4-2098-414e-9560-085995b85131",
+        "9d08b17f-8e25-48c7-8d89-c2d9a666bf65",
+        "9ce02709-c298-4d20-b52c-95ccadc12e71",
+        "c1a2b1eb-abb6-476a-9a77-0e7eb1b41047",
+        "17ca156e-9084-46ce-8928-7be685f3dc51"
+      ]
+    },
+    {
+      "query": "شرکت توقف تولید رتبه داده مالی مدل: حقوقی‌...",
+      "expected_ids": [
+        "8bab4fe4-2098-414e-9560-085995b85131"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.04,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2117.2,
+      "retrieved_ids": [
+        "fd162607-bbc5-4d53-a380-a43cc1c65a6b",
+        "94109036-7bd7-4ec3-9910-84205f13d93f",
+        "341ab562-d6b2-40e6-8211-a0ea54ec3abb",
+        "52171c50-d312-40cd-8609-2b360317fbbe",
+        "da39f236-9edc-4394-81dc-cb00aef0abab"
+      ]
+    },
+    {
+      "query": "آیا امکان دریافت گزراش اعتبارى تنها برای شرکت‌هایی است که در سامانه مالیات ثبت‌نام کرده‌اند؟",
+      "expected_ids": [
+        "8bab4fe4-2098-414e-9560-085995b85131"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.8,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 1893.1,
+      "retrieved_ids": [
+        "9ce02709-c298-4d20-b52c-95ccadc12e71",
+        "c1a2b1eb-abb6-476a-9a77-0e7eb1b41047",
+        "17ca156e-9084-46ce-8928-7be685f3dc51",
+        "247cb1ea-2105-4d8f-9083-c0d08586cb1e",
+        "8bab4fe4-2098-414e-9560-085995b85131"
+      ]
+    },
+    {
+      "query": "سلام، آیا امکان دریافت گزارش اعتباری تنها برای شرکت‌هایی است که در سامانه مالیات ثبت‌نام کرده‌اند . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "8bab4fe4-2098-414e-9560-085995b85131"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.68,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2165.0,
+      "retrieved_ids": [
+        "9ce02709-c298-4d20-b52c-95ccadc12e71",
+        "c1a2b1eb-abb6-476a-9a77-0e7eb1b41047",
+        "9d08b17f-8e25-48c7-8d89-c2d9a666bf65",
+        "8bab4fe4-2098-414e-9560-085995b85131",
+        "17ca156e-9084-46ce-8928-7be685f3dc51"
+      ]
+    },
+    {
+      "query": "داده‌های بیمه مرکزی شامل چه مواردی است",
+      "expected_ids": [
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.778,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2018.3,
+      "retrieved_ids": [
+        "e833943f-f9ee-432d-9bbf-0b027dfd76b2",
+        "b049cabe-1c14-4b2c-bb55-4e209b97eff6",
+        "4c0432b6-bde5-4be5-af46-003ab320728d",
+        "9f25038c-fe14-4ce6-8a86-52861ab34c68",
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید داده‌های بیمه مرکزی شامل چه مواردی است؟؟",
+      "expected_ids": [
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.636,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2063.0,
+      "retrieved_ids": [
+        "e833943f-f9ee-432d-9bbf-0b027dfd76b2",
+        "b049cabe-1c14-4b2c-bb55-4e209b97eff6",
+        "4c0432b6-bde5-4be5-af46-003ab320728d",
+        "9f25038c-fe14-4ce6-8a86-52861ab34c68",
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم در عمل داده‌های شامل بیمه مواردی است؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.353,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2143.1,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba",
+        "e833943f-f9ee-432d-9bbf-0b027dfd76b2",
+        "4c0432b6-bde5-4be5-af46-003ab320728d"
+      ]
+    },
+    {
+      "query": "سازمان امور مالیاتی تامین داده پایگاه داده داده اعتباری سوابق پرداخت مدیریت داده‌ها",
+      "expected_ids": [
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.056,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2115.4,
+      "retrieved_ids": [
+        "b436f965-0b9b-4ce2-b773-e79dd240d05f",
+        "f960cb2c-acae-4793-b6e1-94494c4115f8",
+        "1d97b322-a1c3-4e8e-b59a-3a6f3ff17aa6",
+        "57cfd19b-6e93-4946-997d-c586aafbea5d",
+        "6a02a658-7182-4cc1-9561-410b7238a66b"
+      ]
+    },
+    {
+      "query": "دادههای بیمه مرکزی شامل چه مواردی است؟",
+      "expected_ids": [
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.667,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2400.2,
+      "retrieved_ids": [
+        "e833943f-f9ee-432d-9bbf-0b027dfd76b2",
+        "4c0432b6-bde5-4be5-af46-003ab320728d",
+        "a98433db-5343-40a3-831e-c2ed7518a8dd",
+        "237f770b-98d6-457f-8c27-3ce584a4232e",
+        "9f25038c-fe14-4ce6-8a86-52861ab34c68"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، داده‌های بیمه مرکزی شامل چه مواردی است . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "a98433db-5343-40a3-831e-c2ed7518a8dd"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.438,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2226.5,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba",
+        "e833943f-f9ee-432d-9bbf-0b027dfd76b2",
+        "b049cabe-1c14-4b2c-bb55-4e209b97eff6"
+      ]
+    },
+    {
+      "query": "اگر در پایان سال قرارداد تمدید نشود چه اتفاقی برای دسترسی API می‌افتد",
+      "expected_ids": [
+        "a411801a-3f4f-402d-8c6d-ad04f809df86"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.857,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2073.8,
+      "retrieved_ids": [
+        "a47c145f-7533-4c07-a1b7-14ad32ef6fa1",
+        "a411801a-3f4f-402d-8c6d-ad04f809df86",
+        "f748b588-a25e-4fed-a944-ac1040fbd66d",
+        "073e8b5e-db7c-4109-a6e4-a5ac3420c434",
+        "db595af5-980e-4045-b844-6ac5acc1656b"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید اگر در اتفاقی سال توافق‌نامه تمدید نشود چه پایان برای ورود API می‌افتد؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "a411801a-3f4f-402d-8c6d-ad04f809df86"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.524,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 2371.5,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "a47c145f-7533-4c07-a1b7-14ad32ef6fa1",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "a411801a-3f4f-402d-8c6d-ad04f809df86",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که در این بخش اگر API سال نشود چه اتفاقی تمدید می‌افتد؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "a411801a-3f4f-402d-8c6d-ad04f809df86"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.409,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2433.8,
+      "retrieved_ids": [
+        "a47c145f-7533-4c07-a1b7-14ad32ef6fa1",
+        "a411801a-3f4f-402d-8c6d-ad04f809df86",
+        "f748b588-a25e-4fed-a944-ac1040fbd66d",
+        "1e16887b-f7ab-4669-affb-8e7fe85cf33b",
+        "1fd32d5c-0559-4ae2-b9da-197432e1634f"
+      ]
+    },
+    {
+      "query": "گم شدن رمز افشای رمز واحد فنی صدور دسترسی جدید‌...",
+      "expected_ids": [
+        "a411801a-3f4f-402d-8c6d-ad04f809df86"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.048,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2409.4,
+      "retrieved_ids": [
+        "9b49377d-3774-42b6-bca5-57e6d3a180a2",
+        "c9f716d1-f16c-4a64-a26a-f2ce2045099b",
+        "36ebeef0-f83f-4969-92aa-1ae2495339f8",
+        "d8b38db4-75f8-4e57-b0d0-2a10e10f2443",
+        "9df2ffbb-a220-457f-a40d-959ee4fd130c"
+      ]
+    },
+    {
+      "query": "اگر در پایان سال قرارداد تمدید نشود چه اتفاقی برای دسترسی API میافتد؟",
+      "expected_ids": [
+        "a411801a-3f4f-402d-8c6d-ad04f809df86"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.786,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2294.7,
+      "retrieved_ids": [
+        "a47c145f-7533-4c07-a1b7-14ad32ef6fa1",
+        "a411801a-3f4f-402d-8c6d-ad04f809df86",
+        "f748b588-a25e-4fed-a944-ac1040fbd66d",
+        "073e8b5e-db7c-4109-a6e4-a5ac3420c434",
+        "db595af5-980e-4045-b844-6ac5acc1656b"
+      ]
+    },
+    {
+      "query": "ببخشید، اگر در پایان سال قرارداد تمدید نشود چه اتفاقی برای دسترسی API می‌افتد . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "a411801a-3f4f-402d-8c6d-ad04f809df86"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.632,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2394.9,
+      "retrieved_ids": [
+        "a47c145f-7533-4c07-a1b7-14ad32ef6fa1",
+        "a411801a-3f4f-402d-8c6d-ad04f809df86",
+        "f748b588-a25e-4fed-a944-ac1040fbd66d",
+        "073e8b5e-db7c-4109-a6e4-a5ac3420c434",
+        "db595af5-980e-4045-b844-6ac5acc1656b"
+      ]
+    },
+    {
+      "query": "آیا حساب‌های قرض‌الحسنه در اعتبارسنجی لحاظ می‌شوند",
+      "expected_ids": [
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.818,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2346.1,
+      "retrieved_ids": [
+        "b331de10-d415-485c-8ae0-e300b2d438a4",
+        "7ede2b29-f0b3-43db-9a07-f82b67d5ca01",
+        "790d2d21-7dda-443b-8949-3a77a88597a6",
+        "964810f9-1c52-49bc-88b6-588eb0cea9a6",
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید آیا حساب‌های قرض‌الحسنه در اعتبارسنجی لحاظ می‌شوند؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.588,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2218.9,
+      "retrieved_ids": [
+        "b331de10-d415-485c-8ae0-e300b2d438a4",
+        "790d2d21-7dda-443b-8949-3a77a88597a6",
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57",
+        "47aa425b-8c29-4b3a-8c1f-866e3b140a05",
+        "d50dae99-ae06-4a15-bdc1-b962d84b3baf"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که بر اساس اسناد آیا قرض‌الحسنه لحاظ اعتبارسنجی می‌شوند؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.364,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2237.1,
+      "retrieved_ids": [
+        "790d2d21-7dda-443b-8949-3a77a88597a6",
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57",
+        "7ca128b0-b82c-4711-a84f-a1d85c608bf1",
+        "b331de10-d415-485c-8ae0-e300b2d438a4",
+        "c5c9ce10-d156-4248-96ed-25a6dbfe7f75"
+      ]
+    },
+    {
+      "query": "بلوکه شدن حساب موجودی بالا عدم تأثیر امتیاز اعتباری مدل: حقیقی‌...",
+      "expected_ids": [
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.05,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2127.0,
+      "retrieved_ids": [
+        "5c0a8ecf-0e09-4ae7-941a-c31221121b17",
+        "d5ee4f84-4b8c-4f1e-909d-1cc176031a83",
+        "6b1434f9-df00-46be-a9c6-8f68d026b8e1",
+        "790d2d21-7dda-443b-8949-3a77a88597a6",
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ]
+    },
+    {
+      "query": "آیا حسابهای قرض‌الحسنه در اعتبارسنجی لحاظ می‌شوند؟",
+      "expected_ids": [
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.727,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2213.0,
+      "retrieved_ids": [
+        "790d2d21-7dda-443b-8949-3a77a88597a6",
+        "fa741b2e-2be8-4e59-bb08-39828be3ca14",
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57",
+        "b881542d-2196-4121-ae04-8af596954b16",
+        "b331de10-d415-485c-8ae0-e300b2d438a4"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، آیا حساب‌های قرض‌الحسنه در اعتبارسنجی لحاظ میشن . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "6a89a591-6ed7-4d33-9e37-ee13f90c3e57"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.444,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2219.4,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba",
+        "72a03ca4-42fc-4b63-b877-14c0fe7ee8b6",
+        "7d22ad19-4593-4ed7-9b52-5140456084d4"
+      ]
+    },
+    {
+      "query": "آیا امکان استفاده آزمایشی از API قبل از عقد قرارداد وجود دارد",
+      "expected_ids": [
+        "1cf34a87-72d4-452c-85af-5dacd6da490a"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.818,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2176.0,
+      "retrieved_ids": [
+        "c33da412-3ab0-47f6-b429-89eaf3f9fcb3",
+        "c431482e-6a65-4ef3-8cd5-eb3b5c39255b",
+        "1cf34a87-72d4-452c-85af-5dacd6da490a",
+        "e9f03e39-b1f3-4e11-a9af-ac5eda5aecbf",
+        "e56d2830-4352-43ff-82b4-926c86dc2037"
+      ]
+    },
+    {
+      "query": "آیا امکان استفاده آزمایشی از API قبل از عقد توافق‌نامه وجود دارد؟",
+      "expected_ids": [
+        "1cf34a87-72d4-452c-85af-5dacd6da490a"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.75,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2167.6,
+      "retrieved_ids": [
+        "c33da412-3ab0-47f6-b429-89eaf3f9fcb3",
+        "c431482e-6a65-4ef3-8cd5-eb3b5c39255b",
+        "1cf34a87-72d4-452c-85af-5dacd6da490a",
+        "e56d2830-4352-43ff-82b4-926c86dc2037",
+        "5fdd144a-a077-4bd2-9053-e943e21c01e9"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که بر اساس اسناد آیا امکان آزمایشی از توافق‌نامه قبل از دارد؟؟",
+      "expected_ids": [
+        "1cf34a87-72d4-452c-85af-5dacd6da490a"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.238,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2047.5,
+      "retrieved_ids": [
+        "c33da412-3ab0-47f6-b429-89eaf3f9fcb3",
+        "c431482e-6a65-4ef3-8cd5-eb3b5c39255b",
+        "1cf34a87-72d4-452c-85af-5dacd6da490a",
+        "691422bc-2590-4d63-9fa6-c2cab8caafb1",
+        "5fdd144a-a077-4bd2-9053-e943e21c01e9"
+      ]
+    },
+    {
+      "query": "پشتیبانی فنی واحد فنی شماره تماس ایمیل پشتیبانی ساعات اداری‌...",
+      "expected_ids": [
+        "1cf34a87-72d4-452c-85af-5dacd6da490a"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.0,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 1801.2,
+      "retrieved_ids": [
+        "7296181b-45e7-4f2d-8aa2-3192db1d4fda",
+        "55faa506-7f4e-494e-b155-13234225cadb",
+        "b7c91752-06ff-4d83-8ef3-cf692276c1c1",
+        "c33da412-3ab0-47f6-b429-89eaf3f9fcb3",
+        "c431482e-6a65-4ef3-8cd5-eb3b5c39255b"
+      ]
+    },
+    {
+      "query": "آیا امکان استفاده آزمایشی از API قبل از عقد قرارداد وجود دارد؟",
+      "expected_ids": [
+        "1cf34a87-72d4-452c-85af-5dacd6da490a"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2162.5,
+      "retrieved_ids": [
+        "c33da412-3ab0-47f6-b429-89eaf3f9fcb3",
+        "c431482e-6a65-4ef3-8cd5-eb3b5c39255b",
+        "1cf34a87-72d4-452c-85af-5dacd6da490a",
+        "e56d2830-4352-43ff-82b4-926c86dc2037",
+        "e9f03e39-b1f3-4e11-a9af-ac5eda5aecbf"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، آیا امکان استفاده آزمایشی از API قبل از عقد قرارداد وجود دارد . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "1cf34a87-72d4-452c-85af-5dacd6da490a"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.45,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2347.8,
+      "retrieved_ids": [
+        "c33da412-3ab0-47f6-b429-89eaf3f9fcb3",
+        "c431482e-6a65-4ef3-8cd5-eb3b5c39255b",
+        "1cf34a87-72d4-452c-85af-5dacd6da490a",
+        "e9f03e39-b1f3-4e11-a9af-ac5eda5aecbf",
+        "e56d2830-4352-43ff-82b4-926c86dc2037"
+      ]
+    },
+    {
+      "query": "آیا امکان دارد دستگاهی داده‌ای ارسال کند که حتی خودش نیز قبلاً از آن استفاده نکرده باشد",
+      "expected_ids": [
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.895,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2296.5,
+      "retrieved_ids": [
+        "0eb17dae-12b7-4958-8377-607129081fd8",
+        "4a83ba31-2560-4c78-aa42-d44fcf52ce7c",
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243",
+        "7f195db8-f2a3-4010-9e03-3ce03b01f1ae",
+        "d42db961-82cb-4436-ae3f-79e11e2b53a3"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که آیا امکان دارد دستگاهی داده‌ای فرستادن کند که آن خودش نیز قبلاً از حتی استفاده نکرده باشد؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.68,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2392.6,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "0eb17dae-12b7-4958-8377-607129081fd8",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "4a83ba31-2560-4c78-aa42-d44fcf52ce7c",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم در عمل آیا امکان دارد دستگاهی که حتی خودش آن استفاده نکرده باشد؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.407,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2337.8,
+      "retrieved_ids": [
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "0eb17dae-12b7-4958-8377-607129081fd8",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "4a83ba31-2560-4c78-aa42-d44fcf52ce7c",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba"
+      ]
+    },
+    {
+      "query": "تامین‌کنندگان فرهنگ داده پایگاه داده داده اعتباری کدگذاری مدیریت داده‌ها",
+      "expected_ids": [
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.038,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2157.2,
+      "retrieved_ids": [
+        "f642bd83-6ca1-4aa3-a8f1-852c8372bed8",
+        "cd88860d-4020-4cae-8ff4-c40e485fe82f",
+        "b24ec651-9d9b-4e30-a891-df1ff0c9c4d7",
+        "f1182077-fe89-4170-b8ef-3ee40797b36e",
+        "d025c509-95b7-4a85-b3ab-6d6e9882dee1"
+      ]
+    },
+    {
+      "query": "آیا امکان دارد دستگاهی دادهای ارسال کند که حتی خودش نیز قبلاً از آن استفاده نکرده باشد؟",
+      "expected_ids": [
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.842,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 2303.2,
+      "retrieved_ids": [
+        "0eb17dae-12b7-4958-8377-607129081fd8",
+        "4a83ba31-2560-4c78-aa42-d44fcf52ce7c",
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243",
+        "9ce02709-c298-4d20-b52c-95ccadc12e71",
+        "c1a2b1eb-abb6-476a-9a77-0e7eb1b41047"
+      ]
+    },
+    {
+      "query": "سلام، آیا امکان دارد دستگاهی داده‌ای ارسال کند که حتی خودش نیز قبلاً از آن استفاده نکرده باشد . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.708,
+      "hit": true,
+      "rank": 5,
+      "top1_hit": false,
+      "elapsed_ms": 2204.7,
+      "retrieved_ids": [
+        "0eb17dae-12b7-4958-8377-607129081fd8",
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "4a83ba31-2560-4c78-aa42-d44fcf52ce7c",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "a3f4c4da-b1ee-4a78-ab69-982d3c4ae243"
+      ]
+    },
+    {
+      "query": "رتبه من C شده و من تا حالا هیچ وامی نگرفتم،‌ چطور ممکنه",
+      "expected_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.833,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2488.5,
+      "retrieved_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986",
+        "1665a5ec-1b21-43dd-920e-2350edfdffaf",
+        "a296f759-650a-4c8c-9f79-a8bb4088be18",
+        "86163b4f-b616-472f-96ea-0dc87906dfaa",
+        "b6ab3d15-9112-4955-ae63-27270ced9f2c"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که رتبه من C من و شده تا حالا هیچ وامی نگرفتم،‌ چطور ممکنه؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.611,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2206.3,
+      "retrieved_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986",
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "86163b4f-b616-472f-96ea-0dc87906dfaa",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که در عمل رتبه شده C و حالا هیچ نگرفتم،‌ ممکنه؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.333,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2311.8,
+      "retrieved_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986",
+        "0e53eeab-72e8-41fc-81b5-34b055907f73",
+        "1d45b7e6-6bcd-4d04-9d21-a1c425215af3",
+        "470dbbf2-ffb2-4c8f-af41-eaffa1c53aba",
+        "72a03ca4-42fc-4b63-b877-14c0fe7ee8b6"
+      ]
+    },
+    {
+      "query": "بیش از ۵ سال عدم تاثیر تسهیلات عامل اصلی مدل: حقیقی و حقوقی‌...",
+      "expected_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.045,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2344.7,
+      "retrieved_ids": [
+        "86163b4f-b616-472f-96ea-0dc87906dfaa",
+        "9ed66d15-7599-4da0-bd5b-a527c6d039fc",
+        "734a12c4-fb1c-405a-8354-7a8cdb423d2c",
+        "6a90c62e-783b-4118-9ddf-8994727f2b62",
+        "1071f7a9-0183-4969-806a-6dfb8a007410"
+      ]
+    },
+    {
+      "query": "رتبه من C شده و من تا حالا هیچ وامی نگرفتم،‌ چطور ممکنه؟",
+      "expected_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2144.4,
+      "retrieved_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986",
+        "a296f759-650a-4c8c-9f79-a8bb4088be18",
+        "86163b4f-b616-472f-96ea-0dc87906dfaa",
+        "213b6b73-8dd0-4b0f-9d19-615bc8a08052",
+        "1665a5ec-1b21-43dd-920e-2350edfdffaf"
+      ]
+    },
+    {
+      "query": "ببخشید، رتبه من C شده و من تا حالا هیچ وامی نگرفتم،‌ چطور ممکنه . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.526,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2033.7,
+      "retrieved_ids": [
+        "3c2d9310-0ca4-4120-8dde-e7743a459986",
+        "7ca128b0-b82c-4711-a84f-a1d85c608bf1",
+        "1665a5ec-1b21-43dd-920e-2350edfdffaf",
+        "c5c9ce10-d156-4248-96ed-25a6dbfe7f75",
+        "a296f759-650a-4c8c-9f79-a8bb4088be18"
+      ]
+    }
+  ]
+}

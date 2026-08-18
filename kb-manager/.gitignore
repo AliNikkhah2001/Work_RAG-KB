@@ -57,3 +57,8 @@ Thumbs.db
 /new_zip*.txt
 /zip_*.txt
 /shared_strings.xml
+
+# --- Version snapshots: commit everything inside (compact archives only) ---
+# Negation must come last so it wins over the *.txt rule above.
+!versions/
+!versions/**

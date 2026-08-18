@@ -49,3 +49,7 @@ venv/
 .ruff_cache/
 .mypy_cache/
 .pytest_cache/
+
+# --- Version snapshots: commit everything inside (compact archives only) ---
+!versions/
+!versions/**

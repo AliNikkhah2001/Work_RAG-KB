@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Benchmarks - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Benchmarks &amp; Performance</h1>
+{% endblock %}
+
+{% block content %}
+{% set results = latest_results %}
+
+<div class="card">
+    <h3>Run a Retrieval Benchmark</h3>
+    <p style="opacity:0.85;">Each dataset query is searched against the live KB (BM25 + TF-IDF RRF fusion, top-k returned). Hit@K and MRR are computed against expected chunk ids, then broken down by query format and difficulty.</p>
+    <form method="post" action="/benchmarks/run" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+        <div class="form-group">
+            <label>Test Dataset</label>
+            <select name="dataset" class="form-control">
+                {% for ds in datasets %}
+                <option value="{{ ds }}" {% if ds == 'test_questions.json' %}selected{% endif %}>{{ ds }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Top-K</label>
+            <input type="number" name="top_k" value="5" min="1" max="50" class="form-control" style="width:90px;">
+        </div>
+        <div class="form-group">
+            <label>Sample Size (0 = all)</label>
+            <input type="number" name="sample_size" value="0" min="0" class="form-control" style="width:90px;">
+        </div>
+        <button type="submit" class="btn btn-primary" id="run-btn">Run Benchmark</button>
+    </form>
+    <div id="job-area" style="display:none; margin-top: 1rem;"></div>
+</div>
+
+<div class="card">
+    <h3>Query Formats</h3>
+    <p style="opacity:0.85;">Each ground-truth question is transformed into these formats to stress-test retrieval robustness:</p>
+    <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+        {% for fmt in formats %}
+        <span class="badge badge-active">{{ fmt }}</span>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value" id="stat-queries">
+            {% if results %}{{ results.total_queries | default(0) }}{% else %}-{% endif %}
+        </div>
+        <div class="stat-label">Queries Evaluated</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-hit">
+            {% if results %}{{ "%.1f"|format((results.overall.hit_rate|default(0)) * 100) }}%{% else %}-{% endif %}
+        </div>
+        <div class="stat-label">Overall Hit@K</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-mrr">
+            {% if results %}{{ "%.3f"|format(results.overall.mrr|default(0)) }}{% else %}-{% endif %}
+        </div>
+        <div class="stat-label">Overall MRR</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="stat-lat">
+            {% if results %}{{ "%.0f"|format(results.overall.avg_latency_ms|default(0)) }} ms{% else %}-{% endif %}
+        </div>
+        <div class="stat-label">Avg Latency</div>
+    </div>
+</div>
+
+{% if results %}
+<div class="card">
+    <h3>Hit Rate by Query Format</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Format</th>
+                    <th>Queries</th>
+                    <th>Hit@K</th>
+                    <th>Top-1</th>
+                    <th>MRR</th>
+                    <th>Avg Rank</th>
+                    <th>Avg Latency (ms)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fmt, agg in (results.by_format or {}).items() %}
+                <tr>
+                    <td>{{ fmt }}</td>
+                    <td>{{ agg.queries }}</td>
+                    <td>{{ "%.1f"|format(agg.hit_rate * 100) }}%</td>
+                    <td>{{ "%.1f"|format(agg.top1_hit_rate * 100) }}%</td>
+                    <td>{{ "%.3f"|format(agg.mrr) }}</td>
+                    <td>{{ agg.avg_rank }}</td>
+                    <td>{{ "%.1f"|format(agg.avg_latency_ms) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if ir_metrics and ir_metrics.metrics %}
+<div class="card">
+    <h3>IR Metrics (ranx / pure-Python)</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+            <tbody>
+                {% for metric, value in (ir_metrics.metrics or {}).items() %}
+                <tr><td>{{ metric }}</td><td>{{ "%.4f"|format(value) }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="charts-grid">
+    {% for plot in plots %}
+    <div class="chart-card">
+        <h3>{{ plot }}</h3>
+        <img src="/benchmarks/plot/{{ plot }}" alt="{{ plot }}" style="width:100%; max-width:100%; border-radius:8px;">
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3>Create Version Snapshot</h3>
+    <p style="opacity:0.85;">Pack the current KB (compact export + test dataset + latest benchmark results + plots) into an immutable version directory under <code>versions/&lt;label&gt;/</code>, ready to be committed and pushed to GitHub. Each re-ingest creates a <em>new</em> version.</p>
+    <form method="post" action="/benchmarks/snapshot/create" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+        <div class="form-group">
+            <label>Version label</label>
+            <input type="text" name="label" class="form-control" placeholder="e.g. v1" required>
+        </div>
+        <div class="form-group">
+            <label>Notes</label>
+            <input type="text" name="notes" class="form-control" placeholder="optional">
+        </div>
+        <button type="submit" class="btn btn-success">Create Snapshot</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3>Version Snapshots</h3>
+    {% if snapshots %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr><th>Version</th><th>Created</th><th>Git Commit</th><th>Docs</th><th>Chunks</th><th>Distinct Q</th><th>Dup Copies</th></tr>
+            </thead>
+            <tbody>
+                {% for s in snapshots %}
+                <tr>
+                    <td><a href="/benchmarks/snapshots/{{ s.label }}">{{ s.label }}</a></td>
+                    <td>{{ (s.created_at or '')[:19] }}</td>
+                    <td><code>{{ (s.git_commit or '')[:10] }}</code></td>
+                    <td>{{ s.counts.documents | default('-') }}</td>
+                    <td>{{ s.counts.chunks_total | default('-') }}</td>
+                    <td>{{ s.counts.distinct_questions | default('-') }}</td>
+                    <td>{{ s.counts.duplicate_instances | default('-') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="opacity:0.8;">No snapshots yet.</p>
+    {% endif %}
+</div>
+
+<script>
+(function pollJob() {
+    var p = new URLSearchParams(window.location.search);
+    var job = p.get('job');
+    if (!job) return;
+    var area = document.getElementById('job-area');
+    area.style.display = 'block';
+    var btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = 'Running...';
+    area.innerHTML = '<p>Benchmark running... <span id="job-progress">0/0</span></p>';
+    var interval = setInterval(async function () {
+        try {
+            var r = await fetch('/benchmarks/status/' + job);
+            var j = await r.json();
+            area.innerHTML = '<p>Benchmark running... <span id="job-progress">' + j.progress + '/' + j.total + '</span></p>';
+            if (j.status === 'done') {
+                clearInterval(interval);
+                area.innerHTML = '<p class="badge badge-success">Benchmark finished. Reloading results...</p>';
+                window.location.href = '/benchmarks';
+            } else if (j.status === 'error') {
+                clearInterval(interval);
+                btn.disabled = false;
+                btn.textContent = 'Run Benchmark';
+                area.innerHTML = '<p class="badge badge-failed">Error: ' + (j.error || 'unknown') + '</p>';
+            }
+        } catch (e) { /* keep polling */ }
+    }, 1500);
+})();
+</script>
+
+{% if request.query_params.get('snapshot') %}
+<div class="badge badge-success" style="display:inline-block; margin-top:1rem;">
+    Snapshot created: {{ request.query_params.get('snapshot') }}
+</div>
+{% endif %}
+
+{% endblock %}

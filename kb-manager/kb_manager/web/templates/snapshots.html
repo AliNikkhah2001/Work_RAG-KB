@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Snapshots - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Version Snapshots</h1>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    {% if snapshots %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Version</th>
+                    <th>Created</th>
+                    <th>Git Commit</th>
+                    <th>Docs</th>
+                    <th>Chunks (QA / body)</th>
+                    <th>Distinct Q</th>
+                    <th>Dup Copies</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in snapshots %}
+                <tr>
+                    <td><a href="/benchmarks/snapshots/{{ s.label }}">{{ s.label }}</a></td>
+                    <td>{{ (s.created_at or '')[:19] }}</td>
+                    <td><code>{{ (s.git_commit or '')[:10] }}</code></td>
+                    <td>{{ s.counts.documents | default('-') }}</td>
+                    <td>{{ s.counts.chunks_total | default('-') }} ({{ s.counts.qa_chunks | default('-') }} / {{ s.counts.body_chunks | default('-') }})</td>
+                    <td>{{ s.counts.distinct_questions | default('-') }}</td>
+                    <td>{{ s.counts.duplicate_instances | default('-') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="opacity:0.8;">No snapshots created yet. Visit <a href="/benchmarks">Benchmarks</a> to create one.</p>
+    {% endif %}
+</div>
+{% endblock %}

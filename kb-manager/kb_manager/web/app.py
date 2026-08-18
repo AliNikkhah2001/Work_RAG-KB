@@ -39,7 +39,15 @@ app = FastAPI(
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-from kb_manager.web.routes import chunks, documents, monitoring, pipeline, search, versions  # noqa: E402
+from kb_manager.web.routes import (
+    benchmarks,
+    chunks,
+    documents,
+    monitoring,
+    pipeline,
+    search,
+    versions,
+)  # noqa: E402
 
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chunks.router, prefix="/chunks", tags=["chunks"])
@@ -47,6 +55,7 @@ app.include_router(pipeline.router, prefix="/pipeline", tags=["pipeline"])
 app.include_router(versions.router, prefix="/versions", tags=["versions"])
 app.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
 app.include_router(search.router, prefix="/search", tags=["search"])
+app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
 
 
 @app.get("/")

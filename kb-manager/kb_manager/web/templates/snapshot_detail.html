@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Snapshot {{ label }} - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Snapshot: {{ label }}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ manifest.counts.documents | default('-') }}</div>
+        <div class="stat-label">Documents</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ manifest.counts.chunks_total | default('-') }}</div>
+        <div class="stat-label">Chunks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ manifest.counts.qa_chunks | default('-') }}</div>
+        <div class="stat-label">QA Chunks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ manifest.counts.distinct_questions | default('-') }}</div>
+        <div class="stat-label">Distinct Questions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ manifest.counts.duplicate_instances | default('-') }}</div>
+        <div class="stat-label">Duplicate Copies</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Manifest</h3>
+    <div class="detail-list">
+        <div class="detail-item"><span class="detail-label">Created</span><span class="detail-value">{{ manifest.created_at }}</span></div>
+        <div class="detail-item"><span class="detail-label">Git commit</span><span class="detail-value"><code>{{ manifest.git_commit }}</code></span></div>
+        <div class="detail-item"><span class="detail-label">Source DB</span><span class="detail-value">{{ manifest.source_db }}</span></div>
+        <div class="detail-item"><span class="detail-label">Notes</span><span class="detail-value">{{ manifest.notes or '(none)' }}</span></div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Archived Files</h3>
+    <ul>
+        {% for f in files %}
+        <li><a href="/benchmarks/snapshots/{{ label }}/file/{{ f }}">{{ f }}</a></li>
+        {% endfor %}
+        {% for b in benchmarks %}
+        <li><a href="/benchmarks/snapshots/{{ label }}/file/benchmarks/{{ b }}">benchmarks/{{ b }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% if plots %}
+<div class="charts-grid">
+    {% for plot in plots %}
+    <div class="chart-card">
+        <h3>{{ plot }}</h3>
+        <img src="/benchmarks/snapshots/{{ label }}/file/plots/{{ plot }}" alt="{{ plot }}" style="width:100%; border-radius:8px;">
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
