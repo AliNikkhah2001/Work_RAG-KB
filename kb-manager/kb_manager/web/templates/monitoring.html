@@ -28,41 +28,108 @@
 <div class="charts-grid">
     <div class="chart-card">
         <h3>Documents by Status</h3>
-        <div class="bar-chart">
-            {% for status, count in status_counts.items() %}
-            <div class="bar-row">
-                <span class="bar-label">{{ status }}</span>
-                <div class="bar-container">
-                    <div class="bar-fill" style="width: {{ (count / (status_counts.values()|list|first or 1) * 100)|int }}%"></div>
-                </div>
-                <span class="bar-value">{{ count }}</span>
-            </div>
-            {% endfor %}
-        </div>
+        <canvas id="statusChart" height="200"></canvas>
     </div>
     <div class="chart-card">
         <h3>Chunk Verification Status</h3>
-        <div class="bar-chart">
-            <div class="bar-row">
-                <span class="bar-label">Verified</span>
-                <div class="bar-container">
-                    <div class="bar-fill bar-success" style="width: {{ (verified_count / (chunk_count or 1) * 100)|int }}%"></div>
-                </div>
-                <span class="bar-value">{{ verified_count }}</span>
-            </div>
-            <div class="bar-row">
-                <span class="bar-label">Unverified</span>
-                <div class="bar-container">
-                    <div class="bar-fill bar-warning" style="width: {{ (unverified_count / (chunk_count or 1) * 100)|int }}%"></div>
-                </div>
-                <span class="bar-value">{{ unverified_count }}</span>
-            </div>
-        </div>
+        <canvas id="verificationChart" height="200"></canvas>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Retrieval Performance (Latest Benchmark)</h3>
+        <canvas id="hitRateChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+        <h3>Top-1 Accuracy by Query Format</h3>
+        <canvas id="top1Chart" height="200"></canvas>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>MRR by Query Format</h3>
+        <canvas id="mrrChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+        <h3>Avg Latency by Query Format</h3>
+        <canvas id="latencyChart" height="200"></canvas>
     </div>
 </div>
 
 <div class="toolbar">
     <a href="/monitoring/staleness" class="btn btn-primary">Staleness Report</a>
     <a href="/monitoring/metrics" class="btn btn-primary">Metrics Summary</a>
+    <a href="/benchmarks" class="btn btn-primary">Full Benchmarks</a>
 </div>
+
+<script>
+(function() {
+    const statusData = {{ status_counts | tojson }};
+    const verificationData = { verified: {{ verified_count }}, unverified: {{ unverified_count }} };
+    
+    new Chart(document.getElementById('statusChart'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(statusData),
+            datasets: [{ label: 'Count', data: Object.values(statusData), backgroundColor: '#4f46e5' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+    
+    new Chart(document.getElementById('verificationChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Verified', 'Unverified'],
+            datasets: [{ data: [verificationData.verified, verificationData.unverified], backgroundColor: ['#10b981', '#f59e0b'] }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+    
+    // Benchmark metrics - fetch from API
+    async function loadBenchmarkCharts() {
+        try {
+            const r = await fetch('/benchmarks/result');
+            if (!r.ok) return;
+            const data = await r.json();
+            if (!data.by_format) return;
+            
+            const formats = Object.keys(data.by_format);
+            const hitRates = formats.map(f => (data.by_format[f].hit_rate * 100).toFixed(1));
+            const top1Rates = formats.map(f => (data.by_format[f].top1_hit_rate * 100).toFixed(1));
+            const mrrs = formats.map(f => data.by_format[f].mrr.toFixed(3));
+            const latencies = formats.map(f => data.by_format[f].avg_latency_ms.toFixed(1));
+            
+            new Chart(document.getElementById('hitRateChart'), {
+                type: 'bar',
+                data: { labels: formats, datasets: [{ label: 'Hit@5 (%)', data: hitRates, backgroundColor: '#3b82f6' }] },
+                options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
+            });
+            
+            new Chart(document.getElementById('top1Chart'), {
+                type: 'bar',
+                data: { labels: formats, datasets: [{ label: 'Top-1 (%)', data: top1Rates, backgroundColor: '#10b981' }] },
+                options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
+            });
+            
+            new Chart(document.getElementById('mrrChart'), {
+                type: 'bar',
+                data: { labels: formats, datasets: [{ label: 'MRR', data: mrrs, backgroundColor: '#f59e0b' }] },
+                options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 1 } } }
+            });
+            
+            new Chart(document.getElementById('latencyChart'), {
+                type: 'bar',
+                data: { labels: formats, datasets: [{ label: 'Latency (ms)', data: latencies, backgroundColor: '#ef4444' }] },
+                options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+            });
+        } catch (e) {
+            console.log('Benchmark data not available yet');
+        }
+    }
+    
+    loadBenchmarkCharts();
+})();
+</script>
 {% endblock %}

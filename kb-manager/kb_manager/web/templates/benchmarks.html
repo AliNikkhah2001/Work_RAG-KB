@@ -121,13 +121,60 @@
 {% endif %}
 
 <div class="charts-grid">
-    {% for plot in plots %}
     <div class="chart-card">
-        <h3>{{ plot }}</h3>
-        <img src="/benchmarks/plot/{{ plot }}" alt="{{ plot }}" style="width:100%; max-width:100%; border-radius:8px;">
+        <h3>Hit@5 by Query Format</h3>
+        <canvas id="hitChart" height="250"></canvas>
     </div>
-    {% endfor %}
+    <div class="chart-card">
+        <h3>Top-1 Accuracy by Query Format</h3>
+        <canvas id="top1Chart" height="250"></canvas>
+    </div>
+    <div class="chart-card">
+        <h3>MRR by Query Format</h3>
+        <canvas id="mrrChart" height="250"></canvas>
+    </div>
+    <div class="chart-card">
+        <h3>Avg Latency by Query Format</h3>
+        <canvas id="latencyChart" height="250"></canvas>
+    </div>
 </div>
+
+<script>
+(function() {
+    const results = {{ results | tojson }};
+    if (!results || !results.by_format) return;
+    
+    const formats = Object.keys(results.by_format);
+    const hitRates = formats.map(f => (results.by_format[f].hit_rate * 100).toFixed(1));
+    const top1Rates = formats.map(f => (results.by_format[f].top1_hit_rate * 100).toFixed(1));
+    const mrrs = formats.map(f => results.by_format[f].mrr.toFixed(3));
+    const latencies = formats.map(f => results.by_format[f].avg_latency_ms.toFixed(1));
+    
+    new Chart(document.getElementById('hitChart'), {
+        type: 'bar',
+        data: { labels: formats, datasets: [{ label: 'Hit@5 (%)', data: hitRates, backgroundColor: '#3b82f6' }] },
+        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
+    });
+    
+    new Chart(document.getElementById('top1Chart'), {
+        type: 'bar',
+        data: { labels: formats, datasets: [{ label: 'Top-1 (%)', data: top1Rates, backgroundColor: '#10b981' }] },
+        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
+    });
+    
+    new Chart(document.getElementById('mrrChart'), {
+        type: 'bar',
+        data: { labels: formats, datasets: [{ label: 'MRR', data: mrrs, backgroundColor: '#f59e0b' }] },
+        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 1 } } }
+    });
+    
+    new Chart(document.getElementById('latencyChart'), {
+        type: 'bar',
+        data: { labels: formats, datasets: [{ label: 'Latency (ms)', data: latencies, backgroundColor: '#ef4444' }] },
+        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+    });
+})();
+</script>
 
 <div class="card">
     <h3>Create Version Snapshot</h3>
