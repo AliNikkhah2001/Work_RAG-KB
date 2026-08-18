@@ -291,6 +291,53 @@ This starts:
 docker compose up -d postgres
 ```
 
+## Retrieval Benchmark & Improvements
+
+### Retrieval Pipeline (v3)
+
+The search pipeline now uses a **two-stage hybrid** retriever:
+
+1. **BM25** (lexical) — Okapi BM25 with Persian-aware tokenization
+2. **Dense semantic** — `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) cosine similarity over precomputed chunk embeddings
+3. **Fusion** — Reciprocal Rank Fusion (RRF, k=60) over both legs
+
+The TF-IDF cosine leg was removed (redundant with BM25, O(n) per-query latency).
+
+### Benchmark Results (120 queries, 6 formats, Top-5)
+
+| Format | Hit@5 | Top-1 | MRR | Avg Latency |
+|--------|-------|-------|-----|-------------|
+| **verbatim** | 100% | 90% | 0.942 | 9.8s (cold model load) |
+| **paraphrase** | 100% | 95% | 0.975 | 279ms |
+| **typo** | 100% | 90% | 0.942 | 257ms |
+| **conversational** | 100% | 85% | 0.917 | 277ms |
+| **reworded** | 95% | 65% | 0.760 | 265ms |
+| **keyword_only** | 40% | 10% | 0.188 | 243ms |
+| **Overall** | **89.2%** | **72.5%** | **0.787** | **~1.9s** |
+
+> **v2 → v3 delta**: Top-1 **+9.2%**, MRR **+6.9%**, Latency **−34%** (TF-IDF leg removed)
+
+### Key Findings
+
+- **Dense embeddings** (MiniLM multilingual) are the single biggest win for semantic queries (paraphrase, reworded, typo, conversational) — Top-1 jumped from ~63% → 72%.
+- **Keyword_only** remains weak (40% hit) because its test queries are corrupted: the generator extracts a merged "keywords + model" header line (`کلیدواژه‌ها: بروزرسانی، بازپرداخت، وام، گزارش اعتباری مدل: حقیقی و حقوقی...`). This is a **data-quality issue in the test generator**, not a retrieval gap. Real user keyword queries would be cleaner.
+- **Latency** dropped from ~2.8s → ~1.9s by removing the O(n) TF-IDF full scan; dense query encode (~70ms) + matmul (µs) is fast.
+- Embeddings are **cached to disk** (`data/dense_embeddings.npz`) keyed by corpus fingerprint — rebuild only when KB changes.
+
+### Generated Plots (in `data/plots/`)
+
+- `hit_rate_by_format.png` — Hit@5 per query format
+- `mrr_by_format.png` — MRR per query format
+- `latency_distribution.png` — Query latency histogram
+- `qa_duplication.png` — Deduplication statistics
+
+### Running the Benchmark
+
+```bash
+# From kb-manager/
+KB_DB_URL="sqlite+aiosqlite:///data/kb_test.db" python run_benchmark.py test_questions.json 5
+```
+
 ## License
 
 Private — ICS Credit Scoring

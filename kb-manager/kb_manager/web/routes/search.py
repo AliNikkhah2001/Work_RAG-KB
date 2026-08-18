@@ -12,10 +12,16 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from kb_manager.config import PROJECT_ROOT
+from kb_manager.dense import DenseSemanticIndex, load_or_build
+
 if TYPE_CHECKING:
     pass
 
 router = APIRouter()
+
+_DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
+_DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 
 # ---------------------------------------------------------------------------
@@ -139,6 +145,7 @@ class SearchResult(BaseModel):
     content_preview: str
     bm25_score: float = 0.0
     semantic_score: float = 0.0
+    dense_score: float = 0.0
     hybrid_score: float = 0.0
     ordinal: int = 0
 
@@ -150,13 +157,14 @@ class SearchSteps(BaseModel):
     total_chunks_indexed: int
     bm25_results: list[SearchResult]
     semantic_results: list[SearchResult]
+    dense_results: list[SearchResult]
     merged_candidates: list[SearchResult]
     final_results: list[SearchResult]
     elapsed_ms: float
 
 
-async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25]:
-    """Load all chunks + docs and build BM25 index."""
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex]:
+    """Load all chunks + docs and build BM25 + dense indexes."""
     from kb_manager.models.database import Chunk, Document
     from kb_manager.web.app import db
 
@@ -180,10 +188,19 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
 
     bm25 = BM25()
     bm25.index(docs_for_bm25)
-    return chunk_data, bm25
+
+    dense_texts = [cd[4] for cd in chunk_data]
+    dense_ids = [cd[0] for cd in chunk_data]
+    dense = load_or_build(
+        _DENSE_CACHE_PATH,
+        dense_ids,
+        dense_texts,
+        model_name=_DENSE_MODEL,
+    )
+    return chunk_data, bm25, dense
 
 
-_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, dict[str, float]] | None = None
+_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex] | None = None
 _index_cache_count: int = 0
 
 
@@ -194,7 +211,7 @@ def _invalidate_index_cache() -> None:
     _index_cache_count = 0
 
 
-async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, dict[str, float]]:
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex]:
     """Return the cached index, building it on first use."""
     global _index_cache, _index_cache_count
 
@@ -211,9 +228,8 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25,
     if _index_cache is not None and _index_cache_count == chunk_count:
         return _index_cache
 
-    chunk_data, bm25 = await _build_index()
-    idf = _compute_idf(chunk_data)
-    _index_cache = (chunk_data, bm25, idf)
+    chunk_data, bm25, dense = await _build_index()
+    _index_cache = (chunk_data, bm25, dense)
     _index_cache_count = chunk_count
     return _index_cache
 
@@ -235,9 +251,9 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     normalized = query.strip()
     tokens = _tokenize(normalized)
 
-    chunk_data, bm25, idf = await _get_index()
+    chunk_data, bm25, dense = await _get_index()
 
-    # --- Step 1: BM25 ---
+    # --- Step 2: BM25 ---
     bm25_raw = bm25.search(normalized, top_k=top_k * 3)
     bm25_id_map = {cd[0]: cd for cd in chunk_data}
     bm25_results = []
@@ -259,87 +275,63 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
             ordinal=cd[5] if isinstance(cd[5], int) else 0,
         ))
 
-    # --- Step 2: Semantic (TF-IDF cosine) ---
-    query_vec = _tfidf_vector(tokens, idf)
-
-    semantic_scores_list: list[tuple[str, float]] = []
-    for cd in chunk_data:
-        chunk_tokens = _tokenize(cd[4])
-        chunk_vec = _tfidf_vector(chunk_tokens, idf)
-        sim = _cosine_sim(query_vec, chunk_vec)
-        if sim > 0:
-            semantic_scores_list.append((cd[0], sim))
-
-    semantic_scores_list.sort(key=lambda x: x[1], reverse=True)
-    semantic_scores_map = {cid: s for cid, s in semantic_scores_list[:top_k * 3]}
-    semantic_results = []
-    for chunk_id, score in semantic_scores_list[:top_k * 3]:
+    # --- Step 3: Dense semantic (embedding cosine) ---
+    dense_raw = dense.search(normalized, top_k=top_k * 3)
+    dense_scores = dict(dense_raw)
+    dense_results = []
+    for chunk_id, score in dense_raw:
         cd = bm25_id_map.get(chunk_id)
         if cd is None:
             continue
-        semantic_results.append(SearchResult(
+        dense_results.append(SearchResult(
             chunk_id=chunk_id,
             doc_id=cd[1],
             doc_title=cd[2],
             heading_path=cd[3],
             content_preview=cd[4][:300],
-            semantic_score=round(score, 4),
+            dense_score=round(score, 4),
+            semantic_score=round(score, 4),  # repurpose semantic_score for dense
             ordinal=cd[5] if isinstance(cd[5], int) else 0,
         ))
 
-    # --- Step 3: Merge (RRF - Reciprocal Rank Fusion) ---
-    all_chunk_ids = set(bm25_scores.keys()) | set(sem_scores for sem_scores, _ in semantic_scores_list[:top_k * 3])
+    # --- Step 4: Merge (RRF - Reciprocal Rank Fusion over 2 legs) ---
+    ranked_lists: list[list[tuple[str, float]]] = [
+        [(cid, s) for cid, s in bm25_raw if cid in bm25_id_map],
+        list(dense_raw),
+    ]
+
     merged: dict[str, SearchResult] = {}
     k = 60  # RRF constant
-
-    # BM25 ranks
-    for rank, (chunk_id, _) in enumerate(bm25_raw):
-        if chunk_id not in bm25_id_map:
-            continue
-        cd = bm25_id_map[chunk_id]
-        rrf_score = 1.0 / (k + rank + 1)
-        if chunk_id not in merged:
-            merged[chunk_id] = SearchResult(
-                chunk_id=chunk_id,
-                doc_id=cd[1],
-                doc_title=cd[2],
-                heading_path=cd[3],
-                content_preview=cd[4][:300],
-                bm25_score=round(bm25_scores.get(chunk_id, 0), 4),
-                semantic_score=round(semantic_scores_map.get(chunk_id, 0), 4),
-                hybrid_score=round(rrf_score, 6),
-                ordinal=cd[5] if isinstance(cd[5], int) else 0,
-            )
-        else:
-            merged[chunk_id].hybrid_score += rrf_score
-            merged[chunk_id].bm25_score = round(bm25_scores.get(chunk_id, 0), 4)
-
-    for rank, (chunk_id, _) in enumerate(semantic_scores_list):
-        if chunk_id not in bm25_id_map:
-            continue
-        cd = bm25_id_map[chunk_id]
-        rrf_score = 1.0 / (k + rank + 1)
-        if chunk_id not in merged:
-            merged[chunk_id] = SearchResult(
-                chunk_id=chunk_id,
-                doc_id=cd[1],
-                doc_title=cd[2],
-                heading_path=cd[3],
-                content_preview=cd[4][:300],
-                bm25_score=round(bm25_scores.get(chunk_id, 0), 4),
-                semantic_score=round(semantic_scores_map.get(chunk_id, 0), 4),
-                hybrid_score=round(rrf_score, 6),
-                ordinal=cd[5] if isinstance(cd[5], int) else 0,
-            )
-        else:
-            merged[chunk_id].hybrid_score += rrf_score
-            merged[chunk_id].semantic_score = round(semantic_scores_map.get(chunk_id, 0), 4)
+    for ranked in ranked_lists:
+        for rank, (chunk_id, _) in enumerate(ranked):
+            if chunk_id not in bm25_id_map:
+                continue
+            cd = bm25_id_map[chunk_id]
+            rrf_score = 1.0 / (k + rank + 1)
+            if chunk_id not in merged:
+                merged[chunk_id] = SearchResult(
+                    chunk_id=chunk_id,
+                    doc_id=cd[1],
+                    doc_title=cd[2],
+                    heading_path=cd[3],
+                    content_preview=cd[4][:300],
+                    bm25_score=round(bm25_scores.get(chunk_id, 0), 4),
+                    semantic_score=round(dense_scores.get(chunk_id, 0), 4),
+                    dense_score=round(dense_scores.get(chunk_id, 0), 4),
+                    hybrid_score=round(rrf_score, 6),
+                    ordinal=cd[5] if isinstance(cd[5], int) else 0,
+                )
+            else:
+                merged[chunk_id].hybrid_score += rrf_score
+                merged[chunk_id].bm25_score = round(bm25_scores.get(chunk_id, 0), 4)
+                merged[chunk_id].semantic_score = round(dense_scores.get(chunk_id, 0), 4)
+                merged[chunk_id].dense_score = round(dense_scores.get(chunk_id, 0), 4)
 
     candidates = sorted(merged.values(), key=lambda x: x.hybrid_score, reverse=True)
     for i, c in enumerate(candidates):
         c.hybrid_score = round(c.hybrid_score, 6)
 
-    # --- Step 4: Final top-k ---
+    # --- Step 5: Final top-k ---
     final = candidates[:top_k]
     elapsed = (time.monotonic() - start) * 1000
 
@@ -349,7 +341,8 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         tokens=tokens,
         total_chunks_indexed=len(chunk_data),
         bm25_results=bm25_results[:top_k],
-        semantic_results=semantic_results[:top_k],
+        semantic_results=dense_results[:top_k],  # semantic now shows dense
+        dense_results=dense_results[:top_k],
         merged_candidates=candidates[:top_k],
         final_results=final,
         elapsed_ms=round(elapsed, 1),

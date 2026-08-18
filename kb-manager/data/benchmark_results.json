@@ -1,65 +1,65 @@
 {
   "version": "live-kb",
-  "created_at": "2026-08-18T12:04:05.879477+00:00",
+  "created_at": "2026-08-18T15:33:01.484497+00:00",
   "top_k": 5,
   "total_queries": 120,
   "by_format": {
     "conversational": {
       "queries": 20,
       "hit_rate": 1.0,
-      "top1_hit_rate": 0.75,
-      "mrr": 0.8542,
-      "avg_rank": 1.4,
-      "avg_latency_ms": 2241.5
+      "top1_hit_rate": 0.85,
+      "mrr": 0.9167,
+      "avg_rank": 1.2,
+      "avg_latency_ms": 277.2
     },
     "keyword_only": {
       "queries": 20,
-      "hit_rate": 0.45,
-      "top1_hit_rate": 0.05,
-      "mrr": 0.18,
-      "avg_rank": 3.22,
-      "avg_latency_ms": 2064.2
+      "hit_rate": 0.4,
+      "top1_hit_rate": 0.1,
+      "mrr": 0.1875,
+      "avg_rank": 2.88,
+      "avg_latency_ms": 242.5
     },
     "paraphrase": {
       "queries": 20,
       "hit_rate": 1.0,
-      "top1_hit_rate": 0.7,
-      "mrr": 0.8167,
-      "avg_rank": 1.55,
-      "avg_latency_ms": 2062.2
+      "top1_hit_rate": 0.95,
+      "mrr": 0.975,
+      "avg_rank": 1.05,
+      "avg_latency_ms": 279.1
     },
     "reworded": {
       "queries": 20,
       "hit_rate": 0.95,
-      "top1_hit_rate": 0.55,
-      "mrr": 0.7167,
+      "top1_hit_rate": 0.65,
+      "mrr": 0.76,
       "avg_rank": 1.63,
-      "avg_latency_ms": 1979.0
+      "avg_latency_ms": 264.7
     },
     "typo": {
       "queries": 20,
       "hit_rate": 1.0,
       "top1_hit_rate": 0.9,
-      "mrr": 0.9375,
-      "avg_rank": 1.2,
-      "avg_latency_ms": 2205.8
+      "mrr": 0.9417,
+      "avg_rank": 1.15,
+      "avg_latency_ms": 257.3
     },
     "verbatim": {
       "queries": 20,
       "hit_rate": 1.0,
-      "top1_hit_rate": 0.85,
-      "mrr": 0.9125,
-      "avg_rank": 1.25,
-      "avg_latency_ms": 6435.0
+      "top1_hit_rate": 0.9,
+      "mrr": 0.9417,
+      "avg_rank": 1.15,
+      "avg_latency_ms": 9820.7
     }
   },
   "overall": {
     "queries": 120,
-    "hit_rate": 0.9,
-    "top1_hit_rate": 0.6333,
-    "mrr": 0.7362,
-    "avg_rank": 1.56,
-    "avg_latency_ms": 2831.3
+    "hit_rate": 0.8917,
+    "top1_hit_rate": 0.725,
+    "mrr": 0.7871,
+    "avg_rank": 1.36,
+    "avg_latency_ms": 1856.9
   },
   "queries": [
     {
@@ -73,13 +73,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 88378.3,
+      "elapsed_ms": 191564.5,
       "retrieved_ids": [
         "6829e9b6-b782-4179-9311-9a9089976d84",
-        "2a966884-86e9-4b03-a324-73fb66667e6c",
         "651d6f91-57c9-42e6-9471-859914c08cc9",
-        "15cc5ae8-9766-4afe-b94b-fc0a30539f45",
-        "be5bd00b-7001-472b-9d40-d26825d3788b"
+        "2a966884-86e9-4b03-a324-73fb66667e6c",
+        "fedab33c-6a9a-423f-ab69-cc45cca51f59",
+        "cedb5b35-8086-414d-9f3f-04c4f40e5c59"
       ]
     },
     {
@@ -93,13 +93,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2401.7,
+      "elapsed_ms": 160.6,
       "retrieved_ids": [
         "6829e9b6-b782-4179-9311-9a9089976d84",
-        "59f08317-6b4b-4058-acf2-81e069012b47",
-        "2a966884-86e9-4b03-a324-73fb66667e6c",
         "651d6f91-57c9-42e6-9471-859914c08cc9",
-        "dc5d9640-9679-4179-abf8-63448a742408"
+        "59f08317-6b4b-4058-acf2-81e069012b47",
+        "5932b575-133f-4fe0-9ce4-f2b25808eabe",
+        "d77ab0d1-a7c1-4ca3-b4e9-e3dff6f9d72c"
       ]
     },
     {
@@ -111,15 +111,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.294,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2261.8,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 148.7,
       "retrieved_ids": [
-        "2a966884-86e9-4b03-a324-73fb66667e6c",
         "6829e9b6-b782-4179-9311-9a9089976d84",
-        "40c2f6d9-7031-4b8f-8b93-e1fcc62a1463",
+        "e75257c3-7c73-4f81-b9d0-8db813e6239c",
         "651d6f91-57c9-42e6-9471-859914c08cc9",
-        "e75257c3-7c73-4f81-b9d0-8db813e6239c"
+        "9128fbca-4f8f-45d3-a4e5-01b21a38cce3",
+        "40c2f6d9-7031-4b8f-8b93-e1fcc62a1463"
       ]
     },
     {
@@ -131,15 +131,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.071,
       "hit": true,
-      "rank": 1,
-      "top1_hit": true,
-      "elapsed_ms": 2165.2,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 139.0,
       "retrieved_ids": [
-        "6829e9b6-b782-4179-9311-9a9089976d84",
-        "5d018c48-fa9b-43ed-8f25-fde3911a07fd",
         "4d1739c8-2525-4afa-9d4d-751431098b1c",
         "17d6e18c-7935-4502-b853-a6f7e2c72c31",
-        "e9d1c2a4-458d-4e5f-b733-ba2d3a44acfd"
+        "6829e9b6-b782-4179-9311-9a9089976d84",
+        "21ef5b2a-62c7-4047-b30a-926052797c3c",
+        "5d018c48-fa9b-43ed-8f25-fde3911a07fd"
       ]
     },
     {
@@ -153,13 +153,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2193.7,
+      "elapsed_ms": 140.8,
       "retrieved_ids": [
         "6829e9b6-b782-4179-9311-9a9089976d84",
         "651d6f91-57c9-42e6-9471-859914c08cc9",
-        "15cc5ae8-9766-4afe-b94b-fc0a30539f45",
+        "fedab33c-6a9a-423f-ab69-cc45cca51f59",
         "59f08317-6b4b-4058-acf2-81e069012b47",
-        "8cfb1a34-8fca-4ce5-baee-91cb609ee7f0"
+        "0f81e866-5f8a-476d-bc0c-394cb1dfb657"
       ]
     },
     {
@@ -173,13 +173,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2317.1,
+      "elapsed_ms": 164.1,
       "retrieved_ids": [
         "6829e9b6-b782-4179-9311-9a9089976d84",
-        "2a966884-86e9-4b03-a324-73fb66667e6c",
         "651d6f91-57c9-42e6-9471-859914c08cc9",
-        "50811e4b-a8d6-4cac-8c64-2ba1b45d1646",
-        "be5bd00b-7001-472b-9d40-d26825d3788b"
+        "2a966884-86e9-4b03-a324-73fb66667e6c",
+        "cedb5b35-8086-414d-9f3f-04c4f40e5c59",
+        "af7b80b9-2f09-4363-a6c7-7bff17812e24"
       ]
     },
     {
@@ -191,15 +191,15 @@
       "difficulty": "easy",
       "similarity_to_gt": 0.857,
       "hit": true,
-      "rank": 1,
-      "top1_hit": true,
-      "elapsed_ms": 2451.0,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 153.7,
       "retrieved_ids": [
-        "391fad8c-2e8a-46c1-a670-2b9db36665cf",
         "c0c0405f-f43e-4dfa-9001-290ad43d15e5",
-        "56247b89-332f-4a6d-ba09-2dc61fac97f7",
+        "391fad8c-2e8a-46c1-a670-2b9db36665cf",
         "e85427af-d302-4328-ad7c-b4d194d5078b",
-        "4c251aed-4fab-4ea6-9370-1dc07875500d"
+        "a0165bec-7b5c-46f4-914d-c4a3c3395499",
+        "e641a929-7cd7-4ef9-a629-7641e6571762"
       ]
     },
     {
@@ -213,13 +213,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2040.0,
+      "elapsed_ms": 180.2,
       "retrieved_ids": [
         "391fad8c-2e8a-46c1-a670-2b9db36665cf",
-        "b69e0f16-c99f-49e7-8d19-07144402a26d",
-        "a0f8633f-a064-4e2c-8ae7-6628f49b0906",
-        "07cc03eb-0d4c-44d3-abe1-6936036b3884",
-        "c0c0405f-f43e-4dfa-9001-290ad43d15e5"
+        "c0c0405f-f43e-4dfa-9001-290ad43d15e5",
+        "a0165bec-7b5c-46f4-914d-c4a3c3395499",
+        "18ae52e5-75f2-449c-b564-28ff80bfccfc",
+        "d474e42f-c290-4b0d-8fa0-b4ad5fd52aff"
       ]
     },
     {
@@ -231,15 +231,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.391,
       "hit": true,
-      "rank": 1,
-      "top1_hit": true,
-      "elapsed_ms": 2181.0,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 156.6,
       "retrieved_ids": [
+        "39a65ae4-bb56-4dc7-a8aa-fdb67e6a356e",
+        "e641a929-7cd7-4ef9-a629-7641e6571762",
         "391fad8c-2e8a-46c1-a670-2b9db36665cf",
-        "c0c0405f-f43e-4dfa-9001-290ad43d15e5",
-        "a0165bec-7b5c-46f4-914d-c4a3c3395499",
-        "f1627fba-877e-45e4-8b9e-db5a08c2718d",
-        "c62f7919-8374-491b-8d1a-8161027ef127"
+        "5a18749c-27d6-40e2-b8fe-cdb906904d05",
+        "c0c0405f-f43e-4dfa-9001-290ad43d15e5"
       ]
     },
     {
@@ -253,13 +253,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2212.3,
+      "elapsed_ms": 144.5,
       "retrieved_ids": [
         "eade491c-5a57-42ab-91c8-5349ebcaf4b2",
-        "93b418d3-3fa5-46b5-88ee-9e35fce53cbf",
-        "4131de48-8a2b-4ff1-9900-15b18d1a6320",
-        "47a39124-adc5-4356-b545-3acba8e1b093",
-        "ee4bf796-32e2-45fb-88a6-524903e33c8e"
+        "ee4bf796-32e2-45fb-88a6-524903e33c8e",
+        "fca59773-1d80-4e22-ad7d-d45934d07935",
+        "921063e3-eee2-491a-8b8f-5fe4e98e9659",
+        "93b418d3-3fa5-46b5-88ee-9e35fce53cbf"
       ]
     },
     {
@@ -271,15 +271,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.786,
       "hit": true,
-      "rank": 1,
-      "top1_hit": true,
-      "elapsed_ms": 1975.8,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 148.3,
       "retrieved_ids": [
-        "391fad8c-2e8a-46c1-a670-2b9db36665cf",
         "c0c0405f-f43e-4dfa-9001-290ad43d15e5",
+        "391fad8c-2e8a-46c1-a670-2b9db36665cf",
         "e85427af-d302-4328-ad7c-b4d194d5078b",
-        "56247b89-332f-4a6d-ba09-2dc61fac97f7",
-        "4c251aed-4fab-4ea6-9370-1dc07875500d"
+        "a0165bec-7b5c-46f4-914d-c4a3c3395499",
+        "e641a929-7cd7-4ef9-a629-7641e6571762"
       ]
     },
     {
@@ -291,15 +291,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.733,
       "hit": true,
-      "rank": 1,
-      "top1_hit": true,
-      "elapsed_ms": 1617.2,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 163.6,
       "retrieved_ids": [
-        "391fad8c-2e8a-46c1-a670-2b9db36665cf",
         "c0c0405f-f43e-4dfa-9001-290ad43d15e5",
+        "391fad8c-2e8a-46c1-a670-2b9db36665cf",
         "e85427af-d302-4328-ad7c-b4d194d5078b",
-        "56247b89-332f-4a6d-ba09-2dc61fac97f7",
-        "4c251aed-4fab-4ea6-9370-1dc07875500d"
+        "a0165bec-7b5c-46f4-914d-c4a3c3395499",
+        "e641a929-7cd7-4ef9-a629-7641e6571762"
       ]
     },
     {
@@ -313,13 +313,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1681.8,
+      "elapsed_ms": 208.2,
       "retrieved_ids": [
         "af75516b-f963-49af-bb67-4a80136d5634",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "25650fc7-63f4-4c17-8e10-5197ae2c272f",
-        "dad7b891-8c0a-459e-b4f9-5e92346233e9",
-        "7175589f-6de0-4bb6-a42f-e491627d283b"
+        "05e5398c-5dce-4d87-86fc-762ef0169498",
+        "7bc0b3ff-d6c6-4ad8-86a5-bfb86ed47bb9",
+        "ab392b2d-7bf6-428a-bdff-4943e31a79f6"
       ]
     },
     {
@@ -333,13 +333,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1219.9,
+      "elapsed_ms": 249.0,
       "retrieved_ids": [
         "af75516b-f963-49af-bb67-4a80136d5634",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "25650fc7-63f4-4c17-8e10-5197ae2c272f",
-        "dad7b891-8c0a-459e-b4f9-5e92346233e9",
-        "7175589f-6de0-4bb6-a42f-e491627d283b"
+        "05e5398c-5dce-4d87-86fc-762ef0169498",
+        "5bc4b80a-746e-40a9-a055-446be6791fdb",
+        "e4f982b3-41be-4228-aa3a-50ac827da1a5"
       ]
     },
     {
@@ -353,13 +353,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1686.8,
+      "elapsed_ms": 251.7,
       "retrieved_ids": [
         "af75516b-f963-49af-bb67-4a80136d5634",
-        "62f518f0-a22f-41f5-859c-05335725f20b",
-        "4886576d-86bd-4c95-90a8-9fd38935ad19",
-        "b69e0f16-c99f-49e7-8d19-07144402a26d",
-        "2b0d707b-68ca-4599-a759-2b914da44602"
+        "ab392b2d-7bf6-428a-bdff-4943e31a79f6",
+        "4a243d5c-3cae-4379-bbae-96e08a1fe5be",
+        "5bc4b80a-746e-40a9-a055-446be6791fdb",
+        "4886576d-86bd-4c95-90a8-9fd38935ad19"
       ]
     },
     {
@@ -373,13 +373,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2336.8,
+      "elapsed_ms": 216.7,
       "retrieved_ids": [
-        "091204d0-0d29-41b1-a075-a296577e4d81",
         "76c773f2-cd38-4405-ae52-480a8364a566",
-        "8e94b6d6-1411-44e3-984d-f53c9b1bc4ef",
-        "e479c0b2-01b8-4fe0-9b0e-fe27662b5952",
-        "3064673d-59ba-4dad-acfe-bc7fef4bf3be"
+        "091204d0-0d29-41b1-a075-a296577e4d81",
+        "3df28738-a89f-42a1-b4cb-c6f6b51b54bc",
+        "da751bdc-e302-447c-93c8-a03ae522e428",
+        "8e94b6d6-1411-44e3-984d-f53c9b1bc4ef"
       ]
     },
     {
@@ -393,13 +393,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2995.3,
+      "elapsed_ms": 264.3,
       "retrieved_ids": [
         "af75516b-f963-49af-bb67-4a80136d5634",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "25650fc7-63f4-4c17-8e10-5197ae2c272f",
+        "05e5398c-5dce-4d87-86fc-762ef0169498",
         "dad7b891-8c0a-459e-b4f9-5e92346233e9",
-        "4a243d5c-3cae-4379-bbae-96e08a1fe5be"
+        "ab392b2d-7bf6-428a-bdff-4943e31a79f6"
       ]
     },
     {
@@ -413,13 +413,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2733.8,
+      "elapsed_ms": 289.5,
       "retrieved_ids": [
         "af75516b-f963-49af-bb67-4a80136d5634",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "25650fc7-63f4-4c17-8e10-5197ae2c272f",
-        "dad7b891-8c0a-459e-b4f9-5e92346233e9",
-        "7175589f-6de0-4bb6-a42f-e491627d283b"
+        "05e5398c-5dce-4d87-86fc-762ef0169498",
+        "ab392b2d-7bf6-428a-bdff-4943e31a79f6",
+        "dad7b891-8c0a-459e-b4f9-5e92346233e9"
       ]
     },
     {
@@ -431,15 +431,15 @@
       "difficulty": "easy",
       "similarity_to_gt": 0.818,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2529.6,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 238.2,
       "retrieved_ids": [
-        "6c42b020-b7df-41b7-b98a-f739da9a5c8e",
         "862b0adb-a55d-47f5-9fd2-e3336ea396ab",
-        "899d90b3-9c9c-4668-87b5-472dc844d832",
-        "fafaf238-29d4-4846-84d8-1ca1a93d9879",
-        "2a74ce58-62d4-40c1-8c8e-8996ca116982"
+        "ac58dabd-883b-4ca1-aff7-05d193874c40",
+        "6c42b020-b7df-41b7-b98a-f739da9a5c8e",
+        "ca894eb9-ac1b-49bd-a054-240175d78c12",
+        "a28c7a13-3797-40f9-97d9-c7087c3cd17b"
       ]
     },
     {
@@ -451,14 +451,14 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.562,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2403.8,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 268.7,
       "retrieved_ids": [
-        "6c42b020-b7df-41b7-b98a-f739da9a5c8e",
         "862b0adb-a55d-47f5-9fd2-e3336ea396ab",
-        "899d90b3-9c9c-4668-87b5-472dc844d832",
-        "2a74ce58-62d4-40c1-8c8e-8996ca116982",
+        "5f4fcf73-65bb-439c-94fc-58147d0875f6",
+        "6c42b020-b7df-41b7-b98a-f739da9a5c8e",
+        "25cc8b5e-fdaf-417c-8585-3b7c4f2c9d75",
         "ca894eb9-ac1b-49bd-a054-240175d78c12"
       ]
     },
@@ -473,13 +473,13 @@
       "hit": true,
       "rank": 3,
       "top1_hit": false,
-      "elapsed_ms": 2362.7,
+      "elapsed_ms": 257.3,
       "retrieved_ids": [
         "6c42b020-b7df-41b7-b98a-f739da9a5c8e",
-        "2a74ce58-62d4-40c1-8c8e-8996ca116982",
+        "c2e4593d-93fa-4caf-863d-818475b4a0de",
         "862b0adb-a55d-47f5-9fd2-e3336ea396ab",
-        "ca894eb9-ac1b-49bd-a054-240175d78c12",
-        "c579a191-cdcb-4795-bcd7-a8c17be7e48c"
+        "4ab3fdad-2f2d-4814-9bdc-d1ba0097cd2a",
+        "2a74ce58-62d4-40c1-8c8e-8996ca116982"
       ]
     },
     {
@@ -490,16 +490,16 @@
       "format": "keyword_only",
       "difficulty": "hard",
       "similarity_to_gt": 0.0,
-      "hit": false,
-      "rank": -1,
+      "hit": true,
+      "rank": 3,
       "top1_hit": false,
-      "elapsed_ms": 2215.0,
+      "elapsed_ms": 235.0,
       "retrieved_ids": [
         "57a10f04-93cb-4731-9804-e6c25b665fd1",
-        "6344e457-cf02-46dc-b3fb-8391262b9787",
-        "89cea6d1-0244-43e8-8982-c61d3b3ed954",
-        "03959b58-bb4a-4aff-bbcf-5c1db3da17cf",
-        "d474e42f-c290-4b0d-8fa0-b4ad5fd52aff"
+        "6ede5fc6-1fe2-4a99-8337-f5a019c2814f",
+        "862b0adb-a55d-47f5-9fd2-e3336ea396ab",
+        "d474e42f-c290-4b0d-8fa0-b4ad5fd52aff",
+        "c71ad804-8061-40e7-980f-8b6b752d933f"
       ]
     },
     {
@@ -513,13 +513,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2370.2,
+      "elapsed_ms": 248.0,
       "retrieved_ids": [
         "862b0adb-a55d-47f5-9fd2-e3336ea396ab",
+        "0515bc90-ca2b-4b08-be10-1196b2900c11",
         "ca6f5e57-740f-41d6-9b35-14d2879fd5f7",
         "6c42b020-b7df-41b7-b98a-f739da9a5c8e",
-        "6a72fc02-d2ce-4093-acde-2f9603402972",
-        "862074a1-c5f3-4e23-ac8f-478fccf614f4"
+        "ac58dabd-883b-4ca1-aff7-05d193874c40"
       ]
     },
     {
@@ -533,12 +533,12 @@
       "hit": true,
       "rank": 2,
       "top1_hit": false,
-      "elapsed_ms": 2357.7,
+      "elapsed_ms": 290.5,
       "retrieved_ids": [
         "2a74ce58-62d4-40c1-8c8e-8996ca116982",
         "862b0adb-a55d-47f5-9fd2-e3336ea396ab",
+        "c2e4593d-93fa-4caf-863d-818475b4a0de",
         "6c42b020-b7df-41b7-b98a-f739da9a5c8e",
-        "4e41ba02-67fc-40f9-bd49-579edd49ac5b",
         "ca894eb9-ac1b-49bd-a054-240175d78c12"
       ]
     },
@@ -553,13 +553,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2523.4,
+      "elapsed_ms": 286.8,
       "retrieved_ids": [
         "958936ab-598a-4374-9593-4528048b11d2",
         "ac7003c6-b131-49c9-becb-ec6fb3a900dd",
-        "dee8605c-341e-45dd-a8c2-0a91f2164541",
         "50498421-1f71-41d6-9a4e-49bfe4057113",
-        "4499b5e5-f958-4dfa-b0df-7a0657c0ea04"
+        "b51b2c37-b31a-4036-8c7c-065a8cd2b4e9",
+        "8c0dd588-a434-49f9-8bac-2a5107d107ab"
       ]
     },
     {
@@ -573,13 +573,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2783.0,
+      "elapsed_ms": 322.4,
       "retrieved_ids": [
         "958936ab-598a-4374-9593-4528048b11d2",
-        "3dd2637c-2a6c-41cb-90ac-7ad819905ba3",
-        "ac7003c6-b131-49c9-becb-ec6fb3a900dd",
         "2eae7500-2383-496b-9686-ae0b1b127bd5",
-        "dee8605c-341e-45dd-a8c2-0a91f2164541"
+        "ac7003c6-b131-49c9-becb-ec6fb3a900dd",
+        "39a65ae4-bb56-4dc7-a8aa-fdb67e6a356e",
+        "3dd2637c-2a6c-41cb-90ac-7ad819905ba3"
       ]
     },
     {
@@ -593,13 +593,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1930.8,
+      "elapsed_ms": 258.2,
       "retrieved_ids": [
         "958936ab-598a-4374-9593-4528048b11d2",
+        "8c0dd588-a434-49f9-8bac-2a5107d107ab",
         "3dd2637c-2a6c-41cb-90ac-7ad819905ba3",
-        "28778ba5-9685-42fb-b719-deef7a2eb5a6",
-        "ac7003c6-b131-49c9-becb-ec6fb3a900dd",
-        "dee8605c-341e-45dd-a8c2-0a91f2164541"
+        "d47d6883-1bc4-4352-a81a-911c49687fed",
+        "ac7003c6-b131-49c9-becb-ec6fb3a900dd"
       ]
     },
     {
@@ -613,13 +613,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2083.5,
+      "elapsed_ms": 242.1,
       "retrieved_ids": [
         "b51b2c37-b31a-4036-8c7c-065a8cd2b4e9",
+        "37b22cf1-13a8-4ef5-b24a-ef65b6c1cec4",
         "8908be45-7335-442e-96ac-e74bfce03b14",
-        "47e36af4-ca22-4cf3-8873-308e52f061cc",
-        "f588fb51-d119-4407-97d3-8f42712a5238",
-        "ea1fa69c-cd8b-4a58-a233-0bf7abbd8c11"
+        "3df28738-a89f-42a1-b4cb-c6f6b51b54bc",
+        "47e36af4-ca22-4cf3-8873-308e52f061cc"
       ]
     },
     {
@@ -633,13 +633,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2443.4,
+      "elapsed_ms": 283.4,
       "retrieved_ids": [
         "958936ab-598a-4374-9593-4528048b11d2",
-        "dee8605c-341e-45dd-a8c2-0a91f2164541",
+        "2eae7500-2383-496b-9686-ae0b1b127bd5",
         "ac7003c6-b131-49c9-becb-ec6fb3a900dd",
-        "ca894eb9-ac1b-49bd-a054-240175d78c12",
-        "4499b5e5-f958-4dfa-b0df-7a0657c0ea04"
+        "b51b2c37-b31a-4036-8c7c-065a8cd2b4e9",
+        "ca894eb9-ac1b-49bd-a054-240175d78c12"
       ]
     },
     {
@@ -653,13 +653,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2618.4,
+      "elapsed_ms": 311.4,
       "retrieved_ids": [
         "958936ab-598a-4374-9593-4528048b11d2",
-        "3dd2637c-2a6c-41cb-90ac-7ad819905ba3",
         "ac7003c6-b131-49c9-becb-ec6fb3a900dd",
-        "4499b5e5-f958-4dfa-b0df-7a0657c0ea04",
-        "2eae7500-2383-496b-9686-ae0b1b127bd5"
+        "8c0dd588-a434-49f9-8bac-2a5107d107ab",
+        "3dd2637c-2a6c-41cb-90ac-7ad819905ba3",
+        "60e5aad0-10d2-4bdb-8a74-6bd3388410d5"
       ]
     },
     {
@@ -671,15 +671,15 @@
       "difficulty": "easy",
       "similarity_to_gt": 0.778,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2186.9,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 236.9,
       "retrieved_ids": [
-        "5aa88d04-c667-495d-a82b-24be6e355226",
         "e722da11-46f9-4c00-be0a-01a618524c3e",
+        "5aa88d04-c667-495d-a82b-24be6e355226",
         "b2d995e7-4010-4b33-9333-13a62c4497aa",
-        "e29ec639-ee0b-453c-8349-65ec7d6ae482",
-        "e012c0b5-4a6d-48f0-b617-36d803995dc9"
+        "c52d6c3f-84c7-40af-a2c6-d2160f05b789",
+        "c7719602-2081-40cb-a301-69f295201267"
       ]
     },
     {
@@ -691,15 +691,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.5,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2128.1,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 277.0,
       "retrieved_ids": [
-        "5aa88d04-c667-495d-a82b-24be6e355226",
         "e722da11-46f9-4c00-be0a-01a618524c3e",
         "b2d995e7-4010-4b33-9333-13a62c4497aa",
-        "e29ec639-ee0b-453c-8349-65ec7d6ae482",
-        "e012c0b5-4a6d-48f0-b617-36d803995dc9"
+        "5aa88d04-c667-495d-a82b-24be6e355226",
+        "c7719602-2081-40cb-a301-69f295201267",
+        "f0c4bf0f-fb48-41c4-b2cf-c16e05d75ab5"
       ]
     },
     {
@@ -711,15 +711,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.25,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2034.4,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 251.0,
       "retrieved_ids": [
-        "5aa88d04-c667-495d-a82b-24be6e355226",
         "e722da11-46f9-4c00-be0a-01a618524c3e",
-        "b2d995e7-4010-4b33-9333-13a62c4497aa",
-        "03b081e8-3982-4905-a00d-d4f371b4da56",
-        "c0eb6115-56d9-4728-bb82-75bd8551fc5f"
+        "76642c71-b03e-45df-95ba-1ecbc775f315",
+        "5aa88d04-c667-495d-a82b-24be6e355226",
+        "f4dcad19-f9ff-43dc-b5ff-6c4463d0d5ed",
+        "b2d995e7-4010-4b33-9333-13a62c4497aa"
       ]
     },
     {
@@ -731,15 +731,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.059,
       "hit": true,
-      "rank": 5,
-      "top1_hit": false,
-      "elapsed_ms": 2099.4,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 248.2,
       "retrieved_ids": [
-        "e00d9bfd-10df-470a-a7f1-df11ff058f95",
-        "43fc9e19-7648-4f84-8814-ac4d145481d7",
+        "e722da11-46f9-4c00-be0a-01a618524c3e",
         "f0c4bf0f-fb48-41c4-b2cf-c16e05d75ab5",
-        "9d9dc88d-af86-4a44-b214-794a14258538",
-        "e722da11-46f9-4c00-be0a-01a618524c3e"
+        "af7071c4-2a39-4529-97a7-d5e8d494a483",
+        "c7719602-2081-40cb-a301-69f295201267",
+        "e00d9bfd-10df-470a-a7f1-df11ff058f95"
       ]
     },
     {
@@ -751,15 +751,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 1.0,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 1990.4,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 233.0,
       "retrieved_ids": [
-        "5aa88d04-c667-495d-a82b-24be6e355226",
         "e722da11-46f9-4c00-be0a-01a618524c3e",
         "b2d995e7-4010-4b33-9333-13a62c4497aa",
-        "e29ec639-ee0b-453c-8349-65ec7d6ae482",
-        "e012c0b5-4a6d-48f0-b617-36d803995dc9"
+        "5aa88d04-c667-495d-a82b-24be6e355226",
+        "c7719602-2081-40cb-a301-69f295201267",
+        "c52d6c3f-84c7-40af-a2c6-d2160f05b789"
       ]
     },
     {
@@ -771,15 +771,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.389,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2381.4,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 263.8,
       "retrieved_ids": [
-        "5aa88d04-c667-495d-a82b-24be6e355226",
         "e722da11-46f9-4c00-be0a-01a618524c3e",
         "b2d995e7-4010-4b33-9333-13a62c4497aa",
-        "e29ec639-ee0b-453c-8349-65ec7d6ae482",
-        "e012c0b5-4a6d-48f0-b617-36d803995dc9"
+        "5aa88d04-c667-495d-a82b-24be6e355226",
+        "c7719602-2081-40cb-a301-69f295201267",
+        "c52d6c3f-84c7-40af-a2c6-d2160f05b789"
       ]
     },
     {
@@ -793,13 +793,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2125.8,
+      "elapsed_ms": 235.6,
       "retrieved_ids": [
         "e429b842-a053-43e6-b05b-0a424e1cb1cc",
+        "17c74948-d23e-4c18-a562-74cbc9efcc59",
         "a7ede348-abba-4e5e-8dd2-a782893670aa",
-        "556f38e6-1ed8-42a5-a3b9-c45e397fe8cb",
-        "6f5c3c20-1162-4dbe-a775-f9d36ed46571",
-        "12cfc78a-cb61-483b-93df-56d70ced4935"
+        "1d244026-04be-4558-baff-4b6a54c48ddc",
+        "a3acd66d-ba27-48dd-aa8a-4e85e7b066f3"
       ]
     },
     {
@@ -811,15 +811,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.533,
       "hit": true,
-      "rank": 4,
-      "top1_hit": false,
-      "elapsed_ms": 1901.9,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 279.5,
       "retrieved_ids": [
-        "62f518f0-a22f-41f5-859c-05335725f20b",
-        "4886576d-86bd-4c95-90a8-9fd38935ad19",
-        "a7ede348-abba-4e5e-8dd2-a782893670aa",
         "e429b842-a053-43e6-b05b-0a424e1cb1cc",
-        "385955ff-b4a5-4f6a-ad0b-a92f16c75860"
+        "a7ede348-abba-4e5e-8dd2-a782893670aa",
+        "0f043049-36b9-4314-a855-3db7b3954eab",
+        "62f518f0-a22f-41f5-859c-05335725f20b",
+        "1d244026-04be-4558-baff-4b6a54c48ddc"
       ]
     },
     {
@@ -830,16 +830,16 @@
       "format": "reworded",
       "difficulty": "hard",
       "similarity_to_gt": 0.375,
-      "hit": false,
-      "rank": -1,
+      "hit": true,
+      "rank": 5,
       "top1_hit": false,
-      "elapsed_ms": 1897.6,
+      "elapsed_ms": 254.9,
       "retrieved_ids": [
         "a7ede348-abba-4e5e-8dd2-a782893670aa",
-        "62f518f0-a22f-41f5-859c-05335725f20b",
-        "8e290859-d788-47fc-a4e4-75425010b085",
-        "2b0d707b-68ca-4599-a759-2b914da44602",
-        "01e02a83-236f-4f4a-98fb-15611e05f195"
+        "6e09167b-ce29-45ce-a44c-52846402d647",
+        "924298c5-2627-426f-9b1a-2dfe89bf43f3",
+        "281a4926-749c-4629-9e96-35b5d41c15a8",
+        "e429b842-a053-43e6-b05b-0a424e1cb1cc"
       ]
     },
     {
@@ -853,13 +853,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 1832.3,
+      "elapsed_ms": 271.2,
       "retrieved_ids": [
-        "f14d5ba9-df0b-4111-9bf6-94a38c781fcd",
         "b9d08203-8fb2-44a8-a105-00017f843ab8",
         "03b081e8-3982-4905-a00d-d4f371b4da56",
-        "2255d5f7-15b5-4a4c-804c-5338d35ad18d",
-        "ed1d74f5-8673-40f4-b744-660c49e8ad32"
+        "f14d5ba9-df0b-4111-9bf6-94a38c781fcd",
+        "ed1d74f5-8673-40f4-b744-660c49e8ad32",
+        "cbc2a601-c819-4dbe-9663-6a109a48a320"
       ]
     },
     {
@@ -873,13 +873,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1784.8,
+      "elapsed_ms": 211.2,
       "retrieved_ids": [
         "e429b842-a053-43e6-b05b-0a424e1cb1cc",
-        "556f38e6-1ed8-42a5-a3b9-c45e397fe8cb",
-        "a7ede348-abba-4e5e-8dd2-a782893670aa",
-        "6f5c3c20-1162-4dbe-a775-f9d36ed46571",
-        "225a2810-f185-4696-be77-73de263ad0bf"
+        "17c74948-d23e-4c18-a562-74cbc9efcc59",
+        "03ad58e9-6eff-4351-a8a0-3c33e163eccf",
+        "1d244026-04be-4558-baff-4b6a54c48ddc",
+        "9f6e3172-feeb-424c-9929-c51699bd0296"
       ]
     },
     {
@@ -891,15 +891,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.412,
       "hit": true,
-      "rank": 3,
-      "top1_hit": false,
-      "elapsed_ms": 1764.9,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 280.8,
       "retrieved_ids": [
-        "c62f7919-8374-491b-8d1a-8161027ef127",
-        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
         "e429b842-a053-43e6-b05b-0a424e1cb1cc",
-        "a7ede348-abba-4e5e-8dd2-a782893670aa",
-        "556f38e6-1ed8-42a5-a3b9-c45e397fe8cb"
+        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
+        "1d244026-04be-4558-baff-4b6a54c48ddc",
+        "c62f7919-8374-491b-8d1a-8161027ef127",
+        "0f043049-36b9-4314-a855-3db7b3954eab"
       ]
     },
     {
@@ -913,13 +913,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2224.3,
+      "elapsed_ms": 250.1,
       "retrieved_ids": [
         "3f72caeb-c171-42e3-8b4b-5c2660a9bc29",
         "360141a4-4e23-4c17-9f7b-f77c64cbdd72",
-        "40c2f6d9-7031-4b8f-8b93-e1fcc62a1463",
-        "8662e47b-5328-45a4-b6fb-07c99bc4e329",
-        "4ccafca7-6ded-4c71-8a04-8b3830e2cea0"
+        "d6249668-9382-4ac2-a32b-a4d95500e9be",
+        "12cfc78a-cb61-483b-93df-56d70ced4935",
+        "73387f2c-3df0-41f1-8a81-1d02bf5776bb"
       ]
     },
     {
@@ -931,15 +931,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.588,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2439.4,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 265.7,
       "retrieved_ids": [
-        "62f518f0-a22f-41f5-859c-05335725f20b",
         "3f72caeb-c171-42e3-8b4b-5c2660a9bc29",
-        "4886576d-86bd-4c95-90a8-9fd38935ad19",
-        "b69e0f16-c99f-49e7-8d19-07144402a26d",
-        "07cc03eb-0d4c-44d3-abe1-6936036b3884"
+        "360141a4-4e23-4c17-9f7b-f77c64cbdd72",
+        "62f518f0-a22f-41f5-859c-05335725f20b",
+        "e3c7c911-f1d2-4b11-8301-580ba3479d69",
+        "4886576d-86bd-4c95-90a8-9fd38935ad19"
       ]
     },
     {
@@ -953,13 +953,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2307.9,
+      "elapsed_ms": 259.5,
       "retrieved_ids": [
         "3f72caeb-c171-42e3-8b4b-5c2660a9bc29",
-        "c62f7919-8374-491b-8d1a-8161027ef127",
+        "f6af38c7-1061-4c52-b789-4c87e26524e5",
         "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
-        "360141a4-4e23-4c17-9f7b-f77c64cbdd72",
-        "ff349209-1d05-4b5c-b36f-5ed0043401d5"
+        "f8293fbd-7799-4947-945a-7136e90e5016",
+        "c62f7919-8374-491b-8d1a-8161027ef127"
       ]
     },
     {
@@ -970,16 +970,16 @@
       "format": "keyword_only",
       "difficulty": "hard",
       "similarity_to_gt": 0.05,
-      "hit": true,
-      "rank": 5,
+      "hit": false,
+      "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2287.7,
+      "elapsed_ms": 270.6,
       "retrieved_ids": [
-        "2bd7b65e-e1e3-4f51-a378-54fa486a9545",
-        "61c8a997-85ff-4de8-a226-e89822f2ff8c",
-        "43fc9e19-7648-4f84-8814-ac4d145481d7",
         "a32b983b-aeb9-48d6-96aa-a5a51b4929c0",
-        "3f72caeb-c171-42e3-8b4b-5c2660a9bc29"
+        "e439adef-873c-4ae7-be6d-416151411dd4",
+        "2bd7b65e-e1e3-4f51-a378-54fa486a9545",
+        "03ad58e9-6eff-4351-a8a0-3c33e163eccf",
+        "898a5315-8d49-4fbc-bfbf-3aa693e4ccc4"
       ]
     },
     {
@@ -993,13 +993,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2163.3,
+      "elapsed_ms": 221.8,
       "retrieved_ids": [
         "3f72caeb-c171-42e3-8b4b-5c2660a9bc29",
         "360141a4-4e23-4c17-9f7b-f77c64cbdd72",
-        "ff349209-1d05-4b5c-b36f-5ed0043401d5",
+        "53eddf0a-75c2-423d-9033-7e0db17a2441",
         "31d2a2af-df0e-4576-8dbe-9e3aedb7e8c9",
-        "167c618b-3e16-4953-90a5-850e6a6648cd"
+        "e3c7c911-f1d2-4b11-8301-580ba3479d69"
       ]
     },
     {
@@ -1013,13 +1013,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2685.8,
+      "elapsed_ms": 233.7,
       "retrieved_ids": [
         "3f72caeb-c171-42e3-8b4b-5c2660a9bc29",
         "360141a4-4e23-4c17-9f7b-f77c64cbdd72",
-        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
-        "c62f7919-8374-491b-8d1a-8161027ef127",
-        "39a65ae4-bb56-4dc7-a8aa-fdb67e6a356e"
+        "d6249668-9382-4ac2-a32b-a4d95500e9be",
+        "73387f2c-3df0-41f1-8a81-1d02bf5776bb",
+        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a"
       ]
     },
     {
@@ -1033,13 +1033,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2394.2,
+      "elapsed_ms": 226.9,
       "retrieved_ids": [
         "3ea738b1-5b6d-44a4-9cdd-98ae13880cca",
         "c21fab4d-2dd7-46cd-80e4-efc429695064",
-        "170b8b85-ecaa-4cba-a267-a351af6e07f3",
-        "9f6e3172-feeb-424c-9929-c51699bd0296",
-        "006f96e8-96b5-4467-8710-56a516ac1dbb"
+        "8eb0dc3e-bdc2-4f70-af32-795293a69d57",
+        "9360453a-65c5-4a41-b3b2-2046b1ab85fb",
+        "8666d2cf-b4f5-4711-a0ad-2c0b5fbbc145"
       ]
     },
     {
@@ -1053,13 +1053,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1866.9,
+      "elapsed_ms": 249.0,
       "retrieved_ids": [
         "3ea738b1-5b6d-44a4-9cdd-98ae13880cca",
         "c21fab4d-2dd7-46cd-80e4-efc429695064",
-        "170b8b85-ecaa-4cba-a267-a351af6e07f3",
-        "9f6e3172-feeb-424c-9929-c51699bd0296",
-        "006f96e8-96b5-4467-8710-56a516ac1dbb"
+        "8eb0dc3e-bdc2-4f70-af32-795293a69d57",
+        "9360453a-65c5-4a41-b3b2-2046b1ab85fb",
+        "56d259ac-0f18-48da-a38a-01d577d395e3"
       ]
     },
     {
@@ -1073,13 +1073,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1682.8,
+      "elapsed_ms": 248.4,
       "retrieved_ids": [
         "3ea738b1-5b6d-44a4-9cdd-98ae13880cca",
-        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
-        "9f6e3172-feeb-424c-9929-c51699bd0296",
         "c21fab4d-2dd7-46cd-80e4-efc429695064",
-        "8666d2cf-b4f5-4711-a0ad-2c0b5fbbc145"
+        "7d5764dd-bf40-42d3-acbe-30f41c943af5",
+        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
+        "fabd2828-d285-4781-8e4e-1e237aa68e3c"
       ]
     },
     {
@@ -1090,16 +1090,16 @@
       "format": "keyword_only",
       "difficulty": "hard",
       "similarity_to_gt": 0.095,
-      "hit": false,
-      "rank": -1,
+      "hit": true,
+      "rank": 4,
       "top1_hit": false,
-      "elapsed_ms": 1612.4,
+      "elapsed_ms": 233.6,
       "retrieved_ids": [
         "360d722a-cd2f-41b5-9fb7-437fc468fcd9",
-        "43fc9e19-7648-4f84-8814-ac4d145481d7",
-        "39fea748-d9fa-4686-a092-097695b715b4",
-        "3b9a5446-0208-4126-9aac-1bab7a01a487",
-        "3a9016ee-f58b-4ac8-b480-ff717660c575"
+        "3a9016ee-f58b-4ac8-b480-ff717660c575",
+        "ed294f1c-80f7-4557-80b7-7b9dee39e436",
+        "3ea738b1-5b6d-44a4-9cdd-98ae13880cca",
+        "73f9a2ae-35e5-4f39-bdcf-1a3ff4984ef5"
       ]
     },
     {
@@ -1113,13 +1113,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2356.9,
+      "elapsed_ms": 236.2,
       "retrieved_ids": [
         "3ea738b1-5b6d-44a4-9cdd-98ae13880cca",
         "c21fab4d-2dd7-46cd-80e4-efc429695064",
-        "006f96e8-96b5-4467-8710-56a516ac1dbb",
-        "9360453a-65c5-4a41-b3b2-2046b1ab85fb",
-        "170b8b85-ecaa-4cba-a267-a351af6e07f3"
+        "8eb0dc3e-bdc2-4f70-af32-795293a69d57",
+        "56d259ac-0f18-48da-a38a-01d577d395e3",
+        "9360453a-65c5-4a41-b3b2-2046b1ab85fb"
       ]
     },
     {
@@ -1133,13 +1133,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 3022.9,
+      "elapsed_ms": 308.1,
       "retrieved_ids": [
         "3ea738b1-5b6d-44a4-9cdd-98ae13880cca",
         "c21fab4d-2dd7-46cd-80e4-efc429695064",
-        "170b8b85-ecaa-4cba-a267-a351af6e07f3",
-        "9f6e3172-feeb-424c-9929-c51699bd0296",
-        "006f96e8-96b5-4467-8710-56a516ac1dbb"
+        "8666d2cf-b4f5-4711-a0ad-2c0b5fbbc145",
+        "8eb0dc3e-bdc2-4f70-af32-795293a69d57",
+        "56d259ac-0f18-48da-a38a-01d577d395e3"
       ]
     },
     {
@@ -1153,12 +1153,12 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2249.6,
+      "elapsed_ms": 244.8,
       "retrieved_ids": [
         "1276270f-0962-4e13-ad89-0047acf8097c",
         "9d9dc88d-af86-4a44-b214-794a14258538",
-        "d4392cf5-2759-414b-b561-515d7c7dd2b5",
-        "bcf0efd4-e0de-4cb8-afdc-682e736780d6",
+        "777c2848-8a27-4f45-a5f8-e0e0ad82c4a0",
+        "9b32bf00-b0e8-4bd2-afd4-d4c888ce4891",
         "719352f6-efd9-4421-ab4b-5c8ddba361e9"
       ]
     },
@@ -1173,13 +1173,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2520.1,
+      "elapsed_ms": 276.2,
       "retrieved_ids": [
         "1276270f-0962-4e13-ad89-0047acf8097c",
-        "62f518f0-a22f-41f5-859c-05335725f20b",
         "9d9dc88d-af86-4a44-b214-794a14258538",
         "bcf0efd4-e0de-4cb8-afdc-682e736780d6",
-        "2b0d707b-68ca-4599-a759-2b914da44602"
+        "777c2848-8a27-4f45-a5f8-e0e0ad82c4a0",
+        "62f518f0-a22f-41f5-859c-05335725f20b"
       ]
     },
     {
@@ -1193,13 +1193,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2493.7,
+      "elapsed_ms": 361.7,
       "retrieved_ids": [
         "1276270f-0962-4e13-ad89-0047acf8097c",
         "d4392cf5-2759-414b-b561-515d7c7dd2b5",
+        "9d9dc88d-af86-4a44-b214-794a14258538",
         "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
-        "62f518f0-a22f-41f5-859c-05335725f20b",
-        "4886576d-86bd-4c95-90a8-9fd38935ad19"
+        "777c2848-8a27-4f45-a5f8-e0e0ad82c4a0"
       ]
     },
     {
@@ -1213,13 +1213,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2239.1,
+      "elapsed_ms": 305.5,
       "retrieved_ids": [
-        "43fc9e19-7648-4f84-8814-ac4d145481d7",
+        "5a754766-8068-46c5-92ee-4741b4b84227",
+        "a6dd8c96-5df1-427a-a9d0-fb437938c44c",
         "17c74948-d23e-4c18-a562-74cbc9efcc59",
-        "f41c0e23-7429-4e08-9a83-3a33f4b0aea0",
-        "fe978de5-508b-429e-8193-0199d8fbb4a2",
-        "5a754766-8068-46c5-92ee-4741b4b84227"
+        "d72fabd9-cee0-4cbe-9acd-05ab4e931ceb",
+        "19e66d62-9d07-452b-828b-0b7c9244d3f9"
       ]
     },
     {
@@ -1233,13 +1233,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1976.0,
+      "elapsed_ms": 291.3,
       "retrieved_ids": [
         "1276270f-0962-4e13-ad89-0047acf8097c",
-        "d4392cf5-2759-414b-b561-515d7c7dd2b5",
         "9d9dc88d-af86-4a44-b214-794a14258538",
         "777c2848-8a27-4f45-a5f8-e0e0ad82c4a0",
-        "6ae00fb1-70b5-4883-b2f4-549f597368e7"
+        "9b32bf00-b0e8-4bd2-afd4-d4c888ce4891",
+        "8d58673e-1bbd-4090-a143-eaf6c88eee43"
       ]
     },
     {
@@ -1253,13 +1253,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2071.0,
+      "elapsed_ms": 338.8,
       "retrieved_ids": [
         "1276270f-0962-4e13-ad89-0047acf8097c",
         "9d9dc88d-af86-4a44-b214-794a14258538",
-        "62f518f0-a22f-41f5-859c-05335725f20b",
+        "777c2848-8a27-4f45-a5f8-e0e0ad82c4a0",
         "2b0d707b-68ca-4599-a759-2b914da44602",
-        "d4392cf5-2759-414b-b561-515d7c7dd2b5"
+        "56655915-b8e7-4df4-b00e-00bd19c6418c"
       ]
     },
     {
@@ -1273,13 +1273,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2151.6,
+      "elapsed_ms": 398.6,
       "retrieved_ids": [
         "4748f03e-f257-42b0-9831-f6da48e0f4e1",
-        "5b8c9111-0994-4cb6-976c-6885255a0f13",
-        "4f2f7ff3-5393-4134-bff5-40f6dd6d1f41",
         "6f456939-2b19-4547-9742-d346feef918e",
-        "63eee862-4c18-47aa-bfe9-3f874eca5689"
+        "ae75705a-9d8f-4420-92e0-a0175e4febd1",
+        "dbb28562-15b2-4be9-9fa3-ee49ef247e46",
+        "7e851bc4-c697-4265-9c9a-806487766ec2"
       ]
     },
     {
@@ -1293,13 +1293,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2277.8,
+      "elapsed_ms": 480.4,
       "retrieved_ids": [
         "4748f03e-f257-42b0-9831-f6da48e0f4e1",
+        "c0eb6115-56d9-4728-bb82-75bd8551fc5f",
+        "42967536-1ffd-43b4-a875-a703fce32a04",
         "63eee862-4c18-47aa-bfe9-3f874eca5689",
-        "b69e0f16-c99f-49e7-8d19-07144402a26d",
-        "2b0d707b-68ca-4599-a759-2b914da44602",
-        "4f2f7ff3-5393-4134-bff5-40f6dd6d1f41"
+        "dbb28562-15b2-4be9-9fa3-ee49ef247e46"
       ]
     },
     {
@@ -1313,13 +1313,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1839.8,
+      "elapsed_ms": 503.5,
       "retrieved_ids": [
         "4748f03e-f257-42b0-9831-f6da48e0f4e1",
+        "b2d995e7-4010-4b33-9333-13a62c4497aa",
         "711da7c5-6a11-468a-a07c-6e39b994e411",
-        "c62f7919-8374-491b-8d1a-8161027ef127",
-        "d7b081b8-150f-4e2a-817a-f963ad7c0bd7",
-        "63eee862-4c18-47aa-bfe9-3f874eca5689"
+        "61074e40-510d-482a-8b2d-806adb2a8dca",
+        "39a65ae4-bb56-4dc7-a8aa-fdb67e6a356e"
       ]
     },
     {
@@ -1333,13 +1333,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 1776.0,
+      "elapsed_ms": 407.4,
       "retrieved_ids": [
         "091204d0-0d29-41b1-a075-a296577e4d81",
+        "57a10f04-93cb-4731-9804-e6c25b665fd1",
         "2f1b1d61-97bb-4983-9969-5230f788430e",
-        "44f14df8-1614-4ec5-bb3d-dfcb879e2b85",
-        "66a843a6-e7c7-4d61-8a08-d932e34e5a4a",
-        "93e66b03-40ff-450a-9923-53b34e2593ca"
+        "bd721881-a5e0-4516-a088-4367e0dc4a55",
+        "44f14df8-1614-4ec5-bb3d-dfcb879e2b85"
       ]
     },
     {
@@ -1353,13 +1353,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1835.0,
+      "elapsed_ms": 750.9,
       "retrieved_ids": [
         "4748f03e-f257-42b0-9831-f6da48e0f4e1",
-        "63eee862-4c18-47aa-bfe9-3f874eca5689",
-        "dbb28562-15b2-4be9-9fa3-ee49ef247e46",
         "416dd7d5-9723-4b91-b102-051da8ec8bcb",
-        "4d1739c8-2525-4afa-9d4d-751431098b1c"
+        "6f456939-2b19-4547-9742-d346feef918e",
+        "63eee862-4c18-47aa-bfe9-3f874eca5689",
+        "c0eb6115-56d9-4728-bb82-75bd8551fc5f"
       ]
     },
     {
@@ -1373,12 +1373,12 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1917.7,
+      "elapsed_ms": 410.6,
       "retrieved_ids": [
         "4748f03e-f257-42b0-9831-f6da48e0f4e1",
+        "6f456939-2b19-4547-9742-d346feef918e",
         "c62f7919-8374-491b-8d1a-8161027ef127",
-        "4f2f7ff3-5393-4134-bff5-40f6dd6d1f41",
-        "5b8c9111-0994-4cb6-976c-6885255a0f13",
+        "9216cc65-265b-4f95-ac44-bc04f47092e1",
         "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a"
       ]
     },
@@ -1393,13 +1393,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1657.2,
+      "elapsed_ms": 445.2,
       "retrieved_ids": [
         "19d60087-3db3-4dcd-8166-95cd750c165d",
         "b04b6ca2-3bef-4275-882e-6b1e13aaf1e2",
         "2c87bcf7-8dbb-43a2-8ed6-c77e8d5dcdce",
-        "9a5c9c37-e042-4ca1-9e3d-b7375b229ed9",
-        "43c9fd2b-fbc2-465b-ba07-cd95fe7023ce"
+        "43c9fd2b-fbc2-465b-ba07-cd95fe7023ce",
+        "9a5c9c37-e042-4ca1-9e3d-b7375b229ed9"
       ]
     },
     {
@@ -1413,13 +1413,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1824.9,
+      "elapsed_ms": 469.3,
       "retrieved_ids": [
         "19d60087-3db3-4dcd-8166-95cd750c165d",
-        "2c87bcf7-8dbb-43a2-8ed6-c77e8d5dcdce",
-        "62f518f0-a22f-41f5-859c-05335725f20b",
         "43c9fd2b-fbc2-465b-ba07-cd95fe7023ce",
-        "b04b6ca2-3bef-4275-882e-6b1e13aaf1e2"
+        "2c87bcf7-8dbb-43a2-8ed6-c77e8d5dcdce",
+        "b04b6ca2-3bef-4275-882e-6b1e13aaf1e2",
+        "8f310424-f336-45f7-9f02-e830865fcd0b"
       ]
     },
     {
@@ -1433,13 +1433,13 @@
       "hit": true,
       "rank": 2,
       "top1_hit": false,
-      "elapsed_ms": 1688.6,
+      "elapsed_ms": 349.8,
       "retrieved_ids": [
         "186a0768-6fa7-4dcd-b537-1a618f1f6989",
         "19d60087-3db3-4dcd-8166-95cd750c165d",
-        "fa2e3489-51c8-4fa3-9c20-be6ca9f035a3",
-        "6b0fb2ef-ff00-44fe-bf92-80a24eea2269",
-        "99f7d12c-1c9d-42ec-95f8-af63cdb14f24"
+        "8e1c4801-55c8-4fd3-9c37-84166ef3c90b",
+        "5c0d669f-28b6-4124-b404-3e56ae29dfaa",
+        "50c42f27-56be-490d-b1e6-ddd4e5758d88"
       ]
     },
     {
@@ -1450,16 +1450,16 @@
       "format": "keyword_only",
       "difficulty": "hard",
       "similarity_to_gt": 0.0,
-      "hit": true,
-      "rank": 3,
+      "hit": false,
+      "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2035.1,
+      "elapsed_ms": 335.5,
       "retrieved_ids": [
         "b79ae5bb-4479-4cd2-935b-cde429f46e00",
-        "1d39797e-a898-4621-bffa-dd96b2af7882",
-        "19d60087-3db3-4dcd-8166-95cd750c165d",
         "6853d5ae-3d2d-4aa8-b4cf-4a1abc64675e",
-        "f347af35-d606-4bf7-97b8-4308b09ea170"
+        "f347af35-d606-4bf7-97b8-4308b09ea170",
+        "155545c3-84fb-42f0-a64d-5e48619d8995",
+        "1d39797e-a898-4621-bffa-dd96b2af7882"
       ]
     },
     {
@@ -1473,13 +1473,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2248.8,
+      "elapsed_ms": 325.3,
       "retrieved_ids": [
         "19d60087-3db3-4dcd-8166-95cd750c165d",
+        "43c9fd2b-fbc2-465b-ba07-cd95fe7023ce",
         "2c87bcf7-8dbb-43a2-8ed6-c77e8d5dcdce",
         "b04b6ca2-3bef-4275-882e-6b1e13aaf1e2",
-        "43c9fd2b-fbc2-465b-ba07-cd95fe7023ce",
-        "3b9129fa-b2f1-41a0-96dc-505e4ed333a8"
+        "9a5c9c37-e042-4ca1-9e3d-b7375b229ed9"
       ]
     },
     {
@@ -1493,13 +1493,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2142.9,
+      "elapsed_ms": 355.0,
       "retrieved_ids": [
         "19d60087-3db3-4dcd-8166-95cd750c165d",
+        "43c9fd2b-fbc2-465b-ba07-cd95fe7023ce",
         "b04b6ca2-3bef-4275-882e-6b1e13aaf1e2",
         "2c87bcf7-8dbb-43a2-8ed6-c77e8d5dcdce",
-        "9a5c9c37-e042-4ca1-9e3d-b7375b229ed9",
-        "43c9fd2b-fbc2-465b-ba07-cd95fe7023ce"
+        "3b9129fa-b2f1-41a0-96dc-505e4ed333a8"
       ]
     },
     {
@@ -1513,13 +1513,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2074.0,
+      "elapsed_ms": 314.1,
       "retrieved_ids": [
         "18725412-c2c9-425a-ade3-cc94070b779e",
         "56261044-d189-45cf-bf1e-8376ed7885e1",
-        "56247b89-332f-4a6d-ba09-2dc61fac97f7",
-        "adb21456-8453-40f5-bf2f-1a9bfb627ea5",
-        "af90601d-65dc-48e5-b945-e86788c9172f"
+        "7f7c1ed1-9d7e-47f1-84e2-dbd248c1fcd3",
+        "3cbefd4a-4a9e-4b70-86dc-53b0a4fb6281",
+        "56247b89-332f-4a6d-ba09-2dc61fac97f7"
       ]
     },
     {
@@ -1531,15 +1531,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.765,
       "hit": true,
-      "rank": 1,
-      "top1_hit": true,
-      "elapsed_ms": 1948.5,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 289.6,
       "retrieved_ids": [
-        "18725412-c2c9-425a-ade3-cc94070b779e",
         "56261044-d189-45cf-bf1e-8376ed7885e1",
+        "18725412-c2c9-425a-ade3-cc94070b779e",
         "56247b89-332f-4a6d-ba09-2dc61fac97f7",
-        "adb21456-8453-40f5-bf2f-1a9bfb627ea5",
-        "af90601d-65dc-48e5-b945-e86788c9172f"
+        "67f8bd78-12e0-499f-aedd-8d836a2d895f",
+        "adb21456-8453-40f5-bf2f-1a9bfb627ea5"
       ]
     },
     {
@@ -1551,15 +1551,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.381,
       "hit": true,
-      "rank": 1,
-      "top1_hit": true,
-      "elapsed_ms": 2170.4,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 263.8,
       "retrieved_ids": [
+        "56261044-d189-45cf-bf1e-8376ed7885e1",
         "18725412-c2c9-425a-ade3-cc94070b779e",
         "56247b89-332f-4a6d-ba09-2dc61fac97f7",
-        "adb21456-8453-40f5-bf2f-1a9bfb627ea5",
-        "56261044-d189-45cf-bf1e-8376ed7885e1",
-        "af90601d-65dc-48e5-b945-e86788c9172f"
+        "47f49db0-1c32-40cc-a6b9-18aec427f999",
+        "adb21456-8453-40f5-bf2f-1a9bfb627ea5"
       ]
     },
     {
@@ -1571,15 +1571,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.0,
       "hit": true,
-      "rank": 2,
+      "rank": 3,
       "top1_hit": false,
-      "elapsed_ms": 1928.6,
+      "elapsed_ms": 263.4,
       "retrieved_ids": [
         "902797a5-2684-4d09-addf-6c964ee81802",
+        "8f310424-f336-45f7-9f02-e830865fcd0b",
         "18725412-c2c9-425a-ade3-cc94070b779e",
-        "4897d0c6-5ffa-4378-b24e-dda18f7ab942",
-        "f216e14b-805e-44b8-8327-5ab524f4df32",
-        "8f310424-f336-45f7-9f02-e830865fcd0b"
+        "19d60087-3db3-4dcd-8166-95cd750c165d",
+        "f216e14b-805e-44b8-8327-5ab524f4df32"
       ]
     },
     {
@@ -1593,13 +1593,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1934.1,
+      "elapsed_ms": 235.3,
       "retrieved_ids": [
         "18725412-c2c9-425a-ade3-cc94070b779e",
         "56261044-d189-45cf-bf1e-8376ed7885e1",
-        "56247b89-332f-4a6d-ba09-2dc61fac97f7",
-        "adb21456-8453-40f5-bf2f-1a9bfb627ea5",
-        "af90601d-65dc-48e5-b945-e86788c9172f"
+        "7f7c1ed1-9d7e-47f1-84e2-dbd248c1fcd3",
+        "3cbefd4a-4a9e-4b70-86dc-53b0a4fb6281",
+        "56247b89-332f-4a6d-ba09-2dc61fac97f7"
       ]
     },
     {
@@ -1613,13 +1613,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2051.5,
+      "elapsed_ms": 275.0,
       "retrieved_ids": [
         "18725412-c2c9-425a-ade3-cc94070b779e",
         "56261044-d189-45cf-bf1e-8376ed7885e1",
+        "7f7c1ed1-9d7e-47f1-84e2-dbd248c1fcd3",
         "56247b89-332f-4a6d-ba09-2dc61fac97f7",
-        "adb21456-8453-40f5-bf2f-1a9bfb627ea5",
-        "38a7026b-d26f-4f8b-b3e3-880066852d0c"
+        "47f49db0-1c32-40cc-a6b9-18aec427f999"
       ]
     },
     {
@@ -1633,13 +1633,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2095.0,
+      "elapsed_ms": 266.7,
       "retrieved_ids": [
         "76c773f2-cd38-4405-ae52-480a8364a566",
         "7175589f-6de0-4bb6-a42f-e491627d283b",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "7b0d91a7-591b-49fd-9f2c-f50810537c48",
-        "9a0a57ac-86dd-4712-b9e6-1ba18dfa8e71"
+        "8a8404ef-1ca0-41f7-aaf4-4992b02becc8",
+        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858"
       ]
     },
     {
@@ -1653,13 +1653,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1853.3,
+      "elapsed_ms": 303.9,
       "retrieved_ids": [
         "76c773f2-cd38-4405-ae52-480a8364a566",
         "7175589f-6de0-4bb6-a42f-e491627d283b",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "7b0d91a7-591b-49fd-9f2c-f50810537c48",
-        "9a0a57ac-86dd-4712-b9e6-1ba18dfa8e71"
+        "5f51b458-91e2-4c50-9951-be6ca5344fd8",
+        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858"
       ]
     },
     {
@@ -1673,12 +1673,12 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1532.1,
+      "elapsed_ms": 254.9,
       "retrieved_ids": [
         "76c773f2-cd38-4405-ae52-480a8364a566",
-        "2b0d707b-68ca-4599-a759-2b914da44602",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
+        "6bb9b583-0537-48d5-a366-09a322c7e251",
         "44f14df8-1614-4ec5-bb3d-dfcb879e2b85",
+        "45e58b9d-12f4-4355-be60-9291e69ed5be",
         "2f1b1d61-97bb-4983-9969-5230f788430e"
       ]
     },
@@ -1693,13 +1693,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2045.7,
+      "elapsed_ms": 226.4,
       "retrieved_ids": [
+        "2a74ce58-62d4-40c1-8c8e-8996ca116982",
+        "5bc4b80a-746e-40a9-a055-446be6791fdb",
         "8e28ddb4-8946-4b29-bc95-362f5942f408",
-        "de68a4b1-3bfe-4aa7-b3bd-113b713f36ac",
-        "0a02dd51-2a49-4fc0-ad97-d742b6216865",
-        "6f456939-2b19-4547-9742-d346feef918e",
-        "2a74ce58-62d4-40c1-8c8e-8996ca116982"
+        "4c251aed-4fab-4ea6-9370-1dc07875500d",
+        "b7c1174d-50ee-433e-8288-df7953d8f8d5"
       ]
     },
     {
@@ -1713,13 +1713,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 3247.2,
+      "elapsed_ms": 257.3,
       "retrieved_ids": [
         "76c773f2-cd38-4405-ae52-480a8364a566",
         "7175589f-6de0-4bb6-a42f-e491627d283b",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "7b0d91a7-591b-49fd-9f2c-f50810537c48",
-        "5b8c9111-0994-4cb6-976c-6885255a0f13"
+        "8a8404ef-1ca0-41f7-aaf4-4992b02becc8",
+        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858"
       ]
     },
     {
@@ -1733,13 +1733,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2602.0,
+      "elapsed_ms": 276.0,
       "retrieved_ids": [
         "76c773f2-cd38-4405-ae52-480a8364a566",
         "7175589f-6de0-4bb6-a42f-e491627d283b",
-        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858",
         "7b0d91a7-591b-49fd-9f2c-f50810537c48",
-        "5b8c9111-0994-4cb6-976c-6885255a0f13"
+        "8a8404ef-1ca0-41f7-aaf4-4992b02becc8",
+        "aa7fbfe3-8814-4003-a46c-a1eebeb0d858"
       ]
     },
     {
@@ -1753,13 +1753,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2249.9,
+      "elapsed_ms": 215.9,
       "retrieved_ids": [
         "2f7a2aff-737e-4a63-a85e-96c631594e04",
-        "9de11425-2692-44c2-8f0f-1f3e2252b14b",
+        "0a02dd51-2a49-4fc0-ad97-d742b6216865",
         "9c880ec3-83d8-46a6-a1b0-63c7dda5292d",
-        "8a8404ef-1ca0-41f7-aaf4-4992b02becc8",
-        "4499b5e5-f958-4dfa-b0df-7a0657c0ea04"
+        "9de11425-2692-44c2-8f0f-1f3e2252b14b",
+        "e529af28-e3e6-4a87-a78c-14088a7f952d"
       ]
     },
     {
@@ -1773,13 +1773,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2224.1,
+      "elapsed_ms": 239.7,
       "retrieved_ids": [
         "2f7a2aff-737e-4a63-a85e-96c631594e04",
         "9de11425-2692-44c2-8f0f-1f3e2252b14b",
-        "8a8404ef-1ca0-41f7-aaf4-4992b02becc8",
-        "fdf8a130-97c5-4344-b73f-167b6de184cd",
-        "9c880ec3-83d8-46a6-a1b0-63c7dda5292d"
+        "0a02dd51-2a49-4fc0-ad97-d742b6216865",
+        "9c880ec3-83d8-46a6-a1b0-63c7dda5292d",
+        "e529af28-e3e6-4a87-a78c-14088a7f952d"
       ]
     },
     {
@@ -1793,13 +1793,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2018.7,
+      "elapsed_ms": 234.3,
       "retrieved_ids": [
         "2f7a2aff-737e-4a63-a85e-96c631594e04",
-        "2271bbfc-9f72-4e9c-bc03-f6c83bdcdc76",
-        "9c880ec3-83d8-46a6-a1b0-63c7dda5292d",
-        "9de11425-2692-44c2-8f0f-1f3e2252b14b",
-        "e9c5e46e-e4c2-4158-aeb7-01ab7a197be8"
+        "0a02dd51-2a49-4fc0-ad97-d742b6216865",
+        "e9c5e46e-e4c2-4158-aeb7-01ab7a197be8",
+        "2a74ce58-62d4-40c1-8c8e-8996ca116982",
+        "49e6dd2e-9674-4203-8105-f6891ea52af1"
       ]
     },
     {
@@ -1813,13 +1813,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 2147.9,
+      "elapsed_ms": 231.6,
       "retrieved_ids": [
-        "e29abf67-24bb-47a1-9139-e5116795a721",
         "03959b58-bb4a-4aff-bbcf-5c1db3da17cf",
-        "6344e457-cf02-46dc-b3fb-8391262b9787",
-        "c539af1a-15bc-47e7-94d5-a8d12394d583",
-        "56d259ac-0f18-48da-a38a-01d577d395e3"
+        "db8f9fe6-7dd8-4d2d-948b-f394f7fef9a8",
+        "60b8c085-e560-45a7-9d9d-0d34dd979f46",
+        "e29abf67-24bb-47a1-9139-e5116795a721",
+        "42967536-1ffd-43b4-a875-a703fce32a04"
       ]
     },
     {
@@ -1833,13 +1833,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2107.3,
+      "elapsed_ms": 233.6,
       "retrieved_ids": [
         "2f7a2aff-737e-4a63-a85e-96c631594e04",
+        "0a02dd51-2a49-4fc0-ad97-d742b6216865",
         "9de11425-2692-44c2-8f0f-1f3e2252b14b",
-        "44f14df8-1614-4ec5-bb3d-dfcb879e2b85",
-        "8a8404ef-1ca0-41f7-aaf4-4992b02becc8",
-        "2f1b1d61-97bb-4983-9969-5230f788430e"
+        "9c880ec3-83d8-46a6-a1b0-63c7dda5292d",
+        "e529af28-e3e6-4a87-a78c-14088a7f952d"
       ]
     },
     {
@@ -1853,13 +1853,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2176.0,
+      "elapsed_ms": 260.8,
       "retrieved_ids": [
         "2f7a2aff-737e-4a63-a85e-96c631594e04",
-        "9de11425-2692-44c2-8f0f-1f3e2252b14b",
+        "0a02dd51-2a49-4fc0-ad97-d742b6216865",
         "9c880ec3-83d8-46a6-a1b0-63c7dda5292d",
-        "8a8404ef-1ca0-41f7-aaf4-4992b02becc8",
-        "4499b5e5-f958-4dfa-b0df-7a0657c0ea04"
+        "e85427af-d302-4328-ad7c-b4d194d5078b",
+        "9de11425-2692-44c2-8f0f-1f3e2252b14b"
       ]
     },
     {
@@ -1873,13 +1873,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1845.0,
+      "elapsed_ms": 206.3,
       "retrieved_ids": [
         "6af2ea2a-ca9a-4a75-a14b-d03d8d4317dc",
         "53eddf0a-75c2-423d-9033-7e0db17a2441",
-        "40c2f6d9-7031-4b8f-8b93-e1fcc62a1463",
+        "31d2a2af-df0e-4576-8dbe-9e3aedb7e8c9",
         "d6249668-9382-4ac2-a32b-a4d95500e9be",
-        "ff349209-1d05-4b5c-b36f-5ed0043401d5"
+        "4897d0c6-5ffa-4378-b24e-dda18f7ab942"
       ]
     },
     {
@@ -1893,13 +1893,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1616.6,
+      "elapsed_ms": 238.6,
       "retrieved_ids": [
         "6af2ea2a-ca9a-4a75-a14b-d03d8d4317dc",
         "53eddf0a-75c2-423d-9033-7e0db17a2441",
-        "40c2f6d9-7031-4b8f-8b93-e1fcc62a1463",
         "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
-        "c62f7919-8374-491b-8d1a-8161027ef127"
+        "c62f7919-8374-491b-8d1a-8161027ef127",
+        "d6249668-9382-4ac2-a32b-a4d95500e9be"
       ]
     },
     {
@@ -1911,15 +1911,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.381,
       "hit": true,
-      "rank": 3,
-      "top1_hit": false,
-      "elapsed_ms": 1826.1,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 322.3,
       "retrieved_ids": [
-        "2b0d707b-68ca-4599-a759-2b914da44602",
-        "62f518f0-a22f-41f5-859c-05335725f20b",
         "6af2ea2a-ca9a-4a75-a14b-d03d8d4317dc",
-        "3585c1d5-b713-4131-ae06-bffb00ac33b5",
-        "47da4410-31e8-4c6f-a9ff-15aee3b40c70"
+        "2b0d707b-68ca-4599-a759-2b914da44602",
+        "cf99c7d1-0dbc-4cd9-a938-37dd6cea6db4",
+        "62f518f0-a22f-41f5-859c-05335725f20b",
+        "fe978de5-508b-429e-8193-0199d8fbb4a2"
       ]
     },
     {
@@ -1933,13 +1933,13 @@
       "hit": false,
       "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 1723.0,
+      "elapsed_ms": 231.1,
       "retrieved_ids": [
-        "43fc9e19-7648-4f84-8814-ac4d145481d7",
-        "3b9a5446-0208-4126-9aac-1bab7a01a487",
+        "ed294f1c-80f7-4557-80b7-7b9dee39e436",
+        "af7071c4-2a39-4529-97a7-d5e8d494a483",
+        "cf99c7d1-0dbc-4cd9-a938-37dd6cea6db4",
         "3a9016ee-f58b-4ac8-b480-ff717660c575",
-        "e68d6b52-5d10-44c7-918c-5714fbffa73c",
-        "2823a15e-6a33-4501-bf9d-d6cc2cab2037"
+        "e68d6b52-5d10-44c7-918c-5714fbffa73c"
       ]
     },
     {
@@ -1953,13 +1953,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1712.2,
+      "elapsed_ms": 202.2,
       "retrieved_ids": [
         "6af2ea2a-ca9a-4a75-a14b-d03d8d4317dc",
         "53eddf0a-75c2-423d-9033-7e0db17a2441",
-        "285a0cc8-85ff-429a-8cb5-62850dc6b6a4",
         "51410e10-5e30-4efd-878f-d23fca147f6c",
-        "fe2afed5-627e-4cf7-8468-23af6aed47d3"
+        "31d2a2af-df0e-4576-8dbe-9e3aedb7e8c9",
+        "d6249668-9382-4ac2-a32b-a4d95500e9be"
       ]
     },
     {
@@ -1973,13 +1973,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1816.6,
+      "elapsed_ms": 234.9,
       "retrieved_ids": [
         "6af2ea2a-ca9a-4a75-a14b-d03d8d4317dc",
         "53eddf0a-75c2-423d-9033-7e0db17a2441",
-        "40c2f6d9-7031-4b8f-8b93-e1fcc62a1463",
         "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
-        "c62f7919-8374-491b-8d1a-8161027ef127"
+        "c62f7919-8374-491b-8d1a-8161027ef127",
+        "31d2a2af-df0e-4576-8dbe-9e3aedb7e8c9"
       ]
     },
     {
@@ -1993,13 +1993,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1973.7,
+      "elapsed_ms": 198.1,
       "retrieved_ids": [
         "727afdac-ddb4-4e17-b924-4af011164bff",
-        "00d30743-4972-4924-92ca-1a41c69dfe9c",
         "62f518f0-a22f-41f5-859c-05335725f20b",
-        "d72fabd9-cee0-4cbe-9acd-05ab4e931ceb",
-        "fbb869c6-26de-4e76-af28-e0aed7e99bae"
+        "ec2e32f8-9c01-4a61-b4da-6772cd2c1e53",
+        "8662e47b-5328-45a4-b6fb-07c99bc4e329",
+        "cfe73718-f5d0-4802-8fd3-9fbccb91d754"
       ]
     },
     {
@@ -2011,15 +2011,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.5,
       "hit": true,
-      "rank": 3,
-      "top1_hit": false,
-      "elapsed_ms": 2092.4,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 236.4,
       "retrieved_ids": [
+        "727afdac-ddb4-4e17-b924-4af011164bff",
         "62f518f0-a22f-41f5-859c-05335725f20b",
         "4886576d-86bd-4c95-90a8-9fd38935ad19",
-        "727afdac-ddb4-4e17-b924-4af011164bff",
-        "b69e0f16-c99f-49e7-8d19-07144402a26d",
-        "59f08317-6b4b-4058-acf2-81e069012b47"
+        "ec2e32f8-9c01-4a61-b4da-6772cd2c1e53",
+        "7343107d-b7bd-4940-8a0f-af97a1e128fd"
       ]
     },
     {
@@ -2033,13 +2033,13 @@
       "hit": true,
       "rank": 3,
       "top1_hit": false,
-      "elapsed_ms": 2020.9,
+      "elapsed_ms": 228.5,
       "retrieved_ids": [
         "62f518f0-a22f-41f5-859c-05335725f20b",
-        "2b0d707b-68ca-4599-a759-2b914da44602",
+        "347d29c2-6d4d-48cd-8cbb-c0c007a6e272",
         "727afdac-ddb4-4e17-b924-4af011164bff",
-        "4886576d-86bd-4c95-90a8-9fd38935ad19",
-        "d72fabd9-cee0-4cbe-9acd-05ab4e931ceb"
+        "4b188d3d-8bde-4ebb-8a74-367e3cc15f92",
+        "2b0d707b-68ca-4599-a759-2b914da44602"
       ]
     },
     {
@@ -2051,15 +2051,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.067,
       "hit": true,
-      "rank": 2,
+      "rank": 4,
       "top1_hit": false,
-      "elapsed_ms": 2123.0,
+      "elapsed_ms": 185.8,
       "retrieved_ids": [
+        "9d9dc88d-af86-4a44-b214-794a14258538",
         "d4392cf5-2759-414b-b561-515d7c7dd2b5",
+        "37b22cf1-13a8-4ef5-b24a-ef65b6c1cec4",
         "727afdac-ddb4-4e17-b924-4af011164bff",
-        "04cb1744-0490-4d08-8ae3-43f06369b832",
-        "290093cc-3fa2-423f-b21a-a0b7734751f5",
-        "3eba4f42-2365-43db-ae20-99bedf96b7e7"
+        "b1414dd5-8445-4e79-bcc5-a3689a3cff87"
       ]
     },
     {
@@ -2073,13 +2073,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2070.7,
+      "elapsed_ms": 191.9,
       "retrieved_ids": [
         "727afdac-ddb4-4e17-b924-4af011164bff",
-        "00d30743-4972-4924-92ca-1a41c69dfe9c",
         "62f518f0-a22f-41f5-859c-05335725f20b",
-        "d72fabd9-cee0-4cbe-9acd-05ab4e931ceb",
-        "72d378aa-6d63-4044-8617-26483152f541"
+        "ec2e32f8-9c01-4a61-b4da-6772cd2c1e53",
+        "8662e47b-5328-45a4-b6fb-07c99bc4e329",
+        "cfe73718-f5d0-4802-8fd3-9fbccb91d754"
       ]
     },
     {
@@ -2091,15 +2091,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.562,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 2070.8,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 224.8,
       "retrieved_ids": [
-        "62f518f0-a22f-41f5-859c-05335725f20b",
         "727afdac-ddb4-4e17-b924-4af011164bff",
-        "2b0d707b-68ca-4599-a759-2b914da44602",
-        "4886576d-86bd-4c95-90a8-9fd38935ad19",
-        "ebb40cc8-4c47-4f54-86c6-ff9d865dbfad"
+        "62f518f0-a22f-41f5-859c-05335725f20b",
+        "59f08317-6b4b-4058-acf2-81e069012b47",
+        "ec2e32f8-9c01-4a61-b4da-6772cd2c1e53",
+        "2b0d707b-68ca-4599-a759-2b914da44602"
       ]
     },
     {
@@ -2113,13 +2113,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1904.2,
+      "elapsed_ms": 223.7,
       "retrieved_ids": [
         "8b8daf12-c4aa-48de-b674-88f2009b1007",
+        "e1e84127-e38e-4326-958c-f9a54ab3af29",
+        "608b088a-096b-448f-8340-3d88610b8dfb",
         "882d41c3-d057-435d-a722-581dac8209c8",
-        "319c7c80-bcdb-42e3-ad91-8fdedccac9f8",
-        "13d52610-ceab-4bd2-bd4f-e9e9f6555b21",
-        "608b088a-096b-448f-8340-3d88610b8dfb"
+        "6ed22200-7ab9-421e-a283-c5e156ad6033"
       ]
     },
     {
@@ -2133,13 +2133,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1828.7,
+      "elapsed_ms": 249.7,
       "retrieved_ids": [
         "8b8daf12-c4aa-48de-b674-88f2009b1007",
         "62f518f0-a22f-41f5-859c-05335725f20b",
+        "6ed22200-7ab9-421e-a283-c5e156ad6033",
         "4886576d-86bd-4c95-90a8-9fd38935ad19",
-        "e9c5e46e-e4c2-4158-aeb7-01ab7a197be8",
-        "385955ff-b4a5-4f6a-ad0b-a92f16c75860"
+        "608b088a-096b-448f-8340-3d88610b8dfb"
       ]
     },
     {
@@ -2151,15 +2151,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.333,
       "hit": true,
-      "rank": 2,
-      "top1_hit": false,
-      "elapsed_ms": 1852.9,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 239.1,
       "retrieved_ids": [
-        "62f518f0-a22f-41f5-859c-05335725f20b",
         "8b8daf12-c4aa-48de-b674-88f2009b1007",
         "882d41c3-d057-435d-a722-581dac8209c8",
-        "2b0d707b-68ca-4599-a759-2b914da44602",
-        "4886576d-86bd-4c95-90a8-9fd38935ad19"
+        "0e05e659-afcf-4c36-81e7-2e2418b541ab",
+        "13d52610-ceab-4bd2-bd4f-e9e9f6555b21",
+        "62f518f0-a22f-41f5-859c-05335725f20b"
       ]
     },
     {
@@ -2170,16 +2170,16 @@
       "format": "keyword_only",
       "difficulty": "hard",
       "similarity_to_gt": 0.05,
-      "hit": true,
-      "rank": 5,
+      "hit": false,
+      "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 1819.8,
+      "elapsed_ms": 223.8,
       "retrieved_ids": [
-        "8666d2cf-b4f5-4711-a0ad-2c0b5fbbc145",
         "d374d0ec-4bd0-45ad-9697-ad133ecaef38",
-        "72c3fd77-9ec2-4142-84b1-ace77c34dede",
+        "3bbe5e53-821f-4b96-9b9b-dd5256b2437d",
         "207d7895-8e09-4752-bee7-835dc6643842",
-        "8b8daf12-c4aa-48de-b674-88f2009b1007"
+        "f42b22af-ef14-4b9d-b97a-a81eba36cf3b",
+        "755b61af-0dd6-4fe0-90e8-165c1d176e8c"
       ]
     },
     {
@@ -2193,13 +2193,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1744.7,
+      "elapsed_ms": 225.4,
       "retrieved_ids": [
         "8b8daf12-c4aa-48de-b674-88f2009b1007",
+        "0e05e659-afcf-4c36-81e7-2e2418b541ab",
         "319c7c80-bcdb-42e3-ad91-8fdedccac9f8",
-        "882d41c3-d057-435d-a722-581dac8209c8",
-        "44192232-9d7d-4277-8476-a319571eb549",
-        "b375283d-421b-48fe-ad3c-8383c1abf9a9"
+        "6ed22200-7ab9-421e-a283-c5e156ad6033",
+        "882d41c3-d057-435d-a722-581dac8209c8"
       ]
     },
     {
@@ -2213,12 +2213,12 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2098.1,
+      "elapsed_ms": 264.7,
       "retrieved_ids": [
         "8b8daf12-c4aa-48de-b674-88f2009b1007",
+        "ed3579e1-e9f9-42e9-8c5d-b229bb4a13c8",
         "882d41c3-d057-435d-a722-581dac8209c8",
-        "319c7c80-bcdb-42e3-ad91-8fdedccac9f8",
-        "e641a929-7cd7-4ef9-a629-7641e6571762",
+        "6ed22200-7ab9-421e-a283-c5e156ad6033",
         "017ab610-8d78-473c-a2f8-2262306ce70c"
       ]
     },
@@ -2231,15 +2231,15 @@
       "difficulty": "easy",
       "similarity_to_gt": 0.857,
       "hit": true,
-      "rank": 4,
+      "rank": 3,
       "top1_hit": false,
-      "elapsed_ms": 1896.4,
+      "elapsed_ms": 266.3,
       "retrieved_ids": [
         "4efcec94-c8a0-475c-b936-a08566f176ce",
         "04a55b50-5ea8-4904-9e71-1298be9c2ccb",
-        "98e92e2f-32e4-4a25-88ec-79e5780ad470",
         "e69ca5c2-b777-47ea-ba1b-70a727f3b4f8",
-        "6d119752-033d-4091-bfbc-e2b8f9cf49be"
+        "3895ef40-1344-49c4-a832-67d1079cd684",
+        "17335846-ed99-4b4f-8980-963064e3a805"
       ]
     },
     {
@@ -2251,15 +2251,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.591,
       "hit": true,
-      "rank": 4,
-      "top1_hit": false,
-      "elapsed_ms": 1732.4,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 300.0,
       "retrieved_ids": [
-        "4efcec94-c8a0-475c-b936-a08566f176ce",
-        "04a55b50-5ea8-4904-9e71-1298be9c2ccb",
-        "98e92e2f-32e4-4a25-88ec-79e5780ad470",
         "e69ca5c2-b777-47ea-ba1b-70a727f3b4f8",
-        "6d119752-033d-4091-bfbc-e2b8f9cf49be"
+        "04a55b50-5ea8-4904-9e71-1298be9c2ccb",
+        "4efcec94-c8a0-475c-b936-a08566f176ce",
+        "8144c3d5-6e61-46b6-8cfe-634ad9d2f6c0",
+        "e85427af-d302-4328-ad7c-b4d194d5078b"
       ]
     },
     {
@@ -2270,16 +2270,16 @@
       "format": "reworded",
       "difficulty": "hard",
       "similarity_to_gt": 0.35,
-      "hit": true,
-      "rank": 3,
+      "hit": false,
+      "rank": -1,
       "top1_hit": false,
-      "elapsed_ms": 1519.5,
+      "elapsed_ms": 226.7,
       "retrieved_ids": [
+        "3895ef40-1344-49c4-a832-67d1079cd684",
+        "2271bbfc-9f72-4e9c-bc03-f6c83bdcdc76",
+        "eada2761-c1cb-453d-9e94-46a9bfb9cb85",
         "4efcec94-c8a0-475c-b936-a08566f176ce",
-        "04a55b50-5ea8-4904-9e71-1298be9c2ccb",
-        "e69ca5c2-b777-47ea-ba1b-70a727f3b4f8",
-        "98e92e2f-32e4-4a25-88ec-79e5780ad470",
-        "3895ef40-1344-49c4-a832-67d1079cd684"
+        "c8cce722-213d-4436-b0c3-eceb2fe9e5fe"
       ]
     },
     {
@@ -2291,15 +2291,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.091,
       "hit": true,
-      "rank": 3,
+      "rank": 4,
       "top1_hit": false,
-      "elapsed_ms": 2510.8,
+      "elapsed_ms": 240.4,
       "retrieved_ids": [
         "b9ecd4fa-15b3-4bd3-b9a8-4604f1cce1f8",
         "0b188060-63c6-47c8-9b08-cb5aa003bddc",
+        "337c03aa-f77c-4a9c-b2d8-7c30abb2308f",
         "e69ca5c2-b777-47ea-ba1b-70a727f3b4f8",
-        "98e92e2f-32e4-4a25-88ec-79e5780ad470",
-        "561fbeaa-9939-4c12-a0e5-c5e94ad8157c"
+        "0a02dd51-2a49-4fc0-ad97-d742b6216865"
       ]
     },
     {
@@ -2311,15 +2311,15 @@
       "difficulty": "medium",
       "similarity_to_gt": 0.733,
       "hit": true,
-      "rank": 4,
+      "rank": 3,
       "top1_hit": false,
-      "elapsed_ms": 3010.7,
+      "elapsed_ms": 229.8,
       "retrieved_ids": [
-        "4efcec94-c8a0-475c-b936-a08566f176ce",
-        "98e92e2f-32e4-4a25-88ec-79e5780ad470",
         "04a55b50-5ea8-4904-9e71-1298be9c2ccb",
+        "4efcec94-c8a0-475c-b936-a08566f176ce",
         "e69ca5c2-b777-47ea-ba1b-70a727f3b4f8",
-        "0515bc90-ca2b-4b08-be10-1196b2900c11"
+        "3895ef40-1344-49c4-a832-67d1079cd684",
+        "98e92e2f-32e4-4a25-88ec-79e5780ad470"
       ]
     },
     {
@@ -2331,15 +2331,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.571,
       "hit": true,
-      "rank": 4,
+      "rank": 3,
       "top1_hit": false,
-      "elapsed_ms": 2328.1,
+      "elapsed_ms": 310.0,
       "retrieved_ids": [
-        "4efcec94-c8a0-475c-b936-a08566f176ce",
         "04a55b50-5ea8-4904-9e71-1298be9c2ccb",
-        "98e92e2f-32e4-4a25-88ec-79e5780ad470",
+        "4efcec94-c8a0-475c-b936-a08566f176ce",
         "e69ca5c2-b777-47ea-ba1b-70a727f3b4f8",
-        "6d119752-033d-4091-bfbc-e2b8f9cf49be"
+        "3895ef40-1344-49c4-a832-67d1079cd684",
+        "e85427af-d302-4328-ad7c-b4d194d5078b"
       ]
     },
     {
@@ -2353,13 +2353,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2108.0,
+      "elapsed_ms": 233.5,
       "retrieved_ids": [
         "991dea6b-2eb3-4ac8-a366-5fccb69d5257",
         "0c2776d3-dbe4-4e1d-b896-38eafa8f5a98",
         "09559577-e8a5-4613-b2dc-732d69d4f598",
-        "cfe73718-f5d0-4802-8fd3-9fbccb91d754",
-        "72d378aa-6d63-4044-8617-26483152f541"
+        "6ae00fb1-70b5-4883-b2f4-549f597368e7",
+        "03881528-7d84-4a7b-bb64-c866bdaaa964"
       ]
     },
     {
@@ -2373,13 +2373,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2139.9,
+      "elapsed_ms": 246.7,
       "retrieved_ids": [
         "991dea6b-2eb3-4ac8-a366-5fccb69d5257",
-        "8e290859-d788-47fc-a4e4-75425010b085",
-        "50811e4b-a8d6-4cac-8c64-2ba1b45d1646",
+        "0c2776d3-dbe4-4e1d-b896-38eafa8f5a98",
+        "09559577-e8a5-4613-b2dc-732d69d4f598",
         "72d378aa-6d63-4044-8617-26483152f541",
-        "cfe73718-f5d0-4802-8fd3-9fbccb91d754"
+        "8662e47b-5328-45a4-b6fb-07c99bc4e329"
       ]
     },
     {
@@ -2393,13 +2393,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2271.9,
+      "elapsed_ms": 222.7,
       "retrieved_ids": [
         "991dea6b-2eb3-4ac8-a366-5fccb69d5257",
+        "55b9856a-b761-468c-ae5e-fe02e1c32ef3",
         "01b569e7-c7c3-49b4-91c2-804d00e75f1a",
-        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a",
-        "c62f7919-8374-491b-8d1a-8161027ef127",
-        "8cfb1a34-8fca-4ce5-baee-91cb609ee7f0"
+        "987731b9-9487-47e2-9ae3-5aa40590f42c",
+        "d5403abb-2aa1-43cf-ab0f-a29f0895ad6a"
       ]
     },
     {
@@ -2411,15 +2411,15 @@
       "difficulty": "hard",
       "similarity_to_gt": 0.0,
       "hit": true,
-      "rank": 3,
-      "top1_hit": false,
-      "elapsed_ms": 2089.8,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 197.9,
       "retrieved_ids": [
-        "dc93d092-cd67-4377-bcfe-f57470d00ec0",
-        "2d865806-7508-40ed-bf8d-22671b49f3fc",
         "991dea6b-2eb3-4ac8-a366-5fccb69d5257",
-        "6598d774-ce9e-4b9e-996e-c2f4f47aa8d1",
-        "64b9ab36-651e-4d74-8fc0-ac50091f5d2a"
+        "93b418d3-3fa5-46b5-88ee-9e35fce53cbf",
+        "dc93d092-cd67-4377-bcfe-f57470d00ec0",
+        "74814b81-031e-4b4f-9857-cf1f37681fc8",
+        "6598d774-ce9e-4b9e-996e-c2f4f47aa8d1"
       ]
     },
     {
@@ -2433,13 +2433,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 1955.7,
+      "elapsed_ms": 216.6,
       "retrieved_ids": [
         "991dea6b-2eb3-4ac8-a366-5fccb69d5257",
+        "09559577-e8a5-4613-b2dc-732d69d4f598",
         "0c2776d3-dbe4-4e1d-b896-38eafa8f5a98",
-        "cfe73718-f5d0-4802-8fd3-9fbccb91d754",
-        "72d378aa-6d63-4044-8617-26483152f541",
-        "727afdac-ddb4-4e17-b924-4af011164bff"
+        "8662e47b-5328-45a4-b6fb-07c99bc4e329",
+        "d22b11dc-29b5-41ca-b8b1-04dea4578d1d"
       ]
     },
     {
@@ -2453,13 +2453,13 @@
       "hit": true,
       "rank": 1,
       "top1_hit": true,
-      "elapsed_ms": 2056.0,
+      "elapsed_ms": 287.2,
       "retrieved_ids": [
         "991dea6b-2eb3-4ac8-a366-5fccb69d5257",
         "0c2776d3-dbe4-4e1d-b896-38eafa8f5a98",
         "09559577-e8a5-4613-b2dc-732d69d4f598",
-        "cfe73718-f5d0-4802-8fd3-9fbccb91d754",
-        "72d378aa-6d63-4044-8617-26483152f541"
+        "6ae00fb1-70b5-4883-b2f4-549f597368e7",
+        "03881528-7d84-4a7b-bb64-c866bdaaa964"
       ]
     }
   ]
