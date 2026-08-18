@@ -183,7 +183,42 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
     return chunk_data, bm25
 
 
-async def _compute_idf(chunk_data: list) -> dict[str, float]:
+_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, dict[str, float]] | None = None
+_index_cache_count: int = 0
+
+
+def _invalidate_index_cache() -> None:
+    """Drop the cached index so the next search rebuilds it."""
+    global _index_cache, _index_cache_count
+    _index_cache = None
+    _index_cache_count = 0
+
+
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, dict[str, float]]:
+    """Return the cached index, building it on first use."""
+    global _index_cache, _index_cache_count
+
+    from sqlalchemy import func
+
+    from kb_manager.models.database import Chunk
+    from kb_manager.web.app import db
+
+    async with db.session() as session:
+        chunk_count = (
+            await session.execute(select(func.count(Chunk.id)))
+        ).scalar_one()
+
+    if _index_cache is not None and _index_cache_count == chunk_count:
+        return _index_cache
+
+    chunk_data, bm25 = await _build_index()
+    idf = _compute_idf(chunk_data)
+    _index_cache = (chunk_data, bm25, idf)
+    _index_cache_count = chunk_count
+    return _index_cache
+
+
+def _compute_idf(chunk_data: list) -> dict[str, float]:
     """Compute IDF across all chunks."""
     doc_count = len(chunk_data)
     df: dict[str, int] = {}
@@ -200,7 +235,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     normalized = query.strip()
     tokens = _tokenize(normalized)
 
-    chunk_data, bm25 = await _build_index()
+    chunk_data, bm25, idf = await _get_index()
 
     # --- Step 1: BM25 ---
     bm25_raw = bm25.search(normalized, top_k=top_k * 3)
@@ -225,7 +260,6 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         ))
 
     # --- Step 2: Semantic (TF-IDF cosine) ---
-    idf = await _compute_idf(chunk_data)
     query_vec = _tfidf_vector(tokens, idf)
 
     semantic_scores_list: list[tuple[str, float]] = []
