@@ -2,14 +2,18 @@
 
 from kb_manager.evaluation.generator import SyntheticDataGenerator
 from kb_manager.evaluation.metrics import (
-    RetrievalMetrics,
-    RAGEvaluator,
     EvaluationRunner,
+    RAGEvaluator,
+    RanxRetrievalEvaluator,
+    RetrievalMetrics,
 )
+from kb_manager.evaluation.ragas_metrics import RagasEvaluator
 
 __all__ = [
-    "SyntheticDataGenerator",
-    "RetrievalMetrics",
-    "RAGEvaluator",
     "EvaluationRunner",
+    "RAGEvaluator",
+    "RagasEvaluator",
+    "RanxRetrievalEvaluator",
+    "RetrievalMetrics",
+    "SyntheticDataGenerator",
 ]

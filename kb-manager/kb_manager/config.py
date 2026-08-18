@@ -74,11 +74,24 @@ class ParserConfig:
 
 
 @dataclass(frozen=True)
+class RagasConfig:
+    """Configuration for RAGAS LLM-based evaluation."""
+
+    llm_model: str = "gpt-4o-mini"
+    embedding_model: str = "text-embedding-3-small"
+    api_key: str = ""
+    base_url: str = ""
+    metrics: tuple[str, ...] = ("faithfulness", "answer_relevancy", "context_recall")
+    k: int = 5
+
+
+@dataclass(frozen=True)
 class AppConfig:
     db: DatabaseConfig = field(default_factory=DatabaseConfig)
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
+    ragas: RagasConfig = field(default_factory=RagasConfig)
     source_dir: str = str(PROJECT_ROOT / "data")
     output_dir: str = str(PROJECT_ROOT / "data" / "processed")
     web_host: str = "0.0.0.0"
@@ -114,6 +127,13 @@ def load_config() -> AppConfig:
         ),
         parser=ParserConfig(
             xlsx_engine=os.getenv("KB_XLSX_ENGINE", "auto"),
+        ),
+        ragas=RagasConfig(
+            llm_model=os.getenv("KB_RAGAS_LLM", "gpt-4o-mini"),
+            embedding_model=os.getenv("KB_RAGAS_EMBED", "text-embedding-3-small"),
+            api_key=os.getenv("KB_RAGAS_API_KEY", ""),
+            base_url=os.getenv("KB_RAGAS_BASE_URL", ""),
+            k=int(os.getenv("KB_RAGAS_K", "5")),
         ),
         source_dir=os.getenv("KB_SOURCE_DIR", str(PROJECT_ROOT / "data")),
         output_dir=os.getenv("KB_OUTPUT_DIR", str(PROJECT_ROOT / "data" / "processed")),

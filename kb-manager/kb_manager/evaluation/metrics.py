@@ -148,6 +148,80 @@ class RetrievalMetrics:
         }
 
 
+class RanxRetrievalEvaluator:
+    """ranx-backed IR retrieval metrics.
+
+    Wraps ``ranx.evaluate`` with the same ``RetrievalResult`` interface as
+    ``RetrievalMetrics``. Falls back to the pure-Python implementation when
+    ranx is not installed.
+    """
+
+    _ranx_available: bool | None = None
+
+    @classmethod
+    def available(cls) -> bool:
+        """Return True if ranx can be imported (memoized)."""
+        if cls._ranx_available is None:
+            try:
+                import ranx  # noqa: F401
+            except ImportError:
+                cls._ranx_available = False
+            else:
+                cls._ranx_available = True
+        return cls._ranx_available
+
+    @classmethod
+    def compute_all(
+        cls, results: list[RetrievalResult], k: int = 10
+    ) -> dict[str, float]:
+        """Compute IR metrics, using ranx when available."""
+        if not cls.available():
+            return RetrievalMetrics.compute_all(results, k)
+        return _ranx_compute_all(results, k)
+
+
+def _ranx_compute_all(
+    results: list[RetrievalResult], k: int
+) -> dict[str, float]:
+    import ranx
+
+    metric_labels = [
+        f"map@{k}",
+        f"mrr@{k}",
+        f"ndcg@{k}",
+        f"recall@{k}",
+        f"precision@{k}",
+    ]
+
+    # Skip queries with no relevance info — ranx requires a qrels entry.
+    usable = [
+        r for r in results
+        if any(v > 0 for v in r.relevance_scores.values())
+    ]
+    if not usable:
+        return dict.fromkeys(metric_labels, 0.0)
+
+    qrels_dict: dict[str, dict[str, int]] = {}
+    run_dict: dict[str, dict[str, float]] = {}
+
+    for idx, r in enumerate(usable):
+        qid = f"q{idx}"
+        qrels_dict[qid] = {
+            doc_id: int(score > 0)
+            for doc_id, score in r.relevance_scores.items()
+            if score > 0
+        }
+        # ranx needs a shared run signature (union of all doc ids seen).
+        run_dict[qid] = dict(zip(r.retrieved_ids, r.retrieved_scores, strict=False))
+
+    qrels = ranx.Qrels(qrels_dict)
+    run = ranx.Run(run_dict)
+
+    scores = ranx.evaluate(qrels, run, metric_labels)
+    # ranx returns dict values as numpy scalars.
+    return {label: float(scores[label]) for label in metric_labels}
+
+
 class RAGEvaluator:
     """RAG-specific evaluation metrics.
 
