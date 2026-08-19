@@ -13,7 +13,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL = "microsoft/mdeberta-v3-base-xsmall"
+_DEFAULT_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 _MAX_LENGTH = 512
 
 

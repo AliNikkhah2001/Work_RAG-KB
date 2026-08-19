@@ -23,7 +23,7 @@ router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-_RERANKER_MODEL = "microsoft/mdeberta-v3-base-xsmall"
+_RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 _RERANKER_TOP_K = 50  # Number of candidates to rerank
 
 # Persian character normalization map
@@ -191,6 +191,7 @@ class SearchResult(BaseModel):
     semantic_score: float = 0.0
     dense_score: float = 0.0
     hybrid_score: float = 0.0
+    rerank_score: float = 0.0
     ordinal: int = 0
 
 
