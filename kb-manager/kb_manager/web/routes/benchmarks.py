@@ -256,6 +256,42 @@ async def create_kb_snapshot(
     return RedirectResponse(f"/benchmarks?snapshot={created_label}", status_code=303)
 
 
+@router.get("/comparison")
+async def comparison_page(request: Request):
+    """Version comparison page with interactive charts."""
+    # Load latest benchmark results
+    latest_results = None
+    if RESULTS_JSON.exists():
+        try:
+            latest_results = json.loads(RESULTS_JSON.read_text(encoding="utf-8"))
+        except Exception:
+            latest_results = None
+
+    # Load version comparison data (if available)
+    comparison_data = None
+    comparison_path = DATA_DIR / "benchmark_comparison.json"
+    if comparison_path.exists():
+        try:
+            comparison_data = json.loads(comparison_path.read_text(encoding="utf-8"))
+        except Exception:
+            comparison_data = None
+
+    # Get list of available plots
+    plots = []
+    if PLOTS_DIR.exists():
+        plots = sorted(p.name for p in PLOTS_DIR.glob("*.png"))
+
+    return templates.TemplateResponse(
+        request,
+        "comparison.html",
+        {
+            "latest_results": latest_results,
+            "comparison_data": comparison_data,
+            "plots": plots,
+        },
+    )
+
+
 @router.get("/snapshots")
 async def snapshots_page(request: Request):
     """List all version snapshots."""
