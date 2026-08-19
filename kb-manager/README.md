@@ -338,6 +338,240 @@ The TF-IDF cosine leg was removed (redundant with BM25, O(n) per-query latency).
 KB_DB_URL="sqlite+aiosqlite:///data/kb_test.db" python run_benchmark.py test_questions.json 5
 ```
 
+## Technical Report: Embedding Model, Retrieval Methods & Evaluation Metrics
+
+### Embedding Model
+
+| Property | Value |
+|----------|-------|
+| **Model** | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
+| **Architecture** | MiniLM (12-layer Transformer encoder, 384 hidden dims, 12 attention heads) |
+| **Training Objective** | Contrastive learning on multilingual paraphrase pairs (STS benchmark, ParaCrawl, WikiMatrix, etc.) |
+| **Languages** | 50+ languages including Persian (Farsi), Arabic, English |
+| **Max Sequence Length** | 128 tokens (truncation applied) |
+| **Output Dimension** | 384 (L2-normalized) |
+| **Pooling** | Mean pooling over token embeddings |
+| **Model Size** | ~120M parameters, ~470 MB on disk |
+| **Inference** | CPU: ~70 ms/query (batch=1), GPU: ~5 ms/query |
+
+The model maps each chunk's text content to a 384-dimensional unit hypersphere where semantic similarity corresponds to cosine similarity:
+
+$$
+\mathbf{e}_c = \text{normalize}\left( \text{MiniLM}(\text{chunk}_c) \right) \in \mathbb{R}^{384}, \quad \|\mathbf{e}_c\|_2 = 1
+$$
+
+At query time, the same encoder produces a query embedding $\mathbf{e}_q$, and cosine similarity with all chunk embeddings is computed via matrix multiplication:
+
+$$
+\text{sim}(q, c) = \mathbf{e}_q^\top \mathbf{e}_c = \cos(\theta_{q,c})
+$$
+
+### Retrieval Methods
+
+#### 1. BM25 (Lexical Retrieval)
+
+Okapi BM25 ranks chunks by term-frequency / inverse-document-frequency with document-length normalization:
+
+$$
+\text{score}_{\text{BM25}}(q, d) = \sum_{t \in q} \text{IDF}(t) \cdot \frac{f(t,d) \cdot (k_1 + 1)}{f(t,d) + k_1 \cdot \left(1 - b + b \cdot \frac{|d|}{\text{avgdl}}\right)}
+$$
+
+where:
+- $f(t,d)$ = term frequency of $t$ in document $d$
+- $|d|$ = document length (token count)
+- $\text{avgdl}$ = average document length in corpus
+- $k_1 = 1.5$ (term frequency saturation)
+- $b = 0.75$ (length normalization)
+- $\text{IDF}(t) = \log \frac{N - \text{df}(t) + 0.5}{\text{df}(t) + 0.5} + 1.0$
+- $N$ = total documents, $\text{df}(t)$ = document frequency of term $t$
+
+**Persian tokenization**: Unicode range `[\u0600-\u06FF\u0750-\u077F\u200C\u200D\d]+` with stopword removal and length > 1 filter. Arabic/Persian character normalization (ي→ی, ك→ک, ZWNJ handling) applied before tokenization.
+
+#### 2. Dense Semantic Retrieval
+
+Chunk embeddings are precomputed offline and stored as an L2-normalized matrix $\mathbf{E} \in \mathbb{R}^{N \times 384}$ where $N$ = number of chunks. Query embedding $\mathbf{e}_q$ is computed online. Cosine similarity is computed via:
+
+$$
+\mathbf{s} = \mathbf{E} \mathbf{e}_q \in \mathbb{R}^N, \quad \text{where } \mathbf{e}_q = \text{normalize}(\text{MiniLM}(q))
+$$
+
+Top-$k$ chunks are selected by $\arg\max$ over $\mathbf{s}$. Complexity: $O(N \cdot d)$ for query ($d=384$), dominated by BLAS matmul (microseconds on CPU).
+
+#### 3. Reciprocal Rank Fusion (RRF)
+
+Three ranked lists (BM25, Dense) are fused without score calibration:
+
+$$
+\text{RRF}(d) = \sum_{i=1}^{L} \frac{1}{k + \text{rank}_i(d)}
+$$
+
+where:
+- $L$ = number of retrievers (2: BM25 + Dense)
+- $\text{rank}_i(d)$ = 1-based rank of document $d$ in retriever $i$'s results
+- $k = 60$ (empirical constant mitigating rank differences across systems)
+
+RRF is **rank-based** (not score-based), making it robust to different score distributions. The fused score determines final ranking.
+
+---
+
+### Evaluation Methods & Mathematical Formulas
+
+The benchmark evaluates retrieval quality over a test set of $Q$ queries, each with ground-truth relevant chunk IDs $\mathcal{R}_q \subset \mathcal{C}$ (typically $|\mathcal{R}_q| = 1$ for QA pairs).
+
+#### Notation
+
+- $Q$ = set of test queries
+- $\mathcal{C}$ = set of all chunk IDs
+- $\mathcal{R}_q$ = relevant chunk IDs for query $q$
+- $\mathcal{A}_q = [a_1, a_2, \dots, a_K]$ = retrieved chunk IDs at rank $1..K$ (top-$K$)
+- $\text{rel}_q(c) = \begin{cases} 1 & c \in \mathcal{R}_q \\ 0 & \text{otherwise} \end{cases}$ = binary relevance
+- $K$ = cutoff (typically 5)
+
+---
+
+#### 1. Hit Rate @ K (Recall@K)
+
+$$
+\text{Hit@}K = \frac{1}{|Q|} \sum_{q \in Q} \mathbb{1}\left[ \mathcal{A}_q \cap \mathcal{R}_q \neq \varnothing \right]
+$$
+
+Measures whether **at least one** relevant chunk appears in top-$K$. Binary per-query.
+
+---
+
+#### 2. Top-1 Accuracy
+
+$$
+\text{Top-1} = \frac{1}{|Q|} \sum_{q \in Q} \mathbb{1}\left[ a_1 \in \mathcal{R}_q \right]
+$$
+
+Strict metric: relevant chunk must be **ranked #1**.
+
+---
+
+#### 3. Mean Reciprocal Rank (MRR)
+
+$$
+\text{MRR} = \frac{1}{|Q|} \sum_{q \in Q} \frac{1}{\text{rank}_q}
+$$
+
+where $\text{rank}_q = \min \{ i : a_i \in \mathcal{R}_q \}$, or $\infty$ if no hit (contributes 0).
+
+Rewards **early** retrieval of relevant chunks. Range: $[0, 1]$.
+
+---
+
+#### 4. Mean Average Precision @ K (MAP@K)
+
+For query $q$, precision at rank $i$:
+
+$$
+P_q(i) = \frac{1}{i} \sum_{j=1}^{i} \text{rel}_q(a_j)
+$$
+
+Average Precision for $q$ (binary relevance):
+
+$$
+\text{AP}_q = \frac{1}{|\mathcal{R}_q|} \sum_{i=1}^{K} P_q(i) \cdot \text{rel}_q(a_i)
+$$
+
+Then:
+
+$$
+\text{MAP@}K = \frac{1}{|Q|} \sum_{q \in Q} \text{AP}_q
+$$
+
+Measures **precision across all relevant positions** up to $K$. Higher when relevant items appear early and consistently.
+
+---
+
+#### 5. Normalized Discounted Cumulative Gain @ K (NDCG@K)
+
+With binary relevance $\text{rel}_q(c) \in \{0, 1\}$:
+
+$$
+\text{DCG@}K_q = \sum_{i=1}^{K} \frac{\text{rel}_q(a_i)}{\log_2(i+1)}
+$$
+
+Ideal DCG (IDCG) assumes all relevant items ranked first:
+
+$$
+\text{IDCG@}K_q = \sum_{i=1}^{\min(K, |\mathcal{R}_q|)} \frac{1}{\log_2(i+1)}
+$$
+
+Then:
+
+$$
+\text{NDCG@}K = \frac{1}{|Q|} \sum_{q \in Q} \frac{\text{DCG@}K_q}{\text{IDCG@}K_q}
+$$
+
+Rewards **ranking relevant items higher**; logarithmic discount penalizes lower ranks. Range: $[0, 1]$.
+
+---
+
+#### 6. Precision @ K
+
+$$
+\text{Precision@}K = \frac{1}{|Q|} \sum_{q \in Q} \frac{|\mathcal{A}_q \cap \mathcal{R}_q|}{K}
+$$
+
+Proportion of retrieved items that are relevant. With $|\mathcal{R}_q|=1$, max is $1/K$.
+
+---
+
+#### 7. Recall @ K
+
+$$
+\text{Recall@}K = \frac{1}{|Q|} \sum_{q \in Q} \frac{|\mathcal{A}_q \cap \mathcal{R}_q|}{|\mathcal{R}_q|}
+$$
+
+Proportion of relevant items retrieved. With $|\mathcal{R}_q|=1$, equals Hit@K.
+
+---
+
+### Query Format Transformations
+
+The benchmark generates 6 query variants per ground-truth question to test robustness:
+
+| Format | Transformation | Target Similarity Band |
+|--------|---------------|------------------------|
+| `verbatim` | Identity (strip trailing ؟) | 0.80–1.00 |
+| `paraphrase` | Synonym swap (3) + middle shuffle (2) + ask wrapper | 0.45–0.79 |
+| `reworded` | Drop 40% tokens + synonym swap + shuffle (3) + ask wrapper + filler | 0.05–0.44 |
+| `keyword_only` | Extract keywords field → split on `[،,;؛\n]` → first 6 tokens | 0.00–0.30 |
+| `typo` | Apply Persian typo map (ي→ى, ك→ک, ZWNJ drop) | 0.40–0.85 |
+| `conversational` | Formal→informal (می‌شود→میشه, می‌توانم→می‌تونم) + prefix + suffix | 0.05–0.45 |
+
+Similarity measured by **token-set Jaccard** between variant and ground-truth question after Persian normalization (ي/ى→ی, ك→ک, ZWNJ→space, alef variants→ا).
+
+---
+
+### Corpus Fingerprinting (Cache Invalidation)
+
+Dense embeddings cache is invalidated when corpus changes. Fingerprint:
+
+$$
+\text{fp}(\{t_i\}_{i=1}^N) = \text{SHA256}\left( \big\|_{i=1}^N \left( \text{len}(t_i) \parallel t_i \right) \right)
+$$
+
+where $\parallel$ denotes concatenation. Cache hit iff stored fingerprint == current fingerprint AND chunk count matches.
+
+---
+
+### Latency Breakdown
+
+| Stage | v2 (BM25+TF-IDF) | v3 (BM25+Dense) |
+|-------|------------------|-----------------|
+| BM25 index build | ~27s (first query) | ~27s (first query) |
+| Dense index build | N/A | ~120s (first run, cached to .npz) |
+| Query: BM25 search | ~10ms | ~10ms |
+| Query: Dense encode | N/A | ~70ms |
+| Query: Dense matmul | N/A | <5ms |
+| Query: TF-IDF cosine | ~1-2s (O(N)) | **Removed** |
+| **Total per query (warm)** | **~2.8s** | **~1.9s** |
+
+---
+
 ## License
 
 Private — ICS Credit Scoring
