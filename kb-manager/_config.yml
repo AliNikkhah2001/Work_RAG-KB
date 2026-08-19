@@ -1,0 +1,19 @@
+title: KB Manager Technical Report
+description: Persian RAG Knowledge Base — Embedding Model, Retrieval Methods & Evaluation Metrics
+theme: minima
+plugins:
+  - jekyll-mathjax
+  - jekyll-feed
+  - jekyll-seo-tag
+mathjax: true
+markdown: kramdown
+kramdown:
+  math_engine: mathjax
+  syntax_highlighter: rouge
+permalink: /:title/
+exclude:
+  - node_modules
+  - vendor
+  - .git
+  - README.md
+  - LICENSE
