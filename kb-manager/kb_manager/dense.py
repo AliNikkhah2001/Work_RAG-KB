@@ -5,18 +5,23 @@ embeddings so the search pipeline can add a true semantic leg on top of the
 lexical BM25 leg. Embeddings are L2-normalised at build time, and the whole
 matrix is persisted to disk as an ``.npz`` file keyed by a content fingerprint
 so rebuilds are skipped when the KB is unchanged.
+
+Supports contextual retrieval (Anthropic-style): prepend chunk context
+(title + heading_path) to content before embedding for better semantic matching.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 
 _MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+# Context template for contextual retrieval (Anthropic-style)
+_CONTEXT_TEMPLATE = "Title: {title}\nHeading: {heading}\nContent: {content}"
 
 
 class DenseSemanticIndex:
@@ -27,6 +32,8 @@ class DenseSemanticIndex:
             time.  The corpus itself is embedded lazily via
             :meth:`build`.  An external (mock) embedder can be supplied
             through :attr:`embed_fn` for testing.
+        use_context: If True, prepend title + heading to content for
+            contextual retrieval (Anthropic-style).
     """
 
     def __init__(
@@ -34,13 +41,40 @@ class DenseSemanticIndex:
         model_name: str = _MODEL_NAME,
         batch_size: int = 64,
         embed_fn: Any | None = None,
+        use_context: bool = True,
     ) -> None:
         self._model_name = model_name
         self._batch_size = batch_size
         self._embed_fn = embed_fn
+        self._use_context = use_context
         self._ids: list[str] = []
         self._matrix: np.ndarray | None = None  # (n, dim), L2-normalised rows
         self._model = None
+
+    # ------------------------------------------------------------------
+    # Contextual text building
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def build_context_text(
+        content: str,
+        title: str = "",
+        heading: str = "",
+        chunk_type: str = "",
+    ) -> str:
+        """Build contextual text for embedding (Anthropic-style).
+
+        Prepends title and heading path to content for better semantic matching.
+        """
+        parts = []
+        if title:
+            parts.append(f"Title: {title}")
+        if heading:
+            parts.append(f"Heading: {heading}")
+        if chunk_type == "qa_pair":
+            parts.append(f"Type: Q&A")
+        parts.append(f"Content: {content}")
+        return "\n".join(parts)
 
     # ------------------------------------------------------------------
     # Embedding backend
@@ -87,13 +121,38 @@ class DenseSemanticIndex:
             h.update(t.encode("utf-8"))
         return h.hexdigest()
 
-    def build(self, ids: list[str], texts: list[str]) -> None:
-        """Embed *texts* (aligned with *ids*) and store the L2-normalised matrix."""
+    def build(
+        self,
+        ids: list[str],
+        texts: list[str],
+        titles: Optional[list[str]] = None,
+        headings: Optional[list[str]] = None,
+        chunk_types: Optional[list[str]] = None,
+    ) -> None:
+        """Embed *texts* (aligned with *ids*) and store the L2-normalised matrix.
+
+        If titles/headings/chunk_types are provided, builds contextual text
+        for each chunk before embedding (Anthropic-style contextual retrieval).
+        """
         if not ids:
             self._ids = []
             self._matrix = np.zeros((0, 384), dtype=np.float32)
             return
-        vecs = self._encode(texts)
+
+        # Build contextual texts if metadata provided
+        if self._use_context and titles and headings:
+            contextual_texts = []
+            for i, text in enumerate(texts):
+                title = titles[i] if i < len(titles) else ""
+                heading = headings[i] if i < len(headings) else ""
+                chunk_type = chunk_types[i] if chunk_types and i < len(chunk_types) else ""
+                ctx = self.build_context_text(text, title, heading, chunk_type)
+                contextual_texts.append(ctx)
+            texts_to_embed = contextual_texts
+        else:
+            texts_to_embed = texts
+
+        vecs = self._encode(texts_to_embed)
         if vecs.ndim == 1:
             vecs = vecs.reshape(1, -1)
         # Guard: renormalise rows defensively.
@@ -164,9 +223,13 @@ def load_or_build(
     cache_path: Path,
     ids: list[str],
     texts: list[str],
+    titles: Optional[list[str]] = None,
+    headings: Optional[list[str]] = None,
+    chunk_types: Optional[list[str]] = None,
     model_name: str = _MODEL_NAME,
     batch_size: int = 64,
     embed_fn: Any | None = None,
+    use_context: bool = True,
 ) -> DenseSemanticIndex:
     """Return a dense index from cache if valid, else build and persist.
 
@@ -176,15 +239,15 @@ def load_or_build(
     """
     fp = DenseSemanticIndex.fingerprint(texts)
     index = DenseSemanticIndex(
-        model_name=model_name, batch_size=batch_size, embed_fn=embed_fn
+        model_name=model_name, batch_size=batch_size, embed_fn=embed_fn, use_context=use_context
     )
     if embed_fn is not None:
-        index.build(ids, texts)
+        index.build(ids, texts, titles, headings, chunk_types)
         return index
     if cache_path and index.cached_valid(cache_path, fp):
         if index.load(cache_path) and len(index._ids) == len(ids):
             return index
-    index.build(ids, texts)
+    index.build(ids, texts, titles, headings, chunk_types)
     if cache_path:
         index.save(cache_path, fp)
     return index

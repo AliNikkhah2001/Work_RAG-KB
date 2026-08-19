@@ -14,6 +14,7 @@ from sqlalchemy import select
 
 from kb_manager.config import PROJECT_ROOT
 from kb_manager.dense import DenseSemanticIndex, load_or_build
+from kb_manager.reranker import CrossEncoderReranker, get_reranker
 
 if TYPE_CHECKING:
     pass
@@ -22,6 +23,34 @@ router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+_RERANKER_MODEL = "microsoft/mdeberta-v3-base-xsmall"
+_RERANKER_TOP_K = 50  # Number of candidates to rerank
+
+# Persian character normalization map
+_PERSIAN_CHAR_MAP = {
+    # Arabic yeh -> Persian yeh
+    "\u064a": "\u06cc",  # ي -> ی
+    "\u0649": "\u06cc",  # ى -> ی
+    # Arabic kaf -> Persian kaf
+    "\u0643": "\u06a9",  # ك -> ک
+    # Arabic teh marbuta -> Persian heh
+    "\u0629": "\u0647",  # ة -> ه
+    # Alef variants -> basic alef
+    "\u0671": "\u0627",  # ٱ -> ا
+    "\u0623": "\u0627",  # أ -> ا
+    "\u0625": "\u0627",  # إ -> ا
+    "\u0622": "\u0622",  # آ -> آ (keep)
+    # ZWNJ handling - replace with space for tokenization
+    "\u200c": " ",  # ZWNJ -> space
+    # Arabic-Indic digits -> ASCII
+    "\u0660": "0", "\u0661": "1", "\u0662": "2", "\u0663": "3", "\u0664": "4",
+    "\u0665": "5", "\u0666": "6", "\u0667": "7", "\u0667": "8", "\u0669": "9",
+    # Extended Arabic-Indic digits
+    "\u06f0": "0", "\u06f1": "1", "\u06f2": "2", "\u06f3": "3", "\u06f4": "4",
+    "\u06f5": "5", "\u06f6": "6", "\u06f7": "7", "\u06f8": "8", "\u06f9": "9",
+}
+
+_PERSIAN_TRANSLATE_TABLE = str.maketrans(_PERSIAN_CHAR_MAP)
 
 
 # ---------------------------------------------------------------------------
@@ -40,10 +69,25 @@ _STOPWORDS = frozenset(
 
 
 def _tokenize(text: str) -> list[str]:
-    """Tokenize text into lowercase words, removing stopwords."""
-    text = text.lower()
-    tokens = re.findall(r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\u200C\u200D\d]+", text)
-    return [t for t in tokens if t not in _STOPWORDS and len(t) > 1]
+    """Tokenize text into lowercase words + Persian char 3-grams, removing stopwords."""
+    # Apply Persian character normalization
+    text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
+
+    # Extract word tokens (Persian, Arabic, Latin, digits)
+    word_tokens = re.findall(r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\u200C\u200D\d]+", text)
+    word_tokens = [t for t in word_tokens if t not in _STOPWORDS and len(t) > 1]
+
+    # Generate Persian character 3-grams for typo/orthographic robustness
+    # Only for tokens containing Persian/Arabic characters
+    char_ngrams = []
+    for token in word_tokens:
+        if any('\u0600' <= ch <= '\u06FF' for ch in token):
+            # Generate 3-grams
+            for i in range(len(token) - 2):
+                char_ngrams.append(token[i:i+3])
+
+    # Combine word tokens + char n-grams
+    return word_tokens + char_ngrams
 
 
 # ---------------------------------------------------------------------------
@@ -163,8 +207,8 @@ class SearchSteps(BaseModel):
     elapsed_ms: float
 
 
-async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex]:
-    """Load all chunks + docs and build BM25 + dense indexes."""
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
+    """Load all chunks + docs and build BM25 + dense indexes + reranker."""
     from kb_manager.models.database import Chunk, Document
     from kb_manager.web.app import db
 
@@ -180,11 +224,17 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
 
     docs_for_bm25 = []
     chunk_data = []
+    dense_titles = []
+    dense_headings = []
+    dense_chunk_types = []
     for c in all_chunks:
         doc = doc_map.get(c.document_id)
         title = doc.title if doc else "Unknown"
         docs_for_bm25.append((c.id, c.content))
         chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type))
+        dense_titles.append(title)
+        dense_headings.append(c.heading_path)
+        dense_chunk_types.append(c.chunk_type)
 
     bm25 = BM25()
     bm25.index(docs_for_bm25)
@@ -195,12 +245,17 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
         _DENSE_CACHE_PATH,
         dense_ids,
         dense_texts,
+        titles=dense_titles,
+        headings=dense_headings,
+        chunk_types=dense_chunk_types,
         model_name=_DENSE_MODEL,
     )
-    return chunk_data, bm25, dense
+
+    reranker = get_reranker(model_name=_RERANKER_MODEL)
+    return chunk_data, bm25, dense, reranker
 
 
-_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex] | None = None
+_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker] | None = None
 _index_cache_count: int = 0
 
 
@@ -211,7 +266,7 @@ def _invalidate_index_cache() -> None:
     _index_cache_count = 0
 
 
-async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex]:
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
     """Return the cached index, building it on first use."""
     global _index_cache, _index_cache_count
 
@@ -228,8 +283,8 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25,
     if _index_cache is not None and _index_cache_count == chunk_count:
         return _index_cache
 
-    chunk_data, bm25, dense = await _build_index()
-    _index_cache = (chunk_data, bm25, dense)
+    chunk_data, bm25, dense, reranker = await _build_index()
+    _index_cache = (chunk_data, bm25, dense, reranker)
     _index_cache_count = chunk_count
     return _index_cache
 
@@ -251,7 +306,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     normalized = query.strip()
     tokens = _tokenize(normalized)
 
-    chunk_data, bm25, dense = await _get_index()
+    chunk_data, bm25, dense, reranker = await _get_index()
 
     # --- Step 2: BM25 ---
     bm25_raw = bm25.search(normalized, top_k=top_k * 3)
@@ -331,8 +386,15 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     for i, c in enumerate(candidates):
         c.hybrid_score = round(c.hybrid_score, 6)
 
-    # --- Step 5: Final top-k ---
-    final = candidates[:top_k]
+    # --- Step 6: Cross-encoder Reranking ---
+    rerank_input = candidates[:_RERANKER_TOP_K]
+    reranked = reranker.rerank(normalized, [c.model_dump() for c in rerank_input], top_k=top_k)
+    
+    # Convert reranked dicts back to SearchResult objects
+    reranked_results = [SearchResult(**r) for r in reranked]
+
+    # --- Step 7: Final top-k ---
+    final = reranked_results[:top_k]
     elapsed = (time.monotonic() - start) * 1000
 
     return SearchSteps(
@@ -341,7 +403,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         tokens=tokens,
         total_chunks_indexed=len(chunk_data),
         bm25_results=bm25_results[:top_k],
-        semantic_results=dense_results[:top_k],  # semantic now shows dense
+        semantic_results=dense_results[:top_k],
         dense_results=dense_results[:top_k],
         merged_candidates=candidates[:top_k],
         final_results=final,

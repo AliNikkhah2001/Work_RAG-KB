@@ -1,0 +1,58 @@
+# Synthetic Data Generation Configuration for Gemma 30B
+# Run on GPU machine with 2x 24GB+ VRAM
+
+model:
+  name: "gemma2:27b"              # Model name (Ollama) or HF model path
+  backend: "ollama"               # ollama | vllm | openai
+  base_url: "http://localhost:11434"  # Ollama base URL
+  tensor_parallel_size: 2         # For vLLM: number of GPUs
+  max_tokens: 1024
+  temperature: 0.4
+  top_p: 0.9
+
+generation:
+  # Chunk processing
+  num_samples_per_chunk: 8        # QA pairs per chunk
+  conversation_ratio: 0.3         # Fraction of multi-turn conversations
+  min_chunk_length: 100           # Skip very short chunks
+  max_chunk_length: 2000          # Truncate very long chunks
+
+  # Query types to generate (weights should sum to 1.0)
+  query_types:
+    verbatim: 0.15
+    paraphrase: 0.20
+    conversational: 0.20
+    typo: 0.15
+    keyword_only: 0.15
+    reworded: 0.15
+
+  # Conversation settings
+  conversation:
+    num_turns: 3
+    include_coreference: true
+    include_ellipsis: true
+    include_topic_shift: true
+
+  # Validation
+  validation:
+    enabled: true
+    threshold: 0.7                # Min semantic similarity to target chunk
+    validator_model: "gemma2:27b"  # Use same model as judge
+    human_audit_samples: 100      # Samples for human review
+
+  # Output
+  output:
+    format: "jsonl"               # jsonl | json
+    batch_size: 100               # Write batch size
+    include_metadata: true
+
+# Database
+database:
+  path: "data/kb_test.db"
+  chunk_types: ["qa_pair"]        # Only process QA pairs
+
+# Logging
+logging:
+  level: "INFO"
+  log_file: "generation.log"
+  progress_interval: 100          # Log every N chunks
