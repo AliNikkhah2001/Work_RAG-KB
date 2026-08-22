@@ -291,6 +291,42 @@ This starts:
 docker compose up -d postgres
 ```
 
+## Implementation Roadmap — Fix All Weak Spots (Live Tracking)
+
+> Checkboxes update live on GitHub. See `.agent/plans/abstract-dreaming-ostrovsky.md` for full 9-phase plan.
+
+### Complexity Legend: 🟢 Low (0.5d) | 🟡 Medium (1d) | 🔴 High (1w, deferred)
+
+| Phase | Complexity | Task | Status | Branch | Verification |
+|-------|------------|------|--------|--------|--------------|
+| **0** | 🟢 | Baseline lock: regenerate v4 on **120q** `test_questions.json` → `versions/v4_baseline_120q/` | ⬜ TODO | `feat/fix-all-w1-w5-baseline` | `benchmark_results.json` 120q Hit@5/MRR |
+| **1** | 🟢 | **W1-A:** Keyword junk sanitization — clean `format_keyword_only()` (`مدل: حقیقی…` removal) + DB cleanup | ⬜ TODO | `feat/fix-keyword-extraction` | keyword Hit 33%→60% (20q) |
+| **2** | 🟢 | **W1-D:** Char n-gram tuning — fix `\u0667` bug, weight word 1.0 / char 0.3, bi-gram | ✅ DONE (v4) | `master` | typo Top1 100% |
+| **3** | 🟢 | **W5-A:** FaMTEB live benchmark — `run_benchmark.py --famteb --max-samples 100` (synper_qa, nq_fa, miracle_fa) | ⬜ TODO | `feat/benchmark-famteb-live` | nDCG@10 vs FaMTEB leaderboard |
+| **4** | 🟡 | **W1-B:** HyDE wiring (black-box Gemma 30B API) — `query_reform.py:HyDEGenerator` → `dense.search()` | ⬜ TODO | `feat/hyde-wiring` | keyword MRR +10-15% (Hit-priority) |
+| **5** | 🟡 | **W3:** Multi-query rewriting (beam 5) + RRF L=5 | ⬜ TODO | `feat/multi-query-wiring` | reworded MRR +3-6% |
+| **6** | 🟡 | **W4:** Corpus dedup re-enable — 7758→~6200 chunks on 416 docs | ⬜ TODO | `feat/corpus-dedup` | Hit +5-10% (v1→v2 precedent) |
+| **7** | 🟡 | **W2:** Latency opt — quant INT8, RERANKER_TOP_K 50→30, async rerank | ⬜ TODO | `feat/latency-optimize` | latency 15.8s→~6s, Hit≥90% kept |
+| **8** | 🟡 | **W5-B:** Synthetic generation remote — **dedicated branch** `feat/synthetic-gemma-remote` (not merged) for 2×GPU Gemma | ✅ CODE DONE | `feat/synthetic-gemma-remote` | 50K QA + 15K conv |
+| **9** | 🟢 | Docs & Plots — update README executive summary v2→v5, 5 comparison plots, snapshot `v5_complete` | ⬜ TODO | `master` | `BENCHMARK_COMPARISON.md` |
+
+**Hit vs Top1:** Both reported per phase; **Hit@5 prioritized** per user (missing answer > rank). Top1 kept for trust comparison.
+
+### Persian-Specific Resources (Live)
+See `PERSIAN_RESOURCES.md` + `docs/synthetic-generation.md` — 63 FaMTEB datasets, MIRACL-Fa, BEIR-Fa, ParsBERT/FaBERT/Hazm.
+
+### Branches (Not Merged to Master Until Green)
+```
+master (v4: BM25+ngram+Dense+Reranker+Contextual)
+├── feat/fix-keyword-extraction      ← W1-A
+├── feat/hyde-wiring                 ← W1-B (Gemma black-box)
+├── feat/multi-query-wiring          ← W3
+├── feat/corpus-dedup                ← W4
+├── feat/latency-optimize            ← W2
+├── feat/benchmark-famteb-live       ← W5-A
+└── feat/synthetic-gemma-remote      ← W5-B (remote-only, see docs/synthetic-generation.md)
+```
+
 ## Retrieval Benchmark & Improvements
 
 ### Retrieval Pipeline v4 (Current)

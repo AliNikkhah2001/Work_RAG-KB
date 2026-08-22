@@ -203,17 +203,20 @@ main
 
 ---
 
-## Progress Tracking
+## Progress Tracking (Live — Matches README Checkboxes)
 
-| Phase | Status | Started | Completed |
-|-------|--------|---------|-----------|
-| Phase 1: Documentation | 🔄 In Progress | - | - |
-| Phase 2: Branch Creation | ⏳ Pending | - | - |
-| Phase 3: Core Retrieval | ⏳ Pending | - | - |
-| Phase 4: Benchmark | ⏳ Pending | - | - |
-| Phase 5: Synthetic Gen | ⏳ Pending | - | - |
-| Phase 6: Docs Overhaul | ⏳ Pending | - | - |
-| Phase 7: Integration | ⏳ Pending | - | - |
+| Phase | Complexity | Task | Status | Started | Completed |
+|-------|------------|------|--------|---------|-----------|
+| Phase 0: Baseline 120q | 🟢 Low | Regenerate v4 on full 120q | ⬜ TODO | - | - |
+| Phase 1: W1-A Keyword sanitization | 🟢 Low | Fix junk `مدل:` extraction | ⬜ TODO | - | - |
+| Phase 2: W1-D Char n-gram tuning | 🟢 Low | Fix `\u0667` weight | ✅ DONE (v4) | 2026-08-19 | 2026-08-19 |
+| Phase 3: W5-A FaMTEB live | 🟢 Low | Run FaMTEB 600q benchmark | ⬜ TODO | - | - |
+| Phase 4: W1-B HyDE wiring | 🟡 Med | Wire HyDE black-box Gemma | ⬜ TODO | - | - |
+| Phase 5: W3 Multi-query | 🟡 Med | Wire beam5 + RRF | ⬜ TODO | - | - |
+| Phase 6: W4 Corpus dedup | 🟡 Med | Re-enable dedup 7758→6200 | ⬜ TODO | - | - |
+| Phase 7: W2 Latency opt | 🟡 Med | Quantize, TOP_K 50→30 | ⬜ TODO | - | - |
+| Phase 8: W5-B Synthetic remote | 🟡 Med | Branch + report for 2×GPU | ✅ CODE DONE | 2026-08-19 | 2026-08-19 |
+| Phase 9: Docs & Release | 🟢 Low | README v5 + plots + snapshot | ⬜ TODO | - | - |
 
 ---
 
