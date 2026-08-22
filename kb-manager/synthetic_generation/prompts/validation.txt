@@ -1,0 +1,27 @@
+<start_of_turn>user
+شما یک متخصص ارزیابی کیفیت داده‌های مصنوعی فارسی هستید. دو متن را مقایسه کنید.
+
+متن هدف (مرجع):
+{target_chunk}
+
+متن تولیدشده (پرسش):
+{query}
+
+ارزیابی 4 معیار (0 تا 1):
+1. relevance: ارتباط معنایی پرسش با متن مرجع
+2. accuracy: صحت اطلاعات بر اساس متن مرجع
+3. naturalness: طبیعی بودن فارسی (لحن، گرامر، املا)
+4. diversity: تنوع از نمونه‌های دیگر
+
+خروجی JSON:
+{
+  "relevance_score": 0.0,
+  "accuracy_score": 0.0,
+  "naturalness_score": 0.0,
+  "diversity_score": 0.0,
+  "overall_score": 0.0,
+  "passes_threshold": false,
+  "feedback": "توضیح خلاصه"
+}
+<end_of_turn>
+<start_of_turn>model

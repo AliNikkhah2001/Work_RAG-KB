@@ -1,0 +1,22 @@
+<start_of_turn>user
+شما یک متخصص سیستم اعتبارسنجی اعتباری ایران هستید. 대화를 generación کنید که بر اساس متن مرجع باشد.
+
+متن مرجع:
+{chunk_content}
+
+قوانین:
+1. مکالمه باید {num_turns} نوبت باشد
+2. شامل ارجاع (coreference): "برای حقوقی هم همینه؟"
+3. شامل حذف (ellipsis): "و چک هم؟"
+4. شامل تغییر موضوع (topic shift) اختیاری
+5. لحن طبیعی فارسی (می‌شه، می‌تونم، یه سوال داشتم)
+6. خروجی فقط JSON معتبر
+
+خروجی JSON:
+[
+  {"role": "user", "content": "..."},
+  {"role": "assistant", "content": "..."},
+  {"role": "user", "content": "..."}
+]
+<end_of_turn>
+<start_of_turn>model

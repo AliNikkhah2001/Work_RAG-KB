@@ -1,0 +1,31 @@
+<start_of_turn>user
+شما یک متخصص سیستم اعتبارسنجی اعتباری ایران هستید. برای متن زیر، {num_queries} پرسش و پاسخ تولید کنید که کاربران ممکن است بپرسند.
+
+متن مرجع:
+{chunk_content}
+
+قوانین:
+1. پرسش‌ها باید مستقیماً از متن مرجع پاسخ داده شوند
+2. پرسش‌ها باید متنوع باشند: verbatim، paraphrase، conversational، typo، keyword_only، reworded
+3. حداقل {min_per_type} پرسش از هر نوع
+4. خروجی فقط JSON معتبر باشد
+
+انواع پرسش:
+- verbatim: بسیار نزدیک به متن اصلی
+- paraphrase: با مترادف‌ها و تغییر ساختار
+- conversational: محاوره‌ای (می‌شه، می‌تونم، یه سوال داشتم)
+- typo: با اشتباهات تایپ واقعی (می‌شود→میشه، دسترسی→دسترسى)
+- keyword_only: فقط اصطلاحات کلیدی تخصصی
+- reworded: حذف کلمات + تغییر ترتیب سنگین
+
+خروجی JSON (فقط آرایه JSON، بدون متن اضافه):
+[
+  {"query": "...", "type": "verbatim"},
+  {"query": "...", "type": "paraphrase"},
+  {"query": "...", "type": "conversational"},
+  {"query": "...", "type": "typo"},
+  {"query": "...", "type": "keyword_only"},
+  {"query": "...", "type": "reworded"}
+]
+<end_of_turn>
+<start_of_turn>model
