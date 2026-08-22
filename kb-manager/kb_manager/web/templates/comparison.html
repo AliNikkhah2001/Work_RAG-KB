@@ -308,7 +308,7 @@ function updateCharts(version) {
     charts.hitRate.data.datasets = [{
         label: `Hit@5 (${version})`,
         data: formats.map(f => (formatData[version][f].hit * 100).toFixed(1)),
-        backgroundColor: versionColors[{v2:0, v3:1, v4:2}[version]],
+        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
     }];
     charts.hitRate.update();
 
@@ -316,7 +316,7 @@ function updateCharts(version) {
     charts.top1.data.datasets = [{
         label: `Top-1 (${version})`,
         data: formats.map(f => (formatData[version][f].top1 * 100).toFixed(1)),
-        backgroundColor: versionColors[{v2:0, v3:1, v4:2}[version]],
+        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
     }];
     charts.top1.update();
 
@@ -324,7 +324,7 @@ function updateCharts(version) {
     charts.mrr.data.datasets = [{
         label: `MRR (${version})`,
         data: formats.map(f => formatData[version][f].mrr.toFixed(3)),
-        backgroundColor: versionColors[{v2:0, v3:1, v4:2}[version]],
+        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
     }];
     charts.mrr.update();
 
@@ -332,7 +332,7 @@ function updateCharts(version) {
     charts.latency.data.datasets = [{
         label: `Latency (${version})`,
         data: formats.map(f => formatData[version][f].lat.toFixed(0)),
-        backgroundColor: versionColors[{v2:0, v3:1, v4:2}[version]],
+        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
     }];
     charts.latency.update();
 
