@@ -1,0 +1,48 @@
+{
+  "versions": {
+    "v2": {
+      "pipeline": "BM25 + TF-IDF (RRF k=60)",
+      "corpus": {"docs": 355, "chunks": 6208, "qa": 974, "distinct_q": 974, "dup": 0},
+      "overall": {"hit_at_5": 0.90, "top1": 0.633, "mrr": 0.736, "latency_s": 2.8},
+      "per_format": {
+        "verbatim": {"hit": 1.0, "top1": 0.85, "mrr": 0.90, "lat_ms": 2800},
+        "paraphrase": {"hit": 0.95, "top1": 0.70, "mrr": 0.80, "lat_ms": 2800},
+        "typo": {"hit": 0.90, "top1": 0.60, "mrr": 0.75, "lat_ms": 2800},
+        "conversational": {"hit": 0.85, "top1": 0.55, "mrr": 0.70, "lat_ms": 2800},
+        "reworded": {"hit": 0.80, "top1": 0.50, "mrr": 0.65, "lat_ms": 2800},
+        "keyword_only": {"hit": 0.45, "top1": 0.10, "mrr": 0.18, "lat_ms": 2800}
+      }
+    },
+    "v3": {
+      "pipeline": "BM25 + Dense MiniLM-L12-v2 + RRF k=60 + Contextual",
+      "corpus": {"docs": 355, "chunks": 6208, "qa": 974, "distinct_q": 974, "dup": 0},
+      "overall": {"hit_at_5": 0.892, "top1": 0.725, "mrr": 0.787, "latency_s": 1.9},
+      "per_format": {
+        "verbatim": {"hit": 1.0, "top1": 0.90, "mrr": 0.942, "lat_ms": 9820},
+        "paraphrase": {"hit": 1.0, "top1": 0.95, "mrr": 0.975, "lat_ms": 279},
+        "typo": {"hit": 1.0, "top1": 0.90, "mrr": 0.942, "lat_ms": 257},
+        "conversational": {"hit": 1.0, "top1": 0.85, "mrr": 0.917, "lat_ms": 277},
+        "reworded": {"hit": 0.95, "top1": 0.65, "mrr": 0.76, "lat_ms": 265},
+        "keyword_only": {"hit": 0.45, "top1": 0.10, "mrr": 0.18, "lat_ms": 243}
+      }
+    },
+    "v4": {
+      "pipeline": "BM25+char3gram + Dense MiniLM + Contextual + RRF k=60 + Cross-encoder mmarco-mMiniLM",
+      "corpus": {"docs": 416, "chunks": 7758, "qa": 1887, "distinct_q": 977, "dup": 910},
+      "overall": {"hit_at_5": 0.90, "top1": 0.65, "mrr": 0.775, "latency_s": 15.8},
+      "per_format": {
+        "verbatim": {"hit": 1.0, "top1": 0.75, "mrr": 0.875, "lat_ms": 50359},
+        "paraphrase": {"hit": 1.0, "top1": 0.50, "mrr": 0.75, "lat_ms": 7000},
+        "typo": {"hit": 1.0, "top1": 1.0, "mrr": 1.0, "lat_ms": 7500},
+        "conversational": {"hit": 1.0, "top1": 0.67, "mrr": 0.833, "lat_ms": 7000},
+        "reworded": {"hit": 1.0, "top1": 0.67, "mrr": 0.833, "lat_ms": 8000},
+        "keyword_only": {"hit": 0.33, "top1": 0.33, "mrr": 0.333, "lat_ms": 6200}
+      }
+    }
+  },
+  "deltas": {
+    "v2_to_v3": {"hit": -0.008, "top1": 0.092, "mrr": 0.051, "latency": -0.9, "note": "Dense replaces TF-IDF: +9.2% Top1, -34% latency"},
+    "v3_to_v4": {"hit": 0.008, "top1": -0.075, "mrr": -0.012, "latency": 13.9, "note": "Char ngram + reranker: keyword MRR +85%, typo 100%, but latency +13.9s, Top1 -7.5% due to over-ranking"},
+    "v2_to_v4": {"hit": 0.0, "top1": 0.017, "mrr": 0.039, "latency": 13.0, "note": "Net: keyword MRR +85%, typo fixed, latency cost"}
+  }
+}

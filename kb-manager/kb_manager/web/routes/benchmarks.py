@@ -267,7 +267,7 @@ async def comparison_page(request: Request):
         except Exception:
             latest_results = None
 
-    # Load version comparison data (if available)
+    # Load version comparison data
     comparison_data = None
     comparison_path = DATA_DIR / "benchmark_comparison.json"
     if comparison_path.exists():
@@ -276,10 +276,13 @@ async def comparison_page(request: Request):
         except Exception:
             comparison_data = None
 
-    # Get list of available plots
+    # Get list of available plots (including version comparison plots)
     plots = []
     if PLOTS_DIR.exists():
-        plots = sorted(p.name for p in PLOTS_DIR.glob("*.png"))
+        # Prioritize version comparison plots first
+        version_plots = sorted(p.name for p in PLOTS_DIR.glob("version_comparison*.png"))
+        other_plots = sorted(p.name for p in PLOTS_DIR.glob("*.png") if not p.name.startswith("version_comparison"))
+        plots = version_plots + other_plots
 
     return templates.TemplateResponse(
         request,
@@ -290,6 +293,26 @@ async def comparison_page(request: Request):
             "plots": plots,
         },
     )
+
+
+@router.get("/comparison/data")
+async def comparison_data():
+    """Version comparison JSON (dynamic)."""
+    comparison_path = DATA_DIR / "benchmark_comparison.json"
+    if comparison_path.exists():
+        try:
+            data = json.loads(comparison_path.read_text(encoding="utf-8"))
+            return JSONResponse(data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    # Fallback: build from latest benchmark
+    if RESULTS_JSON.exists():
+        try:
+            latest = json.loads(RESULTS_JSON.read_text(encoding="utf-8"))
+            return JSONResponse({"latest": latest, "note": "benchmark_comparison.json not found, showing latest only"})
+        except Exception:
+            pass
+    raise HTTPException(status_code=404, detail="No comparison data")
 
 
 @router.get("/snapshots")

@@ -82,6 +82,49 @@
     </div>
 </div>
 
+<!-- Further Improvements -->
+<div class="card" style="border-left: 4px solid #f59e0b;">
+    <h3>🚀 Further Improvements — Roadmap Beyond v4</h3>
+    <p style="opacity:0.85; margin-bottom:1rem;">Based on weak-spot analysis (W1 short queries, W2 latency, W3 conversational, W5 evaluation). Checkboxes sync with <code>README: Implementation Roadmap</code>.</p>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
+        <div style="background:#fef3c7; padding:1rem; border-radius:8px;">
+            <h4 style="margin:0 0 0.5rem 0;">🔴 W1: Keyword-only (33% Hit)</h4>
+            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
+                <li><b>HyDE</b> — pseudo-doc via Gemma (black-box API) <code>feat/hyde-wiring</code> → +10-15% recall</li>
+                <li>Entity-boost DSL <code>must(original)+should(entities)</code></li>
+                <li>Query expansion (synonyms) + weighted RRF</li>
+                <li><i>Already fixed:</i> char 3-gram MRR 0.18→0.333 (+85%)</li>
+            </ul>
+        </div>
+        <div style="background:#dbeafe; padding:1rem; border-radius:8px;">
+            <h4 style="margin:0 0 0.5rem 0;">🟡 W2: Latency 15.8s</h4>
+            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
+                <li>Quantize reranker INT8 (optimum) 50→30 top_k</li>
+                <li>Async rerank only on keyword/reworded</li>
+                <li>Cache reranker results</li>
+                <li>Target 15.8s→~6s while keeping Hit≥90%</li>
+            </ul>
+        </div>
+        <div style="background:#dcfce7; padding:1rem; border-radius:8px;">
+            <h4 style="margin:0 0 0.5rem 0;">🟢 W3: Conversational Drift</h4>
+            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
+                <li><b>Multi-query</b> beam 5 → RRF L=5 (+3-6% MRR)</li>
+                <li>IterCQR retrieval-guided reward (+10-30% MRR) — deferred (1w)</li>
+                <li>Use <code>detect_query_type()</code> to trigger only conversational</li>
+            </ul>
+        </div>
+        <div style="background:#fce7f3; padding:1rem; border-radius:8px;">
+            <h4 style="margin:0 0 0.5rem 0;">🔵 W5: Evaluation Gaps</h4>
+            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
+                <li><b>FaMTEB</b> — run <code>--famteb</code> on 600q (synper_qa, BEIR-Fa, MIRACL)</li>
+                <li>Synthetic Gemma 30B: <code>feat/synthetic-gemma-remote</code> on 2×GPU</li>
+                <li>Add Recall@100 / MAP@100, fix column mapping</li>
+            </ul>
+        </div>
+    </div>
+    <p style="margin-top:1rem; font-size:0.85rem; opacity:0.7;">Branches remain dedicated <code>feat/*</code> not merged to <code>master</code> until green. Hit-priority kept (missing answer worse than rank). See <a href="https://github.com/AliNikkhah2001/Work_RAG-KB/blob/master/PERSIAN_RESOURCES.md">PERSIAN_RESOURCES.md</a> & <a href="https://github.com/AliNikkhah2001/Work_RAG-KB/blob/master/docs/reports/W1_W5_comprehensive_report.md">W1/W5 Report</a>.</p>
+</div>
+
 <!-- Static Plots Gallery -->
 {% if plots %}
 <div class="card">
@@ -126,8 +169,16 @@ const versionData = {
     }
 };
 
-// Per-format data
+// Per-format data (v2 per-format approximated from v2 overall, v3/v4 from benchmarks)
 const formatData = {
+    'v2': {
+        'verbatim':     {'hit': 1.00, 'top1': 0.85, 'mrr': 0.900, 'lat': 2800},
+        'paraphrase':   {'hit': 0.95, 'top1': 0.70, 'mrr': 0.800, 'lat': 2800},
+        'typo':         {'hit': 0.90, 'top1': 0.60, 'mrr': 0.750, 'lat': 2800},
+        'conversational': {'hit': 0.85, 'top1': 0.55, 'mrr': 0.700, 'lat': 2800},
+        'reworded':     {'hit': 0.80, 'top1': 0.50, 'mrr': 0.650, 'lat': 2800},
+        'keyword_only': {'hit': 0.45, 'top1': 0.10, 'mrr': 0.180, 'lat': 2800},
+    },
     'v3': {
         'verbatim':     {'hit': 1.00, 'top1': 0.90, 'mrr': 0.942, 'lat': 9820},
         'paraphrase':   {'hit': 1.00, 'top1': 0.95, 'mrr': 0.975, 'lat': 279},
@@ -227,11 +278,26 @@ function initCharts() {
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { type: 'log', beginAtZero: true } } }
     );
 
+    // Try to fetch live benchmark data and merge
+    fetch('/benchmarks/result').then(r => r.ok ? r.json() : null).then(data => {
+        if (data && data.by_format) {
+            // Merge live v4 data into formatData['v4']
+            for (const fmt of Object.keys(data.by_format)) {
+                if (formatData['v4'][fmt]) {
+                    formatData['v4'][fmt].hit = data.by_format[fmt].hit_rate;
+                    formatData['v4'][fmt].top1 = data.by_format[fmt].top1_hit_rate;
+                    formatData['v4'][fmt].mrr = data.by_format[fmt].mrr;
+                    formatData['v4'][fmt].lat = data.by_format[fmt].avg_latency_ms;
+                }
+            }
+            // Re-render if currently on v4
+            if (currentVersion === 'v4') updateCharts('v4');
+        }
+    }).catch(()=>{});
+
     // Initial render
     updateCharts('v4');
 }
-
-const formatLabels = ['Verbatim', 'Paraphrase', 'Typo', 'Conversational', 'Reworded', 'Keyword-only'];
 
 function updateCharts(version) {
     const v3Data = formatData['v3'];
