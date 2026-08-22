@@ -159,10 +159,32 @@ def format_reworded(question: str, keywords: str = "") -> str:
 def format_keyword_only(question: str, keywords: str = "") -> str:
     """Query built from the chunk's keyword field, or extracted terms."""
     if keywords:
-        # Strip list-bracket syntax and clean separators.
-        parts = [k.strip("[]\"' ") for k in re.split(r"[،,؛;\n]+", keywords) if k.strip("[]\"' ")]
-        if parts:
-            return " ".join(parts[:6])
+        # Sanitize junk metadata that leaks from Excel: "مدل: حقیقی و حقوقی…" suffix
+        # Example raw: "بروزرسانی، بازپرداخت، وام، گزارش اعتباری مدل: حقیقی و حقوقی…"
+        keywords = re.sub(r"\s*مدل\s*:\s*[^\n,،؛]+", "", keywords)
+        keywords = re.sub(r"[…\u2026]+", "", keywords)
+        keywords = keywords.replace("\u200c", " ")
+        parts = [
+            k.strip("[]\"' …\u2026")
+            for k in re.split(r"[،,؛;\n]+", keywords)
+            if k.strip("[]\"' …\u2026")
+        ]
+        # Filter remaining junk: isolated model words or colon remnants
+        junk_exact = {"حقیقی", "حقوقی", "و", "مدل"}
+        filtered: list[str] = []
+        for p in parts:
+            p = p.strip()
+            if not p or len(p) < 2:
+                continue
+            if ":" in p or "مدل" in p:
+                continue
+            if p in junk_exact:
+                continue
+            if set(p) <= {"…", ".", " "}:
+                continue
+            filtered.append(p)
+        if filtered:
+            return " ".join(filtered[:6])
     # Fallback: reuse high-content words from the question.
     words = [w for w in re.findall(r"[\u0600-\u06FF]+", question) if len(w) > 3]
     return " ".join(words[:6])
