@@ -300,7 +300,7 @@ docker compose up -d postgres
 | Phase | Complexity | Task | Status | Branch | Verification |
 |-------|------------|------|--------|--------|--------------|
 | **0** | 🟢 | Baseline lock: regenerate v4 on **120q** `test_questions.json` → `versions/v4_baseline_120q/` | ⬜ TODO | `feat/fix-all-w1-w5-baseline` | `benchmark_results.json` 120q Hit@5/MRR |
-| **1** | 🟢 | **W1-A:** Keyword junk sanitization — clean `format_keyword_only()` (`مدل: حقیقی…` removal) + DB cleanup | ⬜ TODO | `feat/fix-keyword-extraction` | keyword Hit 33%→60% (20q) |
+| **1** | 🟢 | **W1-A:** Keyword junk sanitization — clean `format_keyword_only()` (`مدل: حقیقی…` removal) + DB cleanup | ✅ DONE | `feat/fix-keyword-extraction` → `master:15a8c04` | keyword Hit 33%→60% (20q) |
 | **2** | 🟢 | **W1-D:** Char n-gram tuning — fix `\u0667` bug, weight word 1.0 / char 0.3, bi-gram | ✅ DONE (v4) | `master` | typo Top1 100% |
 | **3** | 🟢 | **W5-A:** FaMTEB live benchmark — `run_benchmark.py --famteb --max-samples 100` (synper_qa, nq_fa, miracle_fa) | ⬜ TODO | `feat/benchmark-famteb-live` | nDCG@10 vs FaMTEB leaderboard |
 | **4** | 🟡 | **W1-B:** HyDE wiring (black-box Gemma 30B API) — `query_reform.py:HyDEGenerator` → `dense.search()` | ⬜ TODO | `feat/hyde-wiring` | keyword MRR +10-15% (Hit-priority) |

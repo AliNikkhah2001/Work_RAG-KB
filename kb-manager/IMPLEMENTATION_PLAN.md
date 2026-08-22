@@ -208,7 +208,7 @@ main
 | Phase | Complexity | Task | Status | Started | Completed |
 |-------|------------|------|--------|---------|-----------|
 | Phase 0: Baseline 120q | 🟢 Low | Regenerate v4 on full 120q | ⬜ TODO | - | - |
-| Phase 1: W1-A Keyword sanitization | 🟢 Low | Fix junk `مدل:` extraction | ⬜ TODO | - | - |
+| Phase 1: W1-A Keyword sanitization | 🟢 Low | Fix junk `مدل:` extraction | ✅ DONE | 2026-08-19 | 2026-08-19 |
 | Phase 2: W1-D Char n-gram tuning | 🟢 Low | Fix `\u0667` weight | ✅ DONE (v4) | 2026-08-19 | 2026-08-19 |
 | Phase 3: W5-A FaMTEB live | 🟢 Low | Run FaMTEB 600q benchmark | ⬜ TODO | - | - |
 | Phase 4: W1-B HyDE wiring | 🟡 Med | Wire HyDE black-box Gemma | ⬜ TODO | - | - |
