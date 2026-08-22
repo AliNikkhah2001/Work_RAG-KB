@@ -1,0 +1,34 @@
+# Monitoring & Observability Configuration
+# Overrides default.yaml monitoring section
+
+monitoring:
+  # Retrieval quality thresholds (alert if below)
+  recall_threshold: 0.85
+  mrr_threshold: 0.60
+  ndcg_threshold: 0.70
+  hit_rate_threshold: 0.80
+  
+  # Latency thresholds (milliseconds)
+  retrieval_latency_p95_ms: 500
+  end_to_end_latency_p95_ms: 1500
+  bm25_latency_p95_ms: 50
+  dense_latency_p95_ms: 200
+  rerank_latency_p95_ms: 150
+  
+  # Data freshness
+  stale_fraction_threshold: 0.05
+  staleness_check_interval_hours: 24
+  
+  # Cost tracking (USD per 1000 queries)
+  embedding_cost_per_1k_queries_usd: 0.50
+  llm_cost_per_1k_queries_usd: 1.00
+  cost_check_interval_hours: 24
+  
+  # Alerting
+  alert_channels:
+    - "log"                    # "log" | "slack" | "email"
+  slack_webhook_url: ""
+  email_smtp_host: ""
+  email_smtp_port: 587
+  email_from: ""
+  email_to: []

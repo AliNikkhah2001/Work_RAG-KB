@@ -46,6 +46,7 @@ from kb_manager.web.routes import (
     monitoring,
     pipeline,
     search,
+    settings,
     versions,
 )  # noqa: E402
 
@@ -56,6 +57,7 @@ app.include_router(versions.router, prefix="/versions", tags=["versions"])
 app.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
 app.include_router(search.router, prefix="/search", tags=["search"])
 app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
+app.include_router(settings.router, prefix="/settings", tags=["settings"])
 
 
 @app.get("/")

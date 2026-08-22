@@ -1,0 +1,112 @@
+# Retrieval Pipeline Configuration
+# Overrides default.yaml retrieval section
+
+retrieval:
+  # Hybrid weights (BM25 + Dense)
+  bm25_weight: 0.3
+  dense_weight: 0.7
+  
+  # Reciprocal Rank Fusion
+  rrf_k: 60
+  rrf_enabled: true
+  
+  # Candidate pool sizes (before fusion/rerank)
+  bm25_candidates: 50
+  dense_candidates: 50
+  rerank_candidates: 20
+  final_top_k: 10
+  
+  # Query-type adaptive weights
+  # Format: {query_type: {bm25_weight, dense_weight, hyde_enabled, multi_query_enabled, rerank_enabled}}
+  adaptive_weights:
+    verbatim:
+      bm25_weight: 0.5
+      dense_weight: 0.5
+      hyde_enabled: false
+      multi_query_enabled: false
+      rerank_enabled: true
+    paraphrase:
+      bm25_weight: 0.3
+      dense_weight: 0.7
+      hyde_enabled: true
+      multi_query_enabled: true
+      rerank_enabled: true
+    conversational:
+      bm25_weight: 0.2
+      dense_weight: 0.8
+      hyde_enabled: true
+      multi_query_enabled: true
+      rerank_enabled: true
+    typo:
+      bm25_weight: 0.2
+      dense_weight: 0.8
+      hyde_enabled: false
+      multi_query_enabled: true
+      rerank_enabled: true
+    keyword_only:
+      bm25_weight: 0.8
+      dense_weight: 0.2
+      hyde_enabled: false
+      multi_query_enabled: false
+      rerank_enabled: true
+    reworded:
+      bm25_weight: 0.3
+      dense_weight: 0.7
+      hyde_enabled: true
+      multi_query_enabled: true
+      rerank_enabled: true
+  
+  # Strategy presets (can be selected via API)
+  strategies:
+    bm25_only:
+      bm25_weight: 1.0
+      dense_weight: 0.0
+      rrf_enabled: false
+      hyde_enabled: false
+      multi_query_enabled: false
+      rerank_enabled: false
+    dense_only:
+      bm25_weight: 0.0
+      dense_weight: 1.0
+      rrf_enabled: false
+      hyde_enabled: false
+      multi_query_enabled: false
+      rerank_enabled: false
+    hybrid:
+      bm25_weight: 0.3
+      dense_weight: 0.7
+      rrf_enabled: true
+      hyde_enabled: false
+      multi_query_enabled: false
+      rerank_enabled: false
+    hybrid_rerank:
+      bm25_weight: 0.3
+      dense_weight: 0.7
+      rrf_enabled: true
+      hyde_enabled: false
+      multi_query_enabled: false
+      rerank_enabled: true
+    hyde:
+      bm25_weight: 0.3
+      dense_weight: 0.7
+      rrf_enabled: true
+      hyde_enabled: true
+      multi_query_enabled: false
+      rerank_enabled: true
+    multi_query:
+      bm25_weight: 0.3
+      dense_weight: 0.7
+      rrf_enabled: true
+      hyde_enabled: false
+      multi_query_enabled: true
+      rerank_enabled: true
+    full:
+      bm25_weight: 0.3
+      dense_weight: 0.7
+      rrf_enabled: true
+      hyde_enabled: true
+      multi_query_enabled: true
+      rerank_enabled: true
+    auto:
+      # Uses adaptive_weights based on detected query type
+      adaptive: true

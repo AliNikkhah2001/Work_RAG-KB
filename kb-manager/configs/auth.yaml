@@ -1,0 +1,51 @@
+# Authentication & Authorization Configuration
+# Overrides default.yaml auth section
+# SECURITY: secret_key MUST be set via KB_AUTH_SECRET_KEY environment variable
+
+auth:
+  secret_key: ""                  # Set via KB_AUTH_SECRET_KEY env var (required for production)
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+  refresh_token_expire_days: 7
+  password_hash_algorithm: "bcrypt"
+  
+  # Role-based permissions
+  roles:
+    admin:
+      - "*"
+    editor:
+      - "documents:read"
+      - "documents:write"
+      - "chunks:read"
+      - "chunks:write"
+      - "versions:read"
+      - "versions:write"
+      - "editor:*"
+      - "monitoring:read"
+    developer:
+      - "dev:upload"
+      - "dev:search"
+      - "dev:jobs:read"
+      - "api:search"
+    viewer:
+      - "documents:read"
+      - "chunks:read"
+      - "versions:read"
+      - "monitoring:read"
+      - "search:read"
+  
+  default_role: "viewer"
+  
+  # Session cookie settings
+  session_cookie_name: "kb_session"
+  session_cookie_secure: true
+  session_cookie_httponly: true
+  session_cookie_samesite: "lax"
+  
+  # Rate limiting
+  rate_limit_enabled: true
+  rate_limit_requests_per_minute: 100
+  
+  # API Keys (for developer programmatic access)
+  api_key_prefix: "kb_"
+  api_key_hash_algorithm: "bcrypt"

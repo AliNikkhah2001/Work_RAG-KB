@@ -1,0 +1,10 @@
+# Cross-Encoder Reranker Configuration
+# Overrides default.yaml reranker section
+
+reranker:
+  model_name: "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+  batch_size: 32
+  max_length: 512
+  device: ""                    # "" = auto-detect (cuda if available else cpu)
+  enabled: true
+  threshold: 0.0                # Minimum rerank score to keep result

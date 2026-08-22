@@ -1,0 +1,19 @@
+# HyDE (Hypothetical Document Embeddings) Configuration
+# Overrides default.yaml hyde section
+
+hyde:
+  enabled: true
+  model_name: "gpt-4o-mini"
+  prompt_template: |
+    <start_of_turn>user
+    شما یک متخصص سیستم اعتبارسنجی اعتباری ایران هستید. برای پرسش زیر، یک پاسخ کامل و دقیق بنویسید که حاوی اطلاعات کلیدی برای یافتن اسناد مرتبط باشد.
+
+    پرسش: {query}
+
+    پاسخ فرضی (شامل اصطلاحات کلیدی، مفاهیم تخصصی و جزئیات فنی):
+    <end_of_turn>
+    <start_of_turn>model
+  max_length: 512
+  temperature: 0.3
+  cache_ttl_seconds: 3600
+  top_k: 20

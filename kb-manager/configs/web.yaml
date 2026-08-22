@@ -1,0 +1,23 @@
+# Web UI Configuration
+# Overrides default.yaml web section
+
+web:
+  host: "0.0.0.0"
+  port: 8000
+  language: "fa"                # "fa" | "en"
+  rtl: true
+  theme: "auto"                 # "light" | "dark" | "auto"
+  font_family: "Vazirmatn"
+  page_size: 20
+  editor_page_size: 50
+  
+  # Developer portal
+  dev_api_prefix: "/api/dev"
+  dev_rate_limit_per_minute: 60
+  
+  # Feature flags
+  enable_editor: true
+  enable_monitoring: true
+  enable_benchmarks: true
+  enable_dev_portal: true
+  enable_settings_ui: true

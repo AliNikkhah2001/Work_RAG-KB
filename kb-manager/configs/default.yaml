@@ -1,18 +1,73 @@
-database:
-  host: localhost
-  port: 5432
-  name: kb_manager
-  user: postgres
-  password: postgres
+# Base configuration for KB Manager
+# All values can be overridden by environment variables with KB_ prefix
+# Example: KB_DB_HOST=production-db
 
+# Database
+db:
+  host: "localhost"
+  port: 5432
+  name: "kb_manager"
+  user: "postgres"
+  password: "postgres"
+  echo: false
+  # url_override: ""  # Full connection string (e.g., postgresql+asyncpg://user:pass@host:5432/db)
+
+# Embedding
 embedding:
-  model_name: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  model_name: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
   dimensions: 384
   batch_size: 64
-  device: cpu
+  device: "cpu"
+  normalize: true
+  use_context: true
+  context_template: "Title: {title}\nHeading: {heading}\nContent: {content}"
+  cache_dir: "data/embeddings_cache"
 
+# Chunking
 chunking:
-  strategy: semantic
+  strategy: "semantic"
   max_tokens: 512
   min_tokens: 100
   overlap_tokens: 50
+  parent_max_tokens: 1536
+  parent_scope: "sheet"        # "sheet" | "document"
+  dedup_questions: false
+  type_overrides:
+    reason_code:
+      strategy: "single_entity"
+      max_tokens: 400
+    qa_pair:
+      strategy: "single_entity"
+      max_tokens: 600
+    regulation:
+      strategy: "article_boundary"
+      max_tokens: 800
+    article:
+      strategy: "section_heading"
+      max_tokens: 512
+    public_model:
+      strategy: "section_heading"
+      max_tokens: 512
+
+# Parser
+parser:
+  xlsx_engine: "auto"
+  pdf_engine: "pymupdf"
+  docx_engine: "python-docx"
+
+# RAGAS Evaluation
+ragas:
+  llm_model: "gpt-4o-mini"
+  embedding_model: "text-embedding-3-small"
+  api_key: ""
+  base_url: ""
+  metrics:
+    - "faithfulness"
+    - "answer_relevancy"
+    - "context_recall"
+    - "context_precision"
+  k: 5
+
+# Source/Output directories
+source_dir: "./data"
+output_dir: "./data/processed"

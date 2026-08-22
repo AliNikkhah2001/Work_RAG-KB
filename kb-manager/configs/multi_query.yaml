@@ -1,0 +1,43 @@
+# Multi-Query Rewriting Configuration
+# Overrides default.yaml multi_query section
+
+multi_query:
+  enabled: true
+  model_name: "gpt-4o-mini"
+  prompt_template: |
+    <start_of_turn>user
+    شما یک متخصص سیستم اعتبارسنجی اعتباری ایران هستید. برای پرسش زیر، {num_queries} صيغ مختلف پرسش تولید کنید که کاربر ممکن است بپرسد.
+
+    پرسش اصلی: {query}
+
+    انواع پرسش مورد نیاز:
+    1. Verbatim - بسیار نزدیک به متن اصلی
+    2. Paraphrase - با مترادف‌ها و تغییر ساختار
+    3. Conversational - محاوره‌ای (می‌شه، می‌تونم، یه سوال داشتم)
+    4. Typo - با اشتباهات تایپ واقعی (می‌شود→میشه، دسترسی→دسترسى)
+    5. Keyword-only - فقط اصطلاحات کلیدی تخصصی
+    6. Reworded - حذف کلمات + تغییر ترتیب سنگین
+
+    خروجی JSON (فقط آرایه JSON، بدون متن اضافه):
+    [
+      {"query": "...", "type": "verbatim"},
+      {"query": "...", "type": "paraphrase"},
+      {"query": "...", "type": "conversational"},
+      {"query": "...", "type": "typo"},
+      {"query": "...", "type": "keyword_only"},
+      {"query": "...", "type": "reworded"}
+    ]
+    <end_of_turn>
+    <start_of_turn>model
+  num_queries: 6
+  beam_size: 5
+  temperature: 0.4
+  cache_ttl_seconds: 3600
+  fusion_method: "rrf"           # "rrf" | "weighted_rrf"
+  weights:
+    verbatim: 1.0
+    paraphrase: 1.0
+    conversational: 0.8
+    typo: 0.9
+    keyword_only: 0.5
+    reworded: 0.7
