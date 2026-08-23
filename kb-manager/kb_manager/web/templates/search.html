@@ -1,171 +1,417 @@
 {% extends "base.html" %}
-{% block title %}Search - KB Manager{% endblock %}
 
-{% block header %}
-<h1>Search & Test Query</h1>
-{% endblock %}
+{% block title %}جستجو و تست پرسش - مدیریت پایگاه دانش{% endblock %}
 
 {% block content %}
-<div class="card">
+<div class="search-page">
+  <div class="search-header">
+    <h1 class="page-title">
+      <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      جستجو و تست پرسش
+    </h1>
+    <p class="page-subtitle">تست و تحلیل خط لوله بازیابی با استراتژی‌های مختلف</p>
+  </div>
+
+  <!-- Strategy Selector -->
+  <div class="card search-config">
     <form id="search-form" onsubmit="return performSearch(event)">
-        <div class="form-group" style="display:flex; gap:0.5rem;">
-            <input type="text" id="search-input" class="form-control" placeholder="Enter your search query..." required style="flex:1;">
-            <button type="submit" class="btn btn-primary" id="search-btn">Search</button>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="search-input" class="field-label">متن پرسش</label>
+          <input 
+            type="text" 
+            id="search-input" 
+            class="form-input" 
+            placeholder="پرسش خود را به فارسی وارد کنید..." 
+            required
+          >
         </div>
+        
+        <div class="form-group">
+          <label for="strategy-select" class="field-label">استراتژی جستجو</label>
+          <select id="strategy-select" class="form-select">
+            {% for strategy in strategies %}
+            <option value="{{ strategy }}">{{ strategy }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="top-k-input" class="field-label">تعداد نتایج (Top-K)</label>
+          <input 
+            type="number" 
+            id="top-k-input" 
+            class="form-input" 
+            value="10" 
+            min="1" 
+            max="50"
+          >
+        </div>
+      </div>
+      
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary" id="search-btn">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          جستجو
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="clearResults()">
+          پاک کردن
+        </button>
+      </div>
     </form>
+  </div>
+
+  <!-- Results Area -->
+  <div id="results-area" class="results-area" style="display:none;">
+    
+    <!-- Timing Summary -->
+    <div class="card timing-summary">
+      <h3>خلاصه زمان‌بندی</h3>
+      <div class="timing-grid" id="timing-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Query Info -->
+    <details class="card step-panel" open>
+      <summary class="step-header">
+        <h3>مرحله ۱: پردازش پرسش</h3>
+        <span class="badge" id="query-type-badge">نوع پرسش: -</span>
+        <span class="badge" id="strategy-badge">استراتژی: -</span>
+      </h3></summary>
+      <div class="detail-list">
+        <div class="detail-item">
+          <span class="detail-label">پرسش اصلی:</span>
+          <span class="detail-value" id="original-query">-</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">پرسش نرمال‌سازی شده:</span>
+          <span class="detail-value" id="normalized-query">-</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">توکن‌ها:</span>
+          <span class="detail-value" id="query-tokens">-</span>
+        </div>
+      </div>
+    </details>
+
+    <!-- HyDE Document -->
+    <details class="card step-panel" id="hyde-panel" style="display:none;">
+      <summary class="step-header">
+        <h3>HyDE: سند فرضی</h3>
+      </summary>
+      <div class="hyde-content" id="hyde-content"></div>
+    </details>
+
+    <!-- Multi-Query Variants -->
+    <details class="card step-panel" id="multi-query-panel" style="display:none;">
+      <summary class="step-header">
+        <h3>چندین پرسش (Multi-Query)</h3>
+        <span class="badge" id="mq-count-badge">تعداد: 0</span>
+      </summary>
+      <div class="table-container">
+        <table class="data-table" id="mq-table">
+          <thead>
+            <tr>
+              <th>نوع</th>
+              <th>متن پرسش</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- BM25 Results -->
+    <details class="card step-panel" open>
+      <summary class="step-header">
+        <h3>مرحله ۲: نتایج BM25 ( واژگانی )</h3>
+        <span class="badge" id="bm25-count-badge">تعداد: 0</span>
+      </summary>
+      <div class="table-container">
+        <table class="data-table" id="bm25-table">
+          <thead>
+            <tr>
+              <th>رتبه</th>
+              <th>عنوان سند</th>
+              <th>مسیری سرآیند</th>
+              <th>پیش‌نمایش محتوا</th>
+              <th>امتیاز BM25</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- Dense Results -->
+    <details class="card step-panel" open>
+      <summary class="step-header">
+        <h3>مرحله ۳: نتایج Dense (معنایی)</h3>
+        <span class="badge" id="dense-count-badge">تعداد: 0</span>
+      </summary>
+      <div class="table-container">
+        <table class="data-table" id="dense-table">
+          <thead>
+            <tr>
+              <th>رتبه</th>
+              <th>عنوان سند</th>
+              <th>مسیری سرآیند</th>
+              <th>پیش‌نمایش محتوا</th>
+              <th>امتیاز Dense</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- Merged Candidates -->
+    <details class="card step-panel" open>
+      <summary class="step-header">
+        <h3>مرحله ۴: کاندیداهای ادغام‌شده (RRF)</h3>
+        <span class="badge" id="merged-count-badge">تعداد: 0</span>
+      </summary>
+      <div class="table-container">
+        <table class="data-table" id="merged-table">
+          <thead>
+            <tr>
+              <th>رتبه</th>
+              <th>عنوان سند</th>
+              <th>مسیری سرآیند</th>
+              <th>پیش‌نمایش محتوا</th>
+              <th>BM25</th>
+              <th>Dense</th>
+              <th>Hybrid (RRF)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- Final Results -->
+    <details class="card step-panel" open>
+      <summary class="step-header">
+        <h3>مرحله ۵: نتایج نهایی (پس از ریرانک)</h3>
+        <span class="badge" id="final-count-badge">تعداد: 0</span>
+      </summary>
+      <div class="table-container">
+        <table class="data-table" id="final-table">
+          <thead>
+            <tr>
+              <th>رتبه</th>
+              <th>عنوان سند</th>
+              <th>مسیری سرآیند</th>
+              <th>پیش‌نمایش محتوا</th>
+              <th>امتیاز نهایی</th>
+              <th>ریرانک</th>
+              <th>توضیح</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+  </div>
 </div>
+{% endblock %}
 
-<div id="results-area" style="display:none;">
-    <details open>
-        <summary><h3 style="display:inline;">Step 1: Query Processing</h3></summary>
-        <div class="card">
-            <div class="detail-list">
-                <div class="detail-item">
-                    <span class="detail-label">Normalized Query:</span>
-                    <span class="detail-value" id="normalized-query">-</span>
-                </div>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary><h3 style="display:inline;">Step 2: BM25 Results</h3></summary>
-        <div class="card">
-            <div class="table-container">
-                <table class="data-table" id="bm25-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Document Title</th>
-                            <th>Chunk Preview</th>
-                            <th>BM25 Score</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary><h3 style="display:inline;">Step 3: Semantic Results</h3></summary>
-        <div class="card">
-            <div class="table-container">
-                <table class="data-table" id="semantic-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Document Title</th>
-                            <th>Chunk Preview</th>
-                            <th>Similarity Score</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary><h3 style="display:inline;">Step 4: Merged Candidates</h3></summary>
-        <div class="card">
-            <div class="table-container">
-                <table class="data-table" id="merged-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Document Title</th>
-                            <th>Chunk Preview</th>
-                            <th>BM25 Score</th>
-                            <th>Semantic Score</th>
-                            <th>Hybrid Score</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary><h3 style="display:inline;">Step 5: Final Results</h3></summary>
-        <div class="card">
-            <div class="table-container">
-                <table class="data-table" id="final-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Document Title</th>
-                            <th>Chunk Preview</th>
-                            <th>Final Score</th>
-                            <th>Explanation</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-</div>
-
+{% block extra_js %}
 <script>
-async function performSearch(e) {
+document.addEventListener('DOMContentLoaded', function() {
+  // Escape HTML
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // Format number
+  function fmt(n) {
+    return Number(n).toFixed(4);
+  }
+
+  // Render timing grid
+  function renderTiming(timing) {
+    var grid = document.getElementById('timing-grid');
+    var items = [
+      {key: 'total', label: 'کل', unit: 'ms'},
+      {key: 'preprocess_ms', label: 'پیش‌پردازش', unit: 'ms'},
+      {key: 'bm25_ms', label: 'BM25', unit: 'ms'},
+      {key: 'dense_ms', label: 'Dense', unit: 'ms'},
+      {key: 'hyde_ms', label: 'HyDE', unit: 'ms'},
+      {key: 'multi_query_ms', label: 'Multi-Query', unit: 'ms'},
+      {key: 'rrf_ms', label: 'RRF Fusion', unit: 'ms'},
+      {key: 'rerank_ms', label: 'ریرانک', unit: 'ms'},
+    ];
+    
+    grid.innerHTML = '';
+    items.forEach(function(item) {
+      var val = timing[item.key];
+      if (val !== undefined && val > 0) {
+        var div = document.createElement('div');
+        div.className = 'timing-item';
+        div.innerHTML = '<span class="timing-label">' + item.label + '</span><span class="timing-value">' + val.toFixed(1) + ' ' + item.unit + '</span>';
+        grid.appendChild(div);
+      }
+    });
+  }
+
+  // Render table
+  function renderTable(tbodyId, data, columns) {
+    var tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = '';
+    (data || []).forEach(function(r, i) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = columns.map(function(col) {
+        var val = r[col.key];
+        if (col.format) val = col.format(val);
+        return '<td>' + esc(val) + '</td>';
+      }).join('');
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Main search function
+  async function performSearch(e) {
     e.preventDefault();
     var query = document.getElementById('search-input').value.trim();
+    var strategy = document.getElementById('strategy-select').value;
+    var topK = parseInt(document.getElementById('top-k-input').value) || 10;
+    
     if (!query) return;
 
     var btn = document.getElementById('search-btn');
     btn.disabled = true;
-    btn.textContent = 'Searching...';
+    btn.textContent = 'در حال جستجو...';
 
     try {
-        var resp = await fetch('/search/api', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
+      var resp = await fetch('/search/api', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          query: query, 
+          top_k: topK, 
+          strategy: strategy 
+        })
+      });
+      var data = await resp.json();
+
+      if (data.error) {
+        alert('خطا: ' + data.error);
+        return;
+      }
+
+      // Show results area
+      document.getElementById('results-area').style.display = 'block';
+
+      // Query info
+      document.getElementById('original-query').textContent = data.query;
+      document.getElementById('normalized-query').textContent = data.normalized_query;
+      document.getElementById('query-tokens').textContent = (data.tokens || []).join('، ');
+      document.getElementById('query-type-badge').textContent = 'نوع پرسش: ' + (data.detected_query_type || 'general');
+      document.getElementById('strategy-badge').textContent = 'استراتژی: ' + data.strategy_used;
+
+      // Timing
+      renderTiming(data.timing_breakdown || {});
+
+      // HyDE
+      if (data.hyde_document) {
+        document.getElementById('hyde-panel').style.display = 'block';
+        document.getElementById('hyde-content').textContent = data.hyde_document;
+      } else {
+        document.getElementById('hyde-panel').style.display = 'none';
+      }
+
+      // Multi-Query
+      if (data.sub_queries && data.sub_queries.length > 0) {
+        document.getElementById('multi-query-panel').style.display = 'block';
+        document.getElementById('mq-count-badge').textContent = 'تعداد: ' + data.sub_queries.length;
+        var mqTbody = document.querySelector('#mq-table tbody');
+        mqTbody.innerHTML = '';
+        data.sub_queries.forEach(function(sq) {
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td><span class="badge badge-' + sq.type + '">' + sq.type + '</span></td><td>' + esc(sq.query) + '</td>';
+          mqTbody.appendChild(tr);
         });
-        var data = await resp.json();
+      } else {
+        document.getElementById('multi-query-panel').style.display = 'none';
+      }
 
-        document.getElementById('results-area').style.display = 'block';
+      // BM25
+      document.getElementById('bm25-count-badge').textContent = 'تعداد: ' + (data.bm25_results || []).length;
+      renderTable('bm25-table', data.bm25_results, [
+        {key: 'chunk_id', format: function(v) { return '#' + (v || '').slice(0,8); }},
+        {key: 'doc_title'},
+        {key: 'heading_path'},
+        {key: 'content_preview'},
+        {key: 'bm25_score', format: fmt}
+      ]);
 
-        document.getElementById('normalized-query').textContent = data.normalized_query || query;
+      // Dense
+      document.getElementById('dense-count-badge').textContent = 'تعداد: ' + (data.dense_results || []).length;
+      renderTable('dense-table', data.dense_results, [
+        {key: 'chunk_id', format: function(v) { return '#' + (v || '').slice(0,8); }},
+        {key: 'doc_title'},
+        {key: 'heading_path'},
+        {key: 'content_preview'},
+        {key: 'dense_score', format: fmt}
+      ]);
 
-        var bm25Body = document.querySelector('#bm25-table tbody');
-        bm25Body.innerHTML = '';
-        (data.bm25_results || []).forEach(function(r, i) {
-            bm25Body.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.bm25_score.toFixed(4) + '</td></tr>';
-        });
+      // Merged
+      document.getElementById('merged-count-badge').textContent = 'تعداد: ' + (data.merged_candidates || []).length;
+      renderTable('merged-table', data.merged_candidates, [
+        {key: 'chunk_id', format: function(v) { return '#' + (v || '').slice(0,8); }},
+        {key: 'doc_title'},
+        {key: 'heading_path'},
+        {key: 'content_preview'},
+        {key: 'bm25_score', format: fmt},
+        {key: 'dense_score', format: fmt},
+        {key: 'hybrid_score', format: fmt}
+      ]);
 
-        var semBody = document.querySelector('#semantic-table tbody');
-        semBody.innerHTML = '';
-        (data.semantic_results || []).forEach(function(r, i) {
-            semBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.semantic_score.toFixed(4) + '</td></tr>';
-        });
+      // Final
+      document.getElementById('final-count-badge').textContent = 'تعداد: ' + (data.final_results || []).length;
+      renderTable('final-table', data.final_results, [
+        {key: 'chunk_id', format: function(v) { return '#' + (v || '').slice(0,8); }},
+        {key: 'doc_title'},
+        {key: 'heading_path'},
+        {key: 'content_preview'},
+        {key: 'hybrid_score', format: fmt},
+        {key: 'rerank_score', format: fmt},
+        {key: 'hybrid_score', format: function(v) { 
+          return 'Hybrid=' + fmt(v) + ' | Rerank=' + fmt(r.rerank_score || 0); 
+        }}
+      ]);
 
-        var mergedBody = document.querySelector('#merged-table tbody');
-        mergedBody.innerHTML = '';
-        (data.merged_candidates || []).forEach(function(r, i) {
-            mergedBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + (r.bm25_score||0).toFixed(4) + '</td><td>' + (r.semantic_score||0).toFixed(4) + '</td><td>' + r.hybrid_score.toFixed(4) + '</td></tr>';
-        });
-
-        var finalBody = document.querySelector('#final-table tbody');
-        finalBody.innerHTML = '';
-        (data.final_results || []).forEach(function(r, i) {
-            var expl = 'BM25=' + (r.bm25_score||0).toFixed(4) + ' Sem=' + (r.semantic_score||0).toFixed(4) + ' RRF=' + r.hybrid_score.toFixed(4);
-            finalBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.hybrid_score.toFixed(4) + '</td><td>' + esc(expl) + '</td></tr>';
-        });
     } catch (err) {
-        alert('Search failed: ' + err.message);
+      alert('جستجو ناموفق: ' + err.message);
+      console.error(err);
     } finally {
-        btn.disabled = false;
-        btn.textContent = 'Search';
+      btn.disabled = false;
+      btn.textContent = 'جستجو';
     }
-}
+  }
 
-function esc(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
-}
+  function clearResults() {
+    document.getElementById('results-area').style.display = 'none';
+    document.getElementById('search-input').value = '';
+  }
+
+  // Badge colors for query types
+  var typeColors = {
+    verbatim: 'primary',
+    paraphrase: 'success',
+    conversational: 'info',
+    typo: 'warning',
+    keyword_only: 'danger',
+    reworded: 'secondary'
+  };
 </script>
 {% endblock %}
