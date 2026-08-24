@@ -149,6 +149,15 @@ async def _run_benchmark(
     job["finished_at"] = datetime.now(UTC).isoformat()
 
 
+def _run_benchmark_sync(job_id: str, dataset_name: str, top_k: int, sample_size: int) -> None:
+    """Synchronous wrapper: run async benchmark in a dedicated event loop."""
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(_run_benchmark(job_id, dataset_name, top_k, sample_size))
+    finally:
+        loop.close()
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -259,8 +268,9 @@ async def run_benchmark(
         "error": "",
     }
     _JOBS[job_id] = job
+    # Run benchmark in a thread to avoid blocking the event loop during model loading
     _JOBS[job_id]["_task"] = asyncio.create_task(
-        _run_benchmark(job_id, dataset, top_k, sample_size)
+        asyncio.to_thread(_run_benchmark_sync, job_id, dataset, top_k, sample_size)
     )
     return RedirectResponse(f"/benchmarks?job={job_id}", status_code=303)
 
