@@ -45,7 +45,11 @@ class LLMClient(ABC):
 
 
 class OpenAIClient(LLMClient):
-    """OpenAI API client (supports OpenAI-compatible endpoints)."""
+    """OpenAI API client (supports OpenAI-compatible endpoints).
+
+    Uses the synchronous ``openai.OpenAI`` client so it can be called from
+    both sync and async contexts (e.g. inside a running event loop).
+    """
 
     def __init__(
         self,
@@ -55,7 +59,7 @@ class OpenAIClient(LLMClient):
         timeout: int = 60,
     ) -> None:
         self._model = model
-        self._api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self._api_key = api_key or os.getenv("OPENAI_API_KEY", "EMPTY")
         self._base_url = base_url or os.getenv("OPENAI_BASE_URL")
         self._timeout = timeout
         self._client = None
@@ -64,32 +68,31 @@ class OpenAIClient(LLMClient):
         if self._client is not None:
             return
         try:
-            from openai import AsyncOpenAI
+            from openai import OpenAI
         except ImportError as e:
             raise ImportError("openai package required for OpenAIClient") from e
-        
-        self._client = AsyncOpenAI(
+
+        self._client = OpenAI(
             api_key=self._api_key,
             base_url=self._base_url,
             timeout=self._timeout,
         )
 
-    async def _generate_async(
-        self,
-        prompt: str,
-        max_tokens: int,
-        temperature: float,
-    ) -> LLMResponse:
+    def _chat(self, prompt: str, max_tokens: int, temperature: float) -> LLMResponse:
         self._ensure_client()
-        response = await self._client.chat.completions.create(
+        response = self._client.chat.completions.create(
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=max_tokens,
             temperature=temperature,
         )
+        usage = getattr(response, "usage", None)
         return LLMResponse(
             text=response.choices[0].message.content or "",
-            metadata={"model": self._model, "usage": response.usage.model_dump() if response.usage else None},
+            metadata={
+                "model": self._model,
+                "usage": usage.model_dump() if usage is not None else None,
+            },
         )
 
     def generate(
@@ -99,8 +102,7 @@ class OpenAIClient(LLMClient):
         temperature: float = 0.3,
         **kwargs,
     ) -> LLMResponse:
-        import asyncio
-        return asyncio.run(self._generate_async(prompt, max_tokens, temperature))
+        return self._chat(prompt, max_tokens, temperature)
 
     def generate_batch(
         self,
@@ -108,13 +110,7 @@ class OpenAIClient(LLMClient):
         max_tokens: int = 512,
         temperature: float = 0.3,
     ) -> List[LLMResponse]:
-        import asyncio
-        
-        async def _batch():
-            tasks = [self._generate_async(p, max_tokens, temperature) for p in prompts]
-            return await asyncio.gather(*tasks)
-        
-        return asyncio.run(_batch())
+        return [self._chat(p, max_tokens, temperature) for p in prompts]
 
 
 class OllamaClient(LLMClient):

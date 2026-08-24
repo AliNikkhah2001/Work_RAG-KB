@@ -1,0 +1,65 @@
+{
+  "generation_config": {
+    "model": {
+      "name": "gemma2:27b",
+      "backend": "ollama",
+      "base_url": "http://localhost:11434",
+      "tensor_parallel_size": 2,
+      "max_tokens": 1024,
+      "temperature": 0.4,
+      "top_p": 0.9
+    },
+    "generation": {
+      "num_samples_per_chunk": 8,
+      "conversation_ratio": 0.3,
+      "min_chunk_length": 100,
+      "max_chunk_length": 2000,
+      "query_types": {
+        "verbatim": 0.15,
+        "paraphrase": 0.2,
+        "conversational": 0.2,
+        "typo": 0.15,
+        "keyword_only": 0.15,
+        "reworded": 0.15
+      },
+      "conversation": {
+        "num_turns": 3,
+        "include_coreference": true,
+        "include_ellipsis": true,
+        "include_topic_shift": true
+      },
+      "validation": {
+        "enabled": true,
+        "threshold": 0.7,
+        "validator_model": "gemma2:27b",
+        "human_audit_samples": 100
+      },
+      "output": {
+        "format": "jsonl",
+        "batch_size": 100,
+        "include_metadata": true
+      }
+    },
+    "database": {
+      "path": "data/kb_test.db",
+      "chunk_types": [
+        "qa_pair"
+      ]
+    },
+    "logging": {
+      "level": "INFO",
+      "log_file": "generation.log",
+      "progress_interval": 100
+    }
+  },
+  "stats": {
+    "total_chunks": 2,
+    "qa_generated": 16,
+    "conversations_generated": 0,
+    "qa_passed": 0,
+    "conversations_passed": 0,
+    "start_time": 1787567657.9937825
+  },
+  "elapsed_seconds": 20.726826667785645,
+  "timestamp": "2026-08-24 10:34:38"
+}

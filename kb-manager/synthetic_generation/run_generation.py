@@ -99,12 +99,27 @@ def save_json(data: List[Dict], path: Path) -> None:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
+
+def _suffix(args) -> str:
+    return getattr(args, "suffix", "") or ""
+
+
+def _qa_name(args) -> str:
+    return f"synthetic_qa{_suffix(args)}.jsonl"
+
+
+def _conv_name(args) -> str:
+    return f"synthetic_conversations{_suffix(args)}.jsonl"
+
+
 async def main():
     parser = argparse.ArgumentParser(description="Generate synthetic Persian data for KB")
     parser.add_argument("--config", default="synthetic_generation/config.yaml", help="Config YAML path")
     parser.add_argument("--db-path", default="data/kb_test.db", help="SQLite DB path")
     parser.add_argument("--output-dir", default="synthetic_generation/output", help="Output directory")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of chunks to process")
+    parser.add_argument("--offset", type=int, default=0, help="Skip first N chunks (for parallel workers)")
+    parser.add_argument("--suffix", default="", help="Suffix for output filenames (parallel workers)")
     parser.add_argument("--skip-validation", action="store_true", help="Skip LLM validation")
     args = parser.parse_args()
 
@@ -120,12 +135,15 @@ async def main():
     app_config = load_app_config()
     llm_client = create_llm_client_from_config(app_config)
     
-    logger.info(f"Using LLM backend: {config.get('model', {}).get('backend', 'ollama')}")
+    import os as _os
+    logger.info(f"Using LLM backend: {_os.getenv('KB_LLM_BACKEND', config.get('model', {}).get('backend', 'mock'))} [model={_os.getenv('KB_LLM_MODEL', config.get('model', {}).get('name', ''))}]")
     
     # Load chunks from DB
     chunk_types = config.get("database", {}).get("chunk_types", ["qa_pair"])
     logger.info(f"Loading chunks of types: {chunk_types}")
     chunks = await get_chunks_from_db(args.db_path, chunk_types)
+    if getattr(args, "offset", 0):
+        chunks = chunks[args.offset:]
     
     if args.limit:
         chunks = chunks[:args.limit]

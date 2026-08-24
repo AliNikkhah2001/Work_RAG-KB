@@ -20,12 +20,12 @@
 
 خروجی JSON (فقط آرایه JSON، بدون متن اضافه):
 [
-  {"query": "...", "type": "verbatim"},
-  {"query": "...", "type": "paraphrase"},
-  {"query": "...", "type": "conversational"},
-  {"query": "...", "type": "typo"},
-  {"query": "...", "type": "keyword_only"},
-  {"query": "...", "type": "reworded"}
+  {{"query": "...", "type": "verbatim"}},
+  {{"query": "...", "type": "paraphrase"}},
+  {{"query": "...", "type": "conversational"}},
+  {{"query": "...", "type": "typo"}},
+  {{"query": "...", "type": "keyword_only"}},
+  {{"query": "...", "type": "reworded"}}
 ]
 <end_of_turn>
 <start_of_turn>model
