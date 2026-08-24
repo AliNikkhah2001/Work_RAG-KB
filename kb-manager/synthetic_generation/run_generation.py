@@ -104,12 +104,12 @@ def _suffix(args) -> str:
     return getattr(args, "suffix", "") or ""
 
 
-def _qa_name(args) -> str:
-    return f"synthetic_qa{_suffix(args)}.jsonl"
+def _qa_name(args, fmt: str = "jsonl") -> str:
+    return f"synthetic_qa{_suffix(args)}.{fmt}"
 
 
-def _conv_name(args) -> str:
-    return f"synthetic_conversations{_suffix(args)}.jsonl"
+def _conv_name(args, fmt: str = "jsonl") -> str:
+    return f"synthetic_conversations{_suffix(args)}.{fmt}"
 
 
 async def main():
@@ -251,8 +251,8 @@ async def main():
     # Save outputs
     output_format = config.get("output", {}).get("format", "jsonl")
     
-    qa_path = output_dir / f"synthetic_qa.{output_format}"
-    conv_path = output_dir / f"synthetic_conversations.{output_format}"
+    qa_path = output_dir / _qa_name(args, output_format)
+    conv_path = output_dir / _conv_name(args, output_format)
     
     if output_format == "jsonl":
         save_jsonl(all_qa, qa_path)
@@ -268,7 +268,7 @@ async def main():
         "elapsed_seconds": time.time() - stats["start_time"],
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    save_json(metadata, output_dir / "generation_metadata.json")
+    save_json(metadata, output_dir / f"generation_metadata{_suffix(args)}.json")
     
     # Validation stats
     if validator:
