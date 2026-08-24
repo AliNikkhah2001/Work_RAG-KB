@@ -1,5 +1,5 @@
 import os
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///C:/Users/10225/Downloads/KB/kb-manager/data/kb_test.db"
+os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_test.db"
 import uvicorn
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -24,18 +25,36 @@ async def lifespan(app: FastAPI):
             )
     except Exception:
         pass
-    # Pre-warm search index (BM25 + dense embeddings + reranker) so the first
-    # query doesn't block for 30+ seconds on model loading.
-    try:
-        from kb_manager.web.routes.search import _get_index
-        import logging
-        logging.getLogger(__name__).info("Pre-warming search index...")
-        await _get_index()
-        logging.getLogger(__name__).info("Search index ready.")
-    except Exception as exc:
-        logging.getLogger(__name__).warning("Search index pre-warm failed: %s", exc)
+    # Pre-warm search index in background so server starts immediately.
+    # First search query will block until this completes.
+    import logging
+    logging.getLogger(__name__).info("Starting background search index pre-warm...")
+    asyncio.create_task(_prewarm_search_index())
     yield
     await db.close()
+
+
+async def _prewarm_search_index():
+    """Background task to load BM25 + dense embeddings + reranker."""
+    import logging
+    try:
+        from kb_manager.web.routes.search import _get_index
+        # Run in a thread to avoid blocking the event loop during model loading
+        await asyncio.to_thread(_get_index_sync)
+        logging.getLogger(__name__).info("Search index pre-warm complete.")
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Search index pre-warm failed: %s", exc)
+
+
+def _get_index_sync():
+    """Synchronous wrapper to pre-warm the search index in a background thread."""
+    import asyncio as _aio
+    loop = _aio.new_event_loop()
+    try:
+        from kb_manager.web.routes.search import _get_index
+        loop.run_until_complete(_get_index())
+    finally:
+        loop.close()
 
 
 app = FastAPI(
