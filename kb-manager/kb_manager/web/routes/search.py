@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import math
 import re
 import time
@@ -420,14 +421,15 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
 # Routes
 # ---------------------------------------------------------------------------
 
+_sync_loop: asyncio.AbstractEventLoop | None = None
+
+
 def search_knowledge_base_sync(query: str, top_k: int = 10) -> SearchSteps:
-    """Synchronous wrapper for search_knowledge_base."""
-    import asyncio
-    new_loop = asyncio.new_event_loop()
-    try:
-        return new_loop.run_until_complete(search_knowledge_base(query, top_k))
-    finally:
-        new_loop.close()
+    """Synchronous wrapper for search_knowledge_base with a persistent event loop."""
+    global _sync_loop
+    if _sync_loop is None or _sync_loop.is_closed():
+        _sync_loop = asyncio.new_event_loop()
+    return _sync_loop.run_until_complete(search_knowledge_base(query, top_k))
 
 @router.get("")
 async def search_page(request: Request):

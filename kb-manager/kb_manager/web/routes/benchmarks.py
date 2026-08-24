@@ -81,8 +81,8 @@ async def _run_benchmark(
     sample_size: int,
 ) -> None:
     """Search every dataset query against the live KB and record results."""
-    from kb_manager.evaluation.benchmark import AsyncBenchmarkRunner
-    from kb_manager.web.routes.search import search_knowledge_base
+    from kb_manager.evaluation.benchmark import BenchmarkRunner
+    from kb_manager.web.routes.search import search_knowledge_base_sync
 
     job = _JOBS[job_id]
     try:
@@ -98,14 +98,13 @@ async def _run_benchmark(
         if len(dataset) == 0:
             raise ValueError(f"Dataset {dataset_name} is empty or not found at {dataset_path}")
 
-        async def _search(query: str, k: int):
-            # Search results are SearchResult models with .chunk_id / .hybrid_score
-            steps = await search_knowledge_base(query, k)
+        def _search_sync(query: str, k: int):
+            steps = search_knowledge_base_sync(query, k)
             return [(r.chunk_id, r.hybrid_score) for r in steps.final_results]
 
-        runner = AsyncBenchmarkRunner(_search, top_k=top_k, version="live-kb")
-        result = await runner._run_async(
-            dataset,
+        runner = BenchmarkRunner(_search_sync, top_k=top_k, version="live-kb")
+        result = await asyncio.to_thread(
+            runner.run, dataset,
             progress=lambda done, total: job.update({"progress": done, "total": total}),
         )
 
@@ -148,14 +147,6 @@ async def _run_benchmark(
     job["status"] = "done"
     job["finished_at"] = datetime.now(UTC).isoformat()
 
-
-def _run_benchmark_sync(job_id: str, dataset_name: str, top_k: int, sample_size: int) -> None:
-    """Synchronous wrapper: run async benchmark in a dedicated event loop."""
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(_run_benchmark(job_id, dataset_name, top_k, sample_size))
-    finally:
-        loop.close()
 
 
 # ---------------------------------------------------------------------------
@@ -268,9 +259,8 @@ async def run_benchmark(
         "error": "",
     }
     _JOBS[job_id] = job
-    # Run benchmark in a thread to avoid blocking the event loop during model loading
     _JOBS[job_id]["_task"] = asyncio.create_task(
-        asyncio.to_thread(_run_benchmark_sync, job_id, dataset, top_k, sample_size)
+        _run_benchmark(job_id, dataset, top_k, sample_size)
     )
     return RedirectResponse(f"/benchmarks?job={job_id}", status_code=303)
 
@@ -281,7 +271,8 @@ async def benchmark_status(job_id: str):
     job = _JOBS.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Unknown job")
-    return JSONResponse(job)
+    # Filter out internal keys (like _task) that can't be serialized to JSON
+    return JSONResponse({k: v for k, v in job.items() if not k.startswith("_")})
 
 
 @router.get("/result")

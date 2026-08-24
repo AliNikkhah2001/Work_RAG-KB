@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -14,6 +13,9 @@ from kb_manager.web.deps import db, templates
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Create tables on startup and pre-warm search index."""
+    import logging
+    log = logging.getLogger(__name__)
+
     await db.create_tables()
     # Ensure indexes exist on existing tables (create_all only creates missing tables)
     try:
@@ -25,36 +27,24 @@ async def lifespan(app: FastAPI):
             )
     except Exception:
         pass
-    # Pre-warm search index in background so server starts immediately.
-    # First search query will block until this completes.
-    import logging
-    logging.getLogger(__name__).info("Starting background search index pre-warm...")
-    asyncio.create_task(_prewarm_search_index())
+
+    # Pre-warm search index synchronously so the server is ready immediately.
+    # This loads BM25 index + MiniLM embeddings + cross-encoder reranker (~30s first time).
+    log.info("Pre-warming search index (this may take a moment)...")
+    try:
+        await _prewarm_search_index()
+        log.info("Search index ready.")
+    except Exception as exc:
+        log.warning("Search index pre-warm failed (search will be slow on first query): %s", exc)
+
     yield
     await db.close()
 
 
 async def _prewarm_search_index():
-    """Background task to load BM25 + dense embeddings + reranker."""
-    import logging
-    try:
-        from kb_manager.web.routes.search import _get_index
-        # Run in a thread to avoid blocking the event loop during model loading
-        await asyncio.to_thread(_get_index_sync)
-        logging.getLogger(__name__).info("Search index pre-warm complete.")
-    except Exception as exc:
-        logging.getLogger(__name__).warning("Search index pre-warm failed: %s", exc)
-
-
-def _get_index_sync():
-    """Synchronous wrapper to pre-warm the search index in a background thread."""
-    import asyncio as _aio
-    loop = _aio.new_event_loop()
-    try:
-        from kb_manager.web.routes.search import _get_index
-        loop.run_until_complete(_get_index())
-    finally:
-        loop.close()
+    """Load BM25 index + dense embeddings + cross-encoder reranker."""
+    from kb_manager.web.routes.search import _get_index
+    await _get_index()
 
 
 app = FastAPI(
