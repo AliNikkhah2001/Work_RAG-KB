@@ -160,6 +160,10 @@ class RetrievalConfig:
     dense_candidates: int = 50
     rerank_candidates: int = 20
     final_top_k: int = 10
+    # Adaptive strategy selection by detected query type
+    adaptive_enabled: bool = True
+    hyde_enabled: bool = True
+    multi_query_enabled: bool = True
     # Query-type adaptive weights (loaded from YAML)
     adaptive_weights: dict[str, dict[str, float]] = field(default_factory=dict)
     # Strategy presets
@@ -364,16 +368,18 @@ def load_config() -> AppConfig:
     chunking_yaml = _load_yaml(CONFIG_DIR / "chunking" / "semantic.yaml")  # strategy-specific
     
     # Merge all YAML
+    # NOTE: section YAML files already carry their own top-level section key
+    # (e.g. retrieval.yaml starts with "retrieval:") so they are merged as-is.
     merged = _merge_configs(
         base,
-        {"retrieval": retrieval_yaml},
-        {"reranker": reranker_yaml},
-        {"hyde": hyde_yaml},
-        {"multi_query": multi_query_yaml},
-        {"auth": auth_yaml},
-        {"monitoring": monitoring_yaml},
-        {"web": web_yaml},
-        {"chunking": chunking_yaml},
+        retrieval_yaml,
+        reranker_yaml,
+        hyde_yaml,
+        multi_query_yaml,
+        auth_yaml,
+        monitoring_yaml,
+        web_yaml,
+        chunking_yaml,
     )
     
     # Helper to get nested value with env override

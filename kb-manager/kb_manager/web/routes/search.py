@@ -19,6 +19,12 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
 from kb_manager.config import config
+from kb_manager.retrieval.lexicon import (
+    BM25,
+    PERSIAN_TRANSLATE_TABLE,
+    STOPWORDS as _STOPWORDS,
+    tokenize as _tokenize,
+)
 from kb_manager.retrieval.orchestrator import (
     HybridRetriever,
     get_retriever,
@@ -101,27 +107,7 @@ async def search_api(request: Request):
             top_k=top_k,
             filters=filters,
         )
-
-        # Build response with strategy info
-        response = {
-            "query": steps.query,
-            "normalized_query": steps.normalized_query,
-            "tokens": steps.tokens,
-            "total_chunks_indexed": steps.total_chunks_indexed,
-            "detected_query_type": "general",  # TODO: expose from retriever
-            "strategy_used": strategy,
-            "hyde_document": "",  # TODO: expose from retriever
-            "sub_queries": [],
-            "bm25_results": [r.model_dump() for r in steps.bm25_results],
-            "dense_results": [r.model_dump() for r in steps.dense_results],
-            "merged_candidates": [r.model_dump() for r in steps.merged_candidates],
-            "final_results": [r.model_dump() for r in steps.final_results],
-            "elapsed_ms": steps.elapsed_ms,
-            "timing_breakdown": {
-                "total": steps.elapsed_ms,
-            },
-        }
-        return response
+        return steps.model_dump()
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}
 

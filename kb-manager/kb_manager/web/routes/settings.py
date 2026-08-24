@@ -16,7 +16,7 @@ from kb_manager.config import (
 )
 from kb_manager.web.app import templates
 
-router = APIRouter(prefix="/settings", tags=["settings"])
+router = APIRouter(tags=["settings"])
 
 # Config section metadata for UI tabs
 CONFIG_SECTIONS = [
@@ -187,6 +187,10 @@ def _set_nested(config: dict[str, Any], path: str, value: Any) -> None:
     val[keys[-1]] = value
 
 
+# Expose nested-config getter to Jinja (settings.html calls it per-field)
+templates.env.globals["_get_nested"] = _get_nested
+
+
 def _load_all_yaml() -> dict[str, Any]:
     """Load and merge all YAML config files."""
     from kb_manager.config import _load_yaml, _merge_configs
@@ -203,14 +207,14 @@ def _load_all_yaml() -> dict[str, Any]:
     
     return _merge_configs(
         base,
-        {"retrieval": retrieval_yaml},
-        {"reranker": reranker_yaml},
-        {"hyde": hyde_yaml},
-        {"multi_query": multi_query_yaml},
-        {"auth": auth_yaml},
-        {"monitoring": monitoring_yaml},
-        {"web": web_yaml},
-        {"chunking": chunking_yaml},
+        retrieval_yaml,
+        reranker_yaml,
+        hyde_yaml,
+        multi_query_yaml,
+        auth_yaml,
+        monitoring_yaml,
+        web_yaml,
+        chunking_yaml,
     )
 
 

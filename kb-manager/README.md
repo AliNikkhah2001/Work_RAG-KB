@@ -572,6 +572,142 @@ where $\parallel$ denotes concatenation. Cache hit iff stored fingerprint == cur
 
 ---
 
+## v5 — Advanced Retrieval Orchestrator, Settings & Synthetic Generation (Aug 2026)
+
+> Branches: `feat/settings-configs`, `feat/advanced-retrieval-synthetic` — PRs open against `master`.
+
+### What's New
+
+| Component | Description |
+|-----------|-------------|
+| **HybridRetriever** (`kb_manager/retrieval/orchestrator.py`) | Unified pipeline: BM25 + Dense + HyDE + Multi-Query + RRF/weighted-RRF + cross-encoder rerank, with per-stage timing breakdown |
+| **Adaptive strategy** | Query-type detection (verbatim/paraphrase/conversational/typo/keyword_only/reworded) selects BM25/Dense weights, HyDE & multi-query legs from `configs/retrieval.yaml` |
+| **Strategy presets API** | `POST /api/search {"strategy": "auto\|bm25\|dense\|hybrid\|hybrid_rerank\|hyde\|multi_query\|full"}` with step-by-step transparency (per-leg results, HyDE doc, sub-queries, timing grid) |
+| **Settings & Configs** | 12 config dataclasses + 8 YAML files (retrieval, reranker, hyde, multi_query, auth, monitoring, web) with `${ENV_VAR:-default}` interpolation; RTL Persian `/settings` UI (10 tabs) + YAML import/export |
+| **Synthetic generation** | `synthetic_generation/` — Gemma 30B black-box QA generation (6 query types), 3-turn conversations with coreference/ellipsis, LLM-as-judge validation (4 metrics, threshold 0.7). Runs via `KB_LLM_BACKEND=ollama|vllm` on 2×24GB GPU — see `docs/reports/SYNTHETIC_GEMMA_REMOTE.md` |
+| **RTL Persian UI** | `base.html`: `dir="rtl" lang="fa"`, Vazirmatn font, Alpine.js, mobile sidebar; search page with strategy selector, timing dashboard, HyDE/multi-query panels |
+
+### Retrieval Architecture (v5)
+
+```
+Query (Persian)
+   │
+   ▼
+[1] Preprocess ── Persian normalization (ي→ی, ك→ک, ZWNJ→space, digits)
+   │
+   ▼
+[2] Query-type detection ── verbatim / paraphrase / conversational / typo / keyword_only / reworded
+   │                        → adaptive weights from configs/retrieval.yaml
+   ▼
+┌── [3a] HyDE pseudo-doc (LLM) ── embed ── search ─┐
+├── [3b] Multi-query ×6 variants ── dense search ──┤
+├── [3c] BM25 (words + char 3-grams) ──────────────┤
+└── [3d] Dense (MiniLM contextual embeddings) ─────┘
+   │
+   ▼
+[4] Fusion ── RRF k=60 or weighted RRF per query type
+   │
+   ▼
+[5] Cross-encoder rerank (mmarco-mMiniLMv2-L12-H384-v1)
+   │
+   ▼
+Top-K results + full step breakdown + timing grid
+```
+
+### Search API Examples
+
+```bash
+# Adaptive auto strategy (detects query type, picks weights)
+curl -X POST http://localhost:8000/search/api \
+  -H "Content-Type: application/json" \
+  -d '{"query": "امتیاز اعتباری چیست؟", "top_k": 5, "strategy": "auto"}'
+
+# Full pipeline (all legs)
+curl -X POST http://localhost:8000/search/api \
+  -H "Content-Type: application/json" \
+  -d '{"query": "چک برگشتی چه تاثیری دارد؟", "strategy": "full"}'
+
+# List strategies / query types
+curl http://localhost:8000/search/strategies
+curl http://localhost:8000/search/query-types
+
+# Invalidate index cache after re-ingestion
+curl -X POST http://localhost:8000/search/invalidate-cache
+```
+
+Response includes: `detected_query_type`, `sub_queries[]`, `hyde_document`, per-leg results, `timing_breakdown` (bm25_ms/dense_ms/hyde_ms/multi_query_ms/rrf_ms/rerank_ms).
+
+### Settings UI
+
+Visit `/settings` — 10 RTL tabs (پایگاه داده، امبدینگ، چانکینگ، بازیابی، ریرانکر، HyDE، چندین پرسش، احراز هویت، مانیتورینگ، وب):
+- Edit any config value; saved back to section YAML files
+- `/settings/export` downloads merged YAML; `/settings/import` uploads one
+- Env vars always win (`KB_*` prefix); YAML supports `${VAR:-default}` interpolation
+
+### Configuration Files
+
+```
+configs/
+├── default.yaml          # db, embedding, chunking (+type overrides), parser, ragas
+├── retrieval.yaml        # weights, RRF, candidates, adaptive_weights (6 query types), 8 strategy presets
+├── reranker.yaml         # cross-encoder model/batch/threshold
+├── hyde.yaml             # Persian prompt, temperature, cache TTL, top_k
+├── multi_query.yaml      # Persian prompt, 6 variants, fusion method + type weights
+├── auth.yaml             # JWT, roles RBAC matrix, cookies, rate limits, API keys
+├── monitoring.yaml       # quality/latency/staleness/cost thresholds, alert channels
+├── web.yaml              # RTL, font, page sizes, feature flags, dev portal
+└── chunking/{semantic,fixed}.yaml
+```
+
+### Synthetic Data Generation (Gemma 30B, remote GPU)
+
+Full guide: [`docs/reports/SYNTHETIC_GEMMA_REMOTE.md`](docs/reports/SYNTHETIC_GEMMA_REMOTE.md)
+
+```bash
+# On 2×24GB GPU machine — Option A: Ollama
+ollama pull gemma2:27b && ollama serve &
+export KB_LLM_BACKEND=ollama KB_LLM_MODEL=gemma2:27b OLLAMA_BASE_URL=http://localhost:11434
+
+# Smoke test (10 chunks)
+python synthetic_generation/run_generation.py --config synthetic_generation/config.yaml \
+  --db-path data/kb_test.db --output-dir synthetic_generation/output --limit 10 --skip-validation
+
+# Full run → synthetic_qa.jsonl (target 50K QA) + synthetic_conversations.jsonl (15K)
+python synthetic_generation/run_generation.py --config synthetic_generation/config.yaml \
+  --db-path data/kb_test.db --output-dir synthetic_generation/output
+```
+
+Pipeline: chunk → FaMTEB-style Persian prompts (`prompts/*.txt`) → Gemma generates 6 query types → LLM-as-judge validation (relevance/accuracy/naturalness/diversity ≥ 0.7) → JSONL output. Mock backend (`KB_LLM_BACKEND=mock`) works without GPU for testing.
+
+### Ingestion Run Log (2026-08-24)
+
+Source: [Work_RAG-KB-SourceFiles](https://github.com/AliNikkhah2001/Work_RAG-KB-SourceFiles) (`clean_files/`, 78 XLSX, 31 Tir 1405)
+
+```text
+$ KB_DB_URL=sqlite+aiosqlite:///data/kb_test.db python ingest (full rebuild)
+DOCS processed: 78   created: 69   failed: 9 (empty/no-schema sheets)
+CHUNKS: 2422         VERSIONS: 69  elapsed: 20.0s
+```
+
+9 failures are expected: files whose sheets match none of the known schemas (reason_codes/crm_qa/articles) or are empty.
+
+### Roadmap Status
+
+| Milestone | Status | Branch |
+|-----------|--------|--------|
+| 1. Settings & Configs | ✅ Done | `feat/settings-configs` |
+| 2. Advanced retrieval orchestrator + API + RTL UI | ✅ Done | `feat/advanced-retrieval-synthetic` |
+| 2b. Synthetic generation pipeline | ✅ Done (code) — awaiting GPU run | same |
+| 3. Developer workflow (ZIP upload → ingest API) | ⏳ Next | — |
+| 4. Excel-like editor grid + versioning | ⏳ Pending | — |
+| 5. Monitoring dashboards (real-time) | ⏳ Pending | — |
+| 6. Auth + RBAC | ⏳ Pending | — |
+| 7. v5 benchmark vs v3 baseline | 🔄 Blocked on torch install (network proxy corrupts large wheels) | — |
+
+> v5 benchmark targets vs v3 baseline (Hit@5 89.2%, Top-1 72.5%, MRR 0.787): Hit@5 >95%, Top-1 >80%, MRR >0.85 using `full` strategy on `test_questions.json`.
+
+---
+
 ## License
 
 Private — ICS Credit Scoring

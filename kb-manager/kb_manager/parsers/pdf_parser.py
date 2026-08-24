@@ -4,9 +4,12 @@ import os
 import re
 from pathlib import Path
 
-import fitz  # PyMuPDF
-
 from kb_manager.parsers.base import BaseParser, ParsedDocument
+
+try:  # PyMuPDF is optional at import time; required only when parsing PDFs
+    import fitz  # PyMuPDF
+except ImportError:  # pragma: no cover - env without PDF support
+    fitz = None
 
 
 # Arabic numeral suffix patterns for article detection
@@ -93,6 +96,11 @@ class PdfParser(BaseParser):
         """
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f"File not found: {file_path}")
+
+        if fitz is None:
+            raise ImportError(
+                "PyMuPDF is required for PDF parsing. Install it with: pip install PyMuPDF"
+            )
 
         abs_path = str(Path(file_path).resolve())
         title = Path(file_path).stem

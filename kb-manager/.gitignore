@@ -62,3 +62,4 @@ Thumbs.db
 # Negation must come last so it wins over the *.txt rule above.
 !versions/
 !versions/**
+data/kb_source/
