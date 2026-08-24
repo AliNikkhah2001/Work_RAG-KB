@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1>Cleanup Preview: {{ preview.document_title }}</h1>
+<small class="text-muted">{{ preview.document_id }}</small>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ preview.total_qa_chunks }}</div>
+        <div class="stat-label">Total QA Chunks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ preview.complete_chunks }}</div>
+        <div class="stat-label">Complete</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-value">{{ preview.incomplete_count }}</div>
+        <div class="stat-label">Incomplete</div>
+    </div>
+</div>
+
+{% if cleaned is defined and cleaned|int > 0 %}
+<div class="alert alert-success">
+    Cleaned {{ cleaned }} incomplete chunks. Kept {{ kept }} complete chunks. Version snapshot created.
+</div>
+{% endif %}
+
+{% if preview.incomplete_chunks %}
+<h2>Incomplete Chunks</h2>
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Chunk ID</th>
+                <th>Ordinal</th>
+                <th>Missing Fields</th>
+                <th>Fields Preview</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for chunk in preview.incomplete_chunks %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td><code>{{ chunk.chunk_id[:12] }}...</code></td>
+                <td>{{ chunk.ordinal }}</td>
+                <td>
+                    <span class="badge badge-danger">{{ chunk.missing_fields|join(', ') }}</span>
+                </td>
+                <td>
+                    <div><strong>Question:</strong> {{ chunk.fields.get('question', '(missing)')[:100] }}</div>
+                    <div><small>Answer: {{ chunk.fields.get('answer', chunk.fields.get('briefanswer', '(missing)'))[:80] }}</small></div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<form action="/cleanup/qa/{{ preview.document_id }}/execute" method="post"
+      onsubmit="return confirm('Delete {{ preview.incomplete_count }} incomplete QA chunks? This creates a version snapshot for rollback.');">
+    <button type="submit" class="btn btn-danger">Delete Incomplete Chunks ({{ preview.incomplete_count }})</button>
+    <a href="/cleanup/qa" class="btn btn-secondary">Cancel</a>
+</form>
+{% else %}
+<div class="alert alert-success">
+    <h3>No incomplete chunks in this document!</h3>
+    <p>All {{ preview.total_qa_chunks }} QA chunks are complete.</p>
+</div>
+{% endif %}
+
+<h2 class="mt-4">Version History</h2>
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Version</th>
+                <th>Date</th>
+                <th>Chunks</th>
+                <th>Change Summary</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for version in versions %}
+            <tr>
+                <td>v{{ version.version }}</td>
+                <td>{{ version.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ version.chunk_count }}</td>
+                <td>{{ version.change_summary or '-' }}</td>
+                <td><span class="badge badge-{{ 'info' if version.status == 'snapshot' else 'warning' }}">{{ version.status }}</span></td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center">No versions recorded</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

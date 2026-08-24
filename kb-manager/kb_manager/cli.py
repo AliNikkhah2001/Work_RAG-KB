@@ -72,6 +72,7 @@ def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: 
                     overlap_tokens=config.chunking.overlap_tokens,
                     parent_scope=config.chunking.parent_scope,
                     parent_max_tokens=config.chunking.parent_max_tokens,
+                    dedup_questions=config.chunking.dedup_questions,
                 )
                 embedder = get_embedder(
                     "sentence_transformer",
@@ -102,6 +103,8 @@ def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: 
                 )
                 console.print(f"  Chunks created: {result.chunks_total}")
                 console.print(f"  Failed: {result.documents_failed}")
+                if result.chunks_skipped_incomplete > 0:
+                    console.print(f"  QA rows skipped (incomplete): {result.chunks_skipped_incomplete}")
         finally:
             await db.close()
 

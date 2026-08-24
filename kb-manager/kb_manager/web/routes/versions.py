@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from kb_manager.models.database import Document, DocumentVersion
-from kb_manager.web.app import db, templates
+from kb_manager.web.deps import db, templates
 
 router = APIRouter()
 
@@ -16,10 +17,22 @@ router = APIRouter()
 async def list_versions(request: Request):
     """Show all versioned documents."""
     async with db.session() as session:
+        # Show documents that have at least one version snapshot, not just version>1
+        # Join with DocumentVersion to find docs with history
         result = await session.execute(
-            select(Document).where(Document.version > 1).order_by(Document.updated_at.desc())
+            select(Document)
+            .options(selectinload(Document.versions))
+            .join(DocumentVersion, Document.id == DocumentVersion.document_id)
+            .group_by(Document.id)
+            .order_by(Document.updated_at.desc())
         )
-        documents = result.scalars().all()
+        documents = result.scalars().unique().all()
+        # Fallback: if no version history yet, show all docs with version info
+        if not documents:
+            result = await session.execute(
+                select(Document).options(selectinload(Document.versions)).order_by(Document.updated_at.desc()).limit(20)
+            )
+            documents = result.scalars().all()
 
     return templates.TemplateResponse(
         request,

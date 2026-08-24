@@ -72,7 +72,7 @@ class SemanticChunker(BaseChunker):
         overlap_tokens: int = _OVERLAP_TOKENS,
         parent_scope: str = "sheet",
         parent_max_tokens: int = 1536,
-        dedup_questions: bool = False,
+        dedup_questions: bool = True,
     ) -> None:
         self.max_tokens = max_tokens
         self.min_tokens = min_tokens
@@ -83,12 +83,18 @@ class SemanticChunker(BaseChunker):
         self._seen_questions: set[str] = set()
         self._dedup_skipped = 0
         self._qa_kept = 0
+        self._skipped_incomplete = 0
 
     def reset_dedup(self) -> None:
         """Forget seen questions and reset dedup counters (start of a rebuild)."""
         self._seen_questions.clear()
         self._dedup_skipped = 0
         self._qa_kept = 0
+        self._skipped_incomplete = 0
+
+    def get_skipped_incomplete(self) -> int:
+        """Return the count of incomplete QA rows skipped in the last chunk() call."""
+        return self._skipped_incomplete
 
     def dedup_stats(self) -> dict[str, int | bool]:
         """Return cumulative QA dedup counters across all chunk() calls."""
@@ -229,7 +235,7 @@ class SemanticChunker(BaseChunker):
                     )
                     has_answer = any(
                         k in fields
-                        for k in ("answer", "briefanswer", "brief_answer")
+                        for k in ("answer", "briefanswer")
                     )
                     # A QA row is incomplete if it is missing the question or
                     # the answer.  Such rows are skipped (never serve a user),
@@ -267,9 +273,9 @@ class SemanticChunker(BaseChunker):
                     ordinal=ordinal,
                     chunk_type=doc_type,
                     heading_path=f"Sheet: {sheet_name}" if sheet_name else "",
-                    keywords=fields.get("keyword", "").split("\u060c")
+                    keywords=[k.strip() for k in fields.get("keyword", "").split("\u060c") if k.strip()]
                     if "keyword" in fields
-                    else [],
+                    else ([k.strip() for k in fields.get("keywords", "").split("\u060c") if k.strip()] if "keywords" in fields else []),
                     token_count=_estimate_tokens(content),
                     metadata={
                         **metadata,
@@ -285,13 +291,6 @@ class SemanticChunker(BaseChunker):
                 ordinal += 1
 
             sheet_groups.append((sheet_name, schema, sheet_children))
-
-        if skipped_incomplete:
-            import logging
-            logging.getLogger(__name__).warning(
-                "Skipped %d incomplete QA rows (missing question or answer)",
-                skipped_incomplete,
-            )
 
         # --- Phase 3: Create parent chunks per configured scope ---
         if parent_scope == "document":
@@ -347,11 +346,14 @@ class SemanticChunker(BaseChunker):
                     child.metadata["parent_key"] = sheet_name
 
         if skipped_incomplete:
+            self._skipped_incomplete = skipped_incomplete
             import logging
             logging.getLogger(__name__).warning(
-                "Skipped %d incomplete QA rows (missing answer field)",
+                "Skipped %d incomplete QA rows (missing question or answer)",
                 skipped_incomplete,
             )
+        else:
+            self._skipped_incomplete = 0
 
         # Return both child and parent chunks
         all_chunks = chunks + parent_chunks

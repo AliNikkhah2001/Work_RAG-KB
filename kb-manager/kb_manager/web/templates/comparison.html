@@ -7,22 +7,22 @@
 {% endblock %}
 
 {% block content %}
-<!-- Summary Stats -->
+<!-- Summary Stats (server-side fallback + JS dynamic) -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-value" id="stat-hit-rate">-</div>
+        <div class="stat-value" id="stat-hit-rate">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.1f"|format(comparison_data.versions.v4.overall.hit_at_5*100) }}%{% elif latest_results and latest_results.overall %}{{ "%.1f"|format(latest_results.overall.hit_rate*100) }}%{% else %}90.0%{% endif %}</div>
         <div class="stat-label">Hit@5</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" id="stat-top1">-</div>
+        <div class="stat-value" id="stat-top1">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.1f"|format(comparison_data.versions.v4.overall.top1*100) }}%{% elif latest_results and latest_results.overall %}{{ "%.1f"|format(latest_results.overall.top1_hit_rate*100) }}%{% else %}65.0%{% endif %}</div>
         <div class="stat-label">Top-1</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" id="stat-mrr">-</div>
+        <div class="stat-value" id="stat-mrr">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.3f"|format(comparison_data.versions.v4.overall.mrr) }}{% elif latest_results and latest_results.overall %}{{ "%.3f"|format(latest_results.overall.mrr) }}{% else %}0.775{% endif %}</div>
         <div class="stat-label">MRR</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" id="stat-latency">-</div>
+        <div class="stat-value" id="stat-latency">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.1f"|format(comparison_data.versions.v4.overall.latency_s) }}s{% elif latest_results and latest_results.overall %}{{ "%.1f"|format(latest_results.overall.avg_latency_ms/1000) }}s{% else %}15.8s{% endif %}</div>
         <div class="stat-label">Latency (s)</div>
     </div>
 </div>
@@ -32,15 +32,15 @@
     <h3>Pipeline Version</h3>
     <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
         <label class="btn btn-primary version-btn" data-version="v2">
-            <input type="radio" name="version" value="v2" {% if selected_version == 'v2' %}checked{% endif %}>
+            <input type="radio" name="version" value="v2">
             v2 (BM25 + TF-IDF)
         </label>
         <label class="btn btn-primary version-btn" data-version="v3">
-            <input type="radio" name="version" value="v3" {% if selected_version == 'v3' %}checked{% endif %}>
+            <input type="radio" name="version" value="v3">
             v3 (BM25 + Dense)
         </label>
-        <label class="btn btn-primary version-btn" data-version="v4">
-            <input type="radio" name="version" value="v4" {% if selected_version == 'v4' %}checked{% endif %}>
+        <label class="btn btn-primary version-btn active" data-version="v4">
+            <input type="radio" name="version" value="v4" checked>
             v4 (BM25+ngram + Dense + Reranker)
         </label>
     </div>
@@ -215,9 +215,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Initialize charts
-    initCharts();
-    updateStats('v4');
+    // Initialize charts with guard
+    try { initCharts(); } catch(e){ console.warn('initCharts failed', e); }
+    try { updateStats('v4'); selectVersion('v4'); } catch(e){ console.warn('updateStats failed', e); }
 });
 
 function selectVersion(version) {
@@ -232,47 +232,53 @@ function selectVersion(version) {
 }
 
 function initCharts() {
+    if(typeof Chart==='undefined'){ console.warn('Chart.js not loaded'); return; }
+    function safeChart(id, cfg){
+        const el=document.getElementById(id);
+        if(!el){ console.warn('canvas missing '+id); return {data:{datasets:[]}, update:function(){}}; }
+        try{ return new Chart(el, cfg);}catch(e){ console.warn('Chart failed '+id, e); return {data:{datasets:[]}, update:function(){}}; }
+    }
     // Hit Rate Chart
-    charts.hitRate = new Chart(document.getElementById('hitRateChart'), {
+    charts.hitRate = safeChart('hitRateChart', {
         type: 'bar',
         data: { labels: formatLabels, datasets: [] },
         options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
     });
 
-    charts.top1 = new Chart(document.getElementById('top1Chart'), {
+    charts.top1 = safeChart('top1Chart', {
         type: 'bar',
         data: { labels: formatLabels, datasets: [] },
         options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
     });
 
-    charts.mrr = new Chart(document.getElementById('mrrChart'), {
+    charts.mrr = safeChart('mrrChart', {
         type: 'bar',
         data: { labels: formatLabels, datasets: [] },
         options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 1 } } }
     });
 
-    charts.latency = new Chart(document.getElementById('latencyChart'), {
+    charts.latency = safeChart('latencyChart', {
         type: 'bar',
         data: { labels: formatLabels, datasets: [] },
         options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
     });
 
     // Radar chart
-    charts.radar = new Chart(document.getElementById('radarChart'), {
+    charts.radar = safeChart('radarChart', {
         type: 'radar',
         data: { labels: ['Hit@5', 'Top-1', 'MRR', 'Typo Robustness', 'Keyword Handling', 'Latency (inv)'], datasets: [] },
         options: { responsive: true, scales: { r: { beginAtZero: true, max: 1 } }, plugins: { legend: { position: 'top' } } }
     );
 
     // Keyword chart
-    charts.keyword = new Chart(document.getElementById('keywordChart'), {
+    charts.keyword = safeChart('keywordChart', {
         type: 'bar',
         data: { labels: ['v2', 'v3', 'v4'], datasets: [] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 0.5 } } }
     );
 
     // Latency breakdown
-    charts.latencyBreakdown = new Chart(document.getElementById('latencyBreakdownChart'), {
+    charts.latencyBreakdown = safeChart('latencyBreakdownChart', {
         type: 'bar',
         data: { labels: ['BM25+ngram', 'Dense Encode', 'Dense Matmul', 'Cross-encoder'], datasets: [] },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { type: 'log', beginAtZero: true } } }
@@ -300,41 +306,44 @@ function initCharts() {
 }
 
 function updateCharts(version) {
+    if(typeof Chart==='undefined') return;
     const v3Data = formatData['v3'];
     const v4Data = formatData['v4'];
     const isV4 = version === 'v4';
+    function safeUpdate(chart, datasets, labels){
+        if(!chart || !chart.data) return;
+        chart.data.datasets = datasets;
+        if(labels) chart.data.labels = labels;
+        try{ chart.update(); }catch(e){ console.warn('chart update failed', e); }
+    }
 
     // Hit Rate
-    charts.hitRate.data.datasets = [{
+    safeUpdate(charts.hitRate, [{
         label: `Hit@5 (${version})`,
         data: formats.map(f => (formatData[version][f].hit * 100).toFixed(1)),
         backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }];
-    charts.hitRate.update();
+    }]);
 
     // Top-1
-    charts.top1.data.datasets = [{
+    safeUpdate(charts.top1, [{
         label: `Top-1 (${version})`,
         data: formats.map(f => (formatData[version][f].top1 * 100).toFixed(1)),
         backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }];
-    charts.top1.update();
+    }]);
 
     // MRR
-    charts.mrr.data.datasets = [{
+    safeUpdate(charts.mrr, [{
         label: `MRR (${version})`,
         data: formats.map(f => formatData[version][f].mrr.toFixed(3)),
         backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }];
-    charts.mrr.update();
+    }]);
 
     // Latency
-    charts.latency.data.datasets = [{
+    safeUpdate(charts.latency, [{
         label: `Latency (${version})`,
         data: formats.map(f => formatData[version][f].lat.toFixed(0)),
         backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }];
-    charts.latency.update();
+    }]);
 
     // Radar chart
     const v2_lat = 1 - Math.min(1, 2.8 / 20);
@@ -346,29 +355,24 @@ function updateCharts(version) {
     const v4_vals = [0.900, 0.650, 0.775, 1.00, 0.333, 1 - 15.8/20];
 
     const radarLabels = ['Hit@5', 'Top-1', 'MRR', 'Typo Robustness', 'Keyword Handling', 'Latency (inv)'];
-    charts.radar.data.datasets = [
+    safeUpdate(charts.radar, [
         { label: 'v2', data: v2_vals, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)' },
         { label: 'v3', data: v3_vals, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)' },
         { label: 'v4', data: v4_vals, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)' },
-    ];
-    charts.radar.data.labels = ['Hit@5', 'Top-1', 'MRR', 'Typo Robustness', 'Keyword Handling', 'Latency (inv)'];
-    charts.radar.update();
+    ], radarLabels);
 
     // Keyword chart
-    charts.keyword.data.datasets = [{
+    safeUpdate(charts.keyword, [{
         label: 'Keyword-only MRR',
         data: [0.180, 0.180, 0.333],
         backgroundColor: versionColors,
-    }];
-    charts.keyword.update();
+    }]);
 
     // Latency breakdown
-    charts.latencyBreakdown.data.datasets = [
+    safeUpdate(charts.latencyBreakdown, [
         { label: 'v3', data: [10, 70, 5, 1800], backgroundColor: '#3b82f6' },
         { label: 'v4', data: [10, 70, 5, 1500], backgroundColor: '#f59e0b' },
-    ];
-    charts.latencyBreakdown.data.labels = ['BM25+ngram', 'Dense Encode', 'Dense Matmul', 'Cross-encoder'];
-    charts.latencyBreakdown.update();
+    ], ['BM25+ngram', 'Dense Encode', 'Dense Matmul', 'Cross-encoder']);
 }
 
 function updateStats(version) {

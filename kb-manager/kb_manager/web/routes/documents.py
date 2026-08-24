@@ -9,7 +9,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 
 from kb_manager.models.database import Chunk, Document
-from kb_manager.web.app import db, templates
+from kb_manager.web.deps import db, templates
 
 router = APIRouter()
 

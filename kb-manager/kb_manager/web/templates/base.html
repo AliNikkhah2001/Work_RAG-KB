@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}KB Manager{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="/static/lib/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="console.warn('CDN Chart.js failed, using local stub')"></script>
+    <script>if(typeof Chart==='undefined'){window.Chart=function(){return{update:function(){},data:{datasets:[]}}};window.Chart.register=function(){};console.warn('Chart.js not loaded, using stub - charts disabled');}</script>
 </head>
 <body>
     <div class="app-layout">
@@ -21,6 +23,7 @@
                 <li><a href="/pipeline" class="nav-link {% if '/pipeline' in request.url.path %}active{% endif %}">Pipeline</a></li>
                 <li><a href="/versions" class="nav-link {% if '/versions' in request.url.path %}active{% endif %}">Versions</a></li>
                 <li><a href="/monitoring" class="nav-link {% if '/monitoring' in request.url.path %}active{% endif %}">Monitoring</a></li>
+                <li><a href="/cleanup/qa" class="nav-link {% if '/cleanup' in request.url.path %}active{% endif %}">Cleanup QA</a></li>
                 <li><a href="/search" class="nav-link {% if '/search' in request.url.path %}active{% endif %}">Search</a></li>
                 <li><a href="/benchmarks" class="nav-link {% if '/benchmarks' in request.url.path %}active{% endif %}">Benchmarks</a></li>
                 <li><a href="/benchmarks/comparison" class="nav-link {% if '/benchmarks/comparison' in request.url.path %}active{% endif %}">Comparison</a></li>

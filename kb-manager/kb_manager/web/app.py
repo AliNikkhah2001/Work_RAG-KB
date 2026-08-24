@@ -7,25 +7,33 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
-from kb_manager.config import load_config
-from kb_manager.models.database import Database
-
-BASE_DIR = Path(__file__).resolve().parent
-TEMPLATES_DIR = BASE_DIR / "templates"
-STATIC_DIR = BASE_DIR / "static"
-
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-
-config = load_config()
-db = Database(config.db)
-
+from kb_manager.web.deps import db, templates
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create tables on startup."""
+    """Create tables on startup and pre-warm search index."""
     await db.create_tables()
+    # Ensure indexes exist on existing tables (create_all only creates missing tables)
+    try:
+        async with db.async_engine.begin() as conn:
+            await conn.execute(
+                __import__("sqlalchemy").text(
+                    "CREATE INDEX IF NOT EXISTS ix_chunks_created_at ON chunks (created_at)"
+                )
+            )
+    except Exception:
+        pass
+    # Pre-warm search index (BM25 + dense embeddings + reranker) so the first
+    # query doesn't block for 30+ seconds on model loading.
+    try:
+        from kb_manager.web.routes.search import _get_index
+        import logging
+        logging.getLogger(__name__).info("Pre-warming search index...")
+        await _get_index()
+        logging.getLogger(__name__).info("Search index ready.")
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Search index pre-warm failed: %s", exc)
     yield
     await db.close()
 
@@ -37,11 +45,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
 
 from kb_manager.web.routes import (
     benchmarks,
     chunks,
+    cleanup,
     documents,
     monitoring,
     pipeline,
@@ -56,6 +65,31 @@ app.include_router(versions.router, prefix="/versions", tags=["versions"])
 app.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
 app.include_router(search.router, prefix="/search", tags=["search"])
 app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
+
+# Workaround for FastAPI 0.141+ include_router not working properly
+# Manually add cleanup routes with /cleanup prefix
+for route in cleanup.router.routes:
+    if hasattr(route, "path"):
+        # Create a copy of the route with prefixed path
+        from fastapi.routing import APIRoute
+        if isinstance(route, APIRoute):
+            new_route = APIRoute(
+                path="/cleanup" + route.path,
+                endpoint=route.endpoint,
+                methods=route.methods,
+                response_class=route.response_class,
+                name=route.name,
+                tags=route.tags,
+                summary=route.summary,
+                description=route.description,
+                response_model=route.response_model,
+                status_code=route.status_code,
+                dependencies=route.dependencies,
+                callbacks=route.callbacks,
+                openapi_extra=route.openapi_extra,
+                include_in_schema=route.include_in_schema,
+            )
+            app.router.routes.append(new_route)
 
 
 @app.get("/")

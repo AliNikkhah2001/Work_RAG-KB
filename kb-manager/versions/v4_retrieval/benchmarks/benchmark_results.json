@@ -1,0 +1,158 @@
+{
+  "version": "live-kb",
+  "created_at": "2026-08-19T14:57:53.040273+00:00",
+  "top_k": 5,
+  "total_queries": 5,
+  "by_format": {
+    "keyword_only": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 5745.7
+    },
+    "paraphrase": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 0.0,
+      "mrr": 0.5,
+      "avg_rank": 2.0,
+      "avg_latency_ms": 8281.3
+    },
+    "reworded": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 0.0,
+      "mrr": 0.5,
+      "avg_rank": 2.0,
+      "avg_latency_ms": 7202.9
+    },
+    "typo": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 7693.6
+    },
+    "verbatim": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 161180.4
+    }
+  },
+  "overall": {
+    "queries": 5,
+    "hit_rate": 1.0,
+    "top1_hit_rate": 0.6,
+    "mrr": 0.8,
+    "avg_rank": 1.4,
+    "avg_latency_ms": 38020.8
+  },
+  "queries": [
+    {
+      "query": "آیا امکان ارائه ضمانت‌نامه بانکی به‌جای چک وجود دارد",
+      "expected_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 0.818,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 161180.4,
+      "retrieved_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84",
+        "003f5540-d357-4ef3-a1ec-0cab2b5f499a",
+        "af679ca4-3fde-474d-93d6-becf102db3a9",
+        "927f9145-41e2-4b76-81c9-96db077190c8",
+        "2a966884-86e9-4b03-a324-73fb66667e6c"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که آیا چک ارائه ضمانت‌نامه بانکی به‌جای امکان وجود دارد؟؟",
+      "expected_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.562,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 8281.3,
+      "retrieved_ids": [
+        "003f5540-d357-4ef3-a1ec-0cab2b5f499a",
+        "6829e9b6-b782-4179-9311-9a9089976d84",
+        "639e73a2-0e67-4330-966d-0899d816c157",
+        "2271bbfc-9f72-4e9c-bc03-f6c83bdcdc76",
+        "6b922e2c-4904-4a18-a91c-40ee075509cd"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم در این بخش آیا ارائه چک بانکی ضمانت‌نامه دارد؟؟",
+      "expected_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.294,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 7202.9,
+      "retrieved_ids": [
+        "003f5540-d357-4ef3-a1ec-0cab2b5f499a",
+        "6829e9b6-b782-4179-9311-9a9089976d84",
+        "40e85ec2-9128-44ec-bb0d-f100e80c0dc3",
+        "88d7202f-09ee-4e08-9573-8b60b15f42de",
+        "e75257c3-7c73-4f81-b9d0-8db813e6239c"
+      ]
+    },
+    {
+      "query": "چک بانک تغییر نام به‌روز‌...",
+      "expected_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.071,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 5745.7,
+      "retrieved_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84",
+        "003f5540-d357-4ef3-a1ec-0cab2b5f499a",
+        "4d1739c8-2525-4afa-9d4d-751431098b1c",
+        "0d91f72e-8ec0-4b63-b39b-46c8263db2c6",
+        "afd17226-5fa6-4376-942a-7cf95aec9287"
+      ]
+    },
+    {
+      "query": "آیا امکان ارائه ضمانتنامه بانکی به‌جای چک وجود دارد؟",
+      "expected_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.727,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 7693.6,
+      "retrieved_ids": [
+        "6829e9b6-b782-4179-9311-9a9089976d84",
+        "003f5540-d357-4ef3-a1ec-0cab2b5f499a",
+        "af679ca4-3fde-474d-93d6-becf102db3a9",
+        "927f9145-41e2-4b76-81c9-96db077190c8",
+        "32ca0c38-5d08-4f6f-8034-db68155b28e2"
+      ]
+    }
+  ]
+}

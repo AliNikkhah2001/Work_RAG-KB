@@ -25,11 +25,13 @@
                     <td>{{ doc.title }}</td>
                     <td>{{ doc.domain }}</td>
                     <td>{{ doc.version }}</td>
-                    <td>{{ doc.versions|length }}</td>
+                    <td>{{ doc.versions|length if doc.versions is defined else '-' }}</td>
                     <td>
                         <a href="/versions/{{ doc.id }}" class="btn btn-secondary btn-sm">History</a>
                     </td>
                 </tr>
+                {% else %}
+                <tr><td colspan="5" style="text-align:center; opacity:0.7;">No versioned documents yet. Run ingestion to create versions.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

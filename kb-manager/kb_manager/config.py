@@ -19,6 +19,7 @@ class DatabaseConfig:
     password: str = "postgres"
     echo: bool = False
     url_override: str = ""
+    _sqlite_default: bool = False
 
     @property
     def async_url(self) -> str:
@@ -66,7 +67,7 @@ class ChunkingConfig:
     overlap_tokens: int = 50
     parent_max_tokens: int = 1536
     parent_scope: str = "sheet"  # "sheet" or "document"
-    dedup_questions: bool = False  # keep one canonical chunk per normalized question
+    dedup_questions: bool = True  # keep one canonical chunk per normalized question
 
 
 @dataclass(frozen=True)
@@ -101,7 +102,7 @@ class AppConfig:
 
 def load_config() -> AppConfig:
     """Load config from environment variables with sensible defaults."""
-    db_url = os.getenv("KB_DB_URL", "")
+    db_url = os.getenv("KB_DB_URL", "sqlite+aiosqlite:///./data/kb_test.db")
     return AppConfig(
         db=DatabaseConfig(
             host=os.getenv("KB_DB_HOST", "localhost"),
@@ -110,7 +111,7 @@ def load_config() -> AppConfig:
             user=os.getenv("KB_DB_USER", "postgres"),
             password=os.getenv("KB_DB_PASSWORD", "postgres"),
             echo=os.getenv("KB_DB_ECHO", "false").lower() == "true",
-            url_override=db_url,
+            url_override=os.getenv("KB_DB_URL", db_url),
         ),
         embedding=EmbeddingConfig(
             model_name=os.getenv(

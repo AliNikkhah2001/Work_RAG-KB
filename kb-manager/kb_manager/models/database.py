@@ -106,6 +106,7 @@ class Chunk(Base):
         Index("ix_chunks_document_id", "document_id"),
         Index("ix_chunks_ordinal", "document_id", "ordinal"),
         Index("ix_chunks_parent_id", "parent_id"),
+        Index("ix_chunks_created_at", "created_at"),
     )
 
 

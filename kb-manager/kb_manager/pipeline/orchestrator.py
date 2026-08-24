@@ -43,6 +43,7 @@ class PipelineSummary:
     documents_failed: int = 0
     chunks_created: int = 0
     chunks_embedded: int = 0
+    chunks_skipped_incomplete: int = 0
     versions_created: int = 0
     errors: list[dict[str, str]] = field(default_factory=list)
     elapsed_seconds: float = 0.0
@@ -58,6 +59,7 @@ class PipelineSummary:
             "documents_failed": self.documents_failed,
             "chunks_created": self.chunks_created,
             "chunks_embedded": self.chunks_embedded,
+            "chunks_skipped_incomplete": self.chunks_skipped_incomplete,
             "versions_created": self.versions_created,
             "errors": self.errors,
             "elapsed_seconds": round(self.elapsed_seconds, 2),
@@ -136,6 +138,7 @@ class PipelineOrchestrator:
                     summary.documents_updated += result["updated"]
                     summary.chunks_created += result["chunks"]
                     summary.chunks_embedded += result["embedded"]
+                    summary.chunks_skipped_incomplete += result.get("chunks_skipped_incomplete", 0)
                     summary.versions_created += result["versions"]
                 except Exception:
                     logger.exception("Failed to process %s", file_path)
@@ -182,6 +185,7 @@ class PipelineOrchestrator:
                         summary.documents_updated += result["updated"]
                         summary.chunks_created += result["chunks"]
                         summary.chunks_embedded += result["embedded"]
+                        summary.chunks_skipped_incomplete += result.get("chunks_skipped_incomplete", 0)
                         summary.versions_created += result["versions"]
                 except Exception:
                     logger.exception("Failed to process %s", file_path)
@@ -310,6 +314,10 @@ class PipelineOrchestrator:
                 "parent_max_tokens": getattr(self._chunker, "parent_max_tokens", 1536),
             },
         )
+
+        # Capture skipped incomplete QA rows
+        if hasattr(self._chunker, "get_skipped_incomplete"):
+            result["chunks_skipped_incomplete"] = self._chunker.get_skipped_incomplete()
 
         if not chunks:
             logger.warning("No chunks produced for %s", file_path)

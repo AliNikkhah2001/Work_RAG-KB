@@ -211,7 +211,7 @@ class SearchSteps(BaseModel):
 async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
     """Load all chunks + docs and build BM25 + dense indexes + reranker."""
     from kb_manager.models.database import Chunk, Document
-    from kb_manager.web.app import db
+    from kb_manager.web.deps import db
 
     async with db.session() as session:
         result = await session.execute(select(Chunk))
@@ -231,7 +231,11 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
     for c in all_chunks:
         doc = doc_map.get(c.document_id)
         title = doc.title if doc else "Unknown"
-        docs_for_bm25.append((c.id, c.content))
+        # Boost keywords in BM25 by repeating them in the content
+        # Keywords get 3x weight by being added 3 times
+        keyword_text = " ".join(c.keywords) if c.keywords else ""
+        boosted_content = c.content + " " + keyword_text + " " + keyword_text + " " + keyword_text
+        docs_for_bm25.append((c.id, boosted_content))
         chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type))
         dense_titles.append(title)
         dense_headings.append(c.heading_path)
@@ -274,7 +278,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25,
     from sqlalchemy import func
 
     from kb_manager.models.database import Chunk
-    from kb_manager.web.app import db
+    from kb_manager.web.deps import db
 
     async with db.session() as session:
         chunk_count = (
@@ -428,7 +432,7 @@ def search_knowledge_base_sync(query: str, top_k: int = 10) -> SearchSteps:
 @router.get("")
 async def search_page(request: Request):
     """Search/test query page."""
-    from kb_manager.web.app import templates
+    from kb_manager.web.deps import templates
 
     return templates.TemplateResponse(request, "search.html", {})
 

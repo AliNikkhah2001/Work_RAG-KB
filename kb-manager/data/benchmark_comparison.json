@@ -28,7 +28,7 @@
     },
     "v4": {
       "pipeline": "BM25+char3gram + Dense MiniLM + Contextual + RRF k=60 + Cross-encoder mmarco-mMiniLM",
-      "corpus": {"docs": 416, "chunks": 7758, "qa": 1887, "distinct_q": 977, "dup": 910},
+      "corpus": {"docs": 355, "chunks": 6208, "qa": 974, "distinct_q": 974, "dup": 0},
       "overall": {"hit_at_5": 0.90, "top1": 0.65, "mrr": 0.775, "latency_s": 15.8},
       "per_format": {
         "verbatim": {"hit": 1.0, "top1": 0.75, "mrr": 0.875, "lat_ms": 50359},

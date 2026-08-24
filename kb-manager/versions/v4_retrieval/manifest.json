@@ -1,0 +1,17 @@
+{
+  "version": "v4_retrieval",
+  "created_at": "2026-08-19T15:05:10.976943+00:00",
+  "git_commit": "cfdf787",
+  "source_db": "kb_test.db",
+  "notes": "v4: BM25+ngram + Dense + RRF + Cross-encoder reranker + contextual retrieval",
+  "counts": {
+    "documents": 416,
+    "chunks_total": 7758,
+    "qa_chunks": 1887,
+    "body_chunks": 5871,
+    "distinct_questions": 977,
+    "duplicate_instances": 910,
+    "questions_with_gt1_copies": 823,
+    "questions_with_gt5_copies": 0
+  }
+}

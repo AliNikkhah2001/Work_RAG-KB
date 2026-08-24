@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block header %}
+<h1>Cleanup Incomplete QA Chunks</h1>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_docs }}</div>
+        <div class="stat-label">Documents with Issues</div>
+    </div>
+    <div class="stat-card warning">
+        <div class="stat-value">{{ total_incomplete }}</div>
+        <div class="stat-label">Incomplete QA Chunks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_qa }}</div>
+        <div class="stat-label">Total QA Chunks</div>
+    </div>
+    <div class="stat-card" style="background:#dcfce7;">
+        <div class="stat-value">{{ complete_qa if complete_qa is defined else total_qa - total_incomplete }}</div>
+        <div class="stat-label">Complete QA</div>
+    </div>
+</div>
+<p style="opacity:0.7; font-size:0.85rem; margin-top:0.5rem;">DB: {{ total_qa }} total QA chunks, {{ total_incomplete }} incomplete ({{ total_docs }} docs affected). Ingestion now filters incomplete rows.</p>
+
+{% if cleaned_all is defined and cleaned_all|int > 0 %}
+<div class="alert alert-success">
+    Cleaned {{ cleaned_all }} incomplete chunks across all documents. Kept {{ kept_all }} complete chunks.
+</div>
+{% endif %}
+
+{% if previews %}
+<div class="table-container">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Document</th>
+                <th>Total QA</th>
+                <th>Complete</th>
+                <th class="warning">Incomplete</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for preview in previews %}
+            <tr>
+                <td>
+                    <strong>{{ preview.document_title }}</strong><br>
+                    <small class="text-muted">{{ preview.document_id[:8] }}...</small>
+                </td>
+                <td>{{ preview.total_qa_chunks }}</td>
+                <td>{{ preview.complete_chunks }}</td>
+                <td class="warning"><strong>{{ preview.incomplete_count }}</strong></td>
+                <td>
+                    <a href="/cleanup/qa/{{ preview.document_id }}/preview" class="btn btn-sm btn-primary">Preview</a>
+                    <form action="/cleanup/qa/{{ preview.document_id }}/execute" method="post" style="display: inline;"
+                          onsubmit="return confirm('Clean incomplete chunks for this document? This creates a version snapshot.');">
+                        <button type="submit" class="btn btn-sm btn-danger">Clean</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="actions-bar">
+    <form action="/cleanup/qa/execute-all" method="post"
+          onsubmit="return confirm('Clean ALL documents with incomplete chunks? This creates version snapshots for each.');">
+        <button type="submit" class="btn btn-danger">Clean All Documents ({{ total_incomplete }} chunks)</button>
+    </form>
+</div>
+{% else %}
+<div class="alert alert-success">
+    <h3>No incomplete QA chunks found!</h3>
+    <p>All QA chunks have both question and answer fields populated.</p>
+</div>
+{% endif %}
+{% endblock %}
