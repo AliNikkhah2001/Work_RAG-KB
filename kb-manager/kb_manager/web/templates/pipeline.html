@@ -9,14 +9,17 @@
 <div class="toolbar">
     <div class="pipeline-actions">
         <form method="post" action="/pipeline/run" style="display:inline">
+            <label>Source Directory:</label>
+            <input type="text" name="source_dir" value="{{ source_dir }}" style="width:400px; margin:0 8px;">
             <select name="parent_scope">
                 <option value="sheet" {% if chunking_config.parent_scope == "sheet" %}selected{% endif %}>Parent: per sheet</option>
                 <option value="document" {% if chunking_config.parent_scope == "document" %}selected{% endif %}>Parent: per document</option>
             </select>
-            <input type="hidden" name="job_type" value="full">
+            <input type="hidden" name="job_type" value="full_rebuild">
             <button type="submit" class="btn btn-warning">Full Rebuild</button>
         </form>
         <form method="post" action="/pipeline/run" style="display:inline">
+            <input type="hidden" name="source_dir" value="{{ source_dir }}">
             <input type="hidden" name="job_type" value="incremental">
             <button type="submit" class="btn btn-primary">Incremental</button>
         </form>

@@ -138,7 +138,7 @@ def load_config() -> AppConfig:
             base_url=os.getenv("KB_RAGAS_BASE_URL", ""),
             k=int(os.getenv("KB_RAGAS_K", "5")),
         ),
-        source_dir=os.getenv("KB_SOURCE_DIR", str(PROJECT_ROOT / "data")),
+        source_dir=os.getenv("KB_SOURCE_DIR", str(PROJECT_ROOT / "kb-source")),
         output_dir=os.getenv("KB_OUTPUT_DIR", str(PROJECT_ROOT / "data" / "processed")),
         web_host=os.getenv("KB_WEB_HOST", "0.0.0.0"),
         web_port=int(os.getenv("KB_WEB_PORT", "8000")),
