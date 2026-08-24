@@ -1,0 +1,2466 @@
+{
+  "version": "live-kb",
+  "created_at": "2026-08-24T10:29:17.066263+00:00",
+  "top_k": 5,
+  "total_queries": 120,
+  "by_format": {
+    "conversational": {
+      "queries": 20,
+      "hit_rate": 0.85,
+      "top1_hit_rate": 0.75,
+      "mrr": 0.7917,
+      "avg_rank": 1.18,
+      "avg_latency_ms": 7516.8
+    },
+    "keyword_only": {
+      "queries": 20,
+      "hit_rate": 0.65,
+      "top1_hit_rate": 0.15,
+      "mrr": 0.3667,
+      "avg_rank": 2.08,
+      "avg_latency_ms": 3521.3
+    },
+    "paraphrase": {
+      "queries": 20,
+      "hit_rate": 0.9,
+      "top1_hit_rate": 0.8,
+      "mrr": 0.8417,
+      "avg_rank": 1.17,
+      "avg_latency_ms": 3634.3
+    },
+    "reworded": {
+      "queries": 20,
+      "hit_rate": 0.75,
+      "top1_hit_rate": 0.7,
+      "mrr": 0.725,
+      "avg_rank": 1.07,
+      "avg_latency_ms": 3620.2
+    },
+    "typo": {
+      "queries": 20,
+      "hit_rate": 0.95,
+      "top1_hit_rate": 0.9,
+      "mrr": 0.9167,
+      "avg_rank": 1.11,
+      "avg_latency_ms": 3327.4
+    },
+    "verbatim": {
+      "queries": 20,
+      "hit_rate": 0.95,
+      "top1_hit_rate": 0.8,
+      "mrr": 0.8667,
+      "avg_rank": 1.21,
+      "avg_latency_ms": 3415.7
+    }
+  },
+  "overall": {
+    "queries": 120,
+    "hit_rate": 0.8417,
+    "top1_hit_rate": 0.6833,
+    "mrr": 0.7514,
+    "avg_rank": 1.27,
+    "avg_latency_ms": 4172.6
+  },
+  "queries": [
+    {
+      "query": "راستی، آیا می‌شه گزارش‌های مصرف را به‌صورت خودکار در سیستم خود ذخیره کرد؟",
+      "expected_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.436,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 79743.2,
+      "retrieved_ids": [
+        "80d7791a-da09-4643-bf88-2655fadada22",
+        "f20d6521-05c8-4151-a6fa-fc871a146b53",
+        "199dd8c3-e9ec-486d-8a2e-91b1f25c57b4",
+        "59ad0753-e3b8-42cb-b6e2-041d38b1fe8b",
+        "5b2bc0eb-ba47-4c6b-879f-31a63dda5d03"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، جدول نوع تماس (Type Of Contact) شامل چه مواردی است؟",
+      "expected_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.579,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 1963.9,
+      "retrieved_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79",
+        "c6d93503-f7ba-46a2-91b2-4c379870dc1a",
+        "f9f487ac-1809-4f2f-bcf1-63b333165dd9",
+        "c4f59ee4-1199-4af5-922f-a28a0b5c1f9c",
+        "4b02228b-4805-4359-ab49-80ba17f3d578"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم آیا پس از امضای توافق‌نامه شرکت به حضور فیزیکی نماینده شرکت در دفتر نیاز اعتبارسنجی ایران وجود دارد؟؟",
+      "expected_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.628,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2569.0,
+      "retrieved_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c",
+        "96ca87a9-729f-4d5d-80e0-e14c3bb03d80",
+        "6af94614-4ee0-4184-a909-732b539bfe1b",
+        "b384a0cf-385e-41fe-8770-d0388ddf7cf1",
+        "dd8b07f4-9810-428d-9773-baea122dd372"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که بر اساس اسناد آیا مالی اعتبارسنجی خروجی در می‌گیرن؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.425,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2606.3,
+      "retrieved_ids": [
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0",
+        "26c68435-a69d-441e-ba82-008a71d79ede",
+        "c6ce729a-a0c1-4d58-a3d4-eba39864e761",
+        "8fad465f-4671-4941-b8b6-60f1314d281e",
+        "8f097ec3-9e51-4f67-840f-6f2bd44dbd2d"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید در عمل اگر در زلزله یا تسویه بدهی بلایای آسیب میبینه؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.47,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2894.3,
+      "retrieved_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c",
+        "86ad9ae5-aa00-48b0-adff-e90faa4160ce",
+        "182c51ba-3bab-40e7-8ee8-d01da61f1d06",
+        "641ca03e-d9b6-4a4a-a44a-0ffa5fa0aca7",
+        "33517d68-6882-48ac-9a83-567445031f7a"
+      ]
+    },
+    {
+      "query": "ببخشید، مسئولیت بانک‌ها و موسسات اعتباری در ارسال داده چیست . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.449,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2669.5,
+      "retrieved_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2",
+        "3eee8f48-bdf6-40ff-b797-88f73331dd48",
+        "05afe0a1-6f6a-4d55-988c-32947e205b3b",
+        "c43b9c24-c3e3-4ce8-b78c-71d6b47716a1",
+        "26c68435-a69d-441e-ba82-008a71d79ede"
+      ]
+    },
+    {
+      "query": "تفاوت شرکت شما با رقبایتان (شرکت مرآت یا حافظ سامان ایرانیان، اسم رقبا) چیست؟",
+      "expected_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.659,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2751.3,
+      "retrieved_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5",
+        "17d909f0-1206-4b38-a510-c0579c272831",
+        "42976708-482b-4582-ba8f-40ba83eac586",
+        "3ae7fc8a-7e8e-4540-9c6f-2bb5f2807ce5",
+        "3ef044e5-3f6d-4647-b6b2-59533eb80a97"
+      ]
+    },
+    {
+      "query": "آیا امکان دارد یک شرکت با سابقه منفی در گزارش اعتباری، پس از تغییر مدیریت و سهامداران، امتیاز اعتباری و رتبه اعتباری جدیدی دریافت کند",
+      "expected_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2652.1,
+      "retrieved_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "7b52e396-dff6-4c83-8b53-d3ffd87b1128",
+        "5389ef37-5e51-4cdd-bd55-c5f5ca1d1c62",
+        "71b675a5-7817-4ac9-986d-f6afb44e3fe8",
+        "5f08c767-e424-4105-8107-719ce743330b"
+      ]
+    },
+    {
+      "query": "محکومیت غیر مالی قوه قضاییه عدم تاثیر",
+      "expected_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.693,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 4398.1,
+      "retrieved_ids": [
+        "8d7f36a2-bd01-4db4-9f09-b2cbb4cce71f",
+        "e9ca442c-a080-4f3a-abf0-79e08f9268c5",
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c",
+        "4c1c62d4-7d0f-4eb1-872d-a3aa03fd86a7",
+        "805781eb-db77-434f-b7b3-2973939860ca"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که در عمل امتیاز کسانی بوده چک که اند تحت تاثیر قرار میگیرد؟ (سوال است) . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.652,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3798.0,
+      "retrieved_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "ef4d6a2e-db19-4c35-9e39-c23191add5aa",
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e",
+        "93c1ed2d-c403-4829-bfce-5ee83d18e6a6",
+        "e23394e6-a69c-4e0c-9dde-a9cab9ce64e0"
+      ]
+    },
+    {
+      "query": "آیا داده‌های مالیاتی در تعیین اعتبار اهمیت دارد",
+      "expected_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3266.9,
+      "retrieved_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2",
+        "5829ffb0-80bf-4bf4-aa27-fd53d777e774",
+        "5b793b03-64b8-472e-b3ea-fb7ae7b03cf7",
+        "72860f0a-5433-47d0-a071-0cfa02fa9151",
+        "e74ce849-7787-4f1a-b5b2-f732a7af16b2"
+      ]
+    },
+    {
+      "query": "شاخص اعتماد ریسک پایین موسسات مالی خوش حسابی",
+      "expected_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.598,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 4352.3,
+      "retrieved_ids": [
+        "92dfb729-c9e2-49b9-bb53-c200cff1af1c",
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349",
+        "6040fb93-2b65-4ee1-88a8-689bbfa96a9e",
+        "49cb5a54-12ab-4e77-a09e-b0ed097c9530",
+        "0e9dbe3e-1816-4151-a233-5fda90f439d0"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که همان‌طور که اشاره شد آیا تعیین مالیاتی اعتبار دارد؟؟",
+      "expected_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.343,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 4123.6,
+      "retrieved_ids": [
+        "5829ffb0-80bf-4bf4-aa27-fd53d777e774",
+        "783e98ba-76da-45ef-9898-ef32c4342b7e",
+        "244f9ac6-4c14-4f0f-91d2-7aad6955effe",
+        "aa47fa30-0a7c-4ef5-996d-bcfdc9e63d9a",
+        "8a7b6316-7a0d-4622-87b7-6f57dc57d18e"
+      ]
+    },
+    {
+      "query": "آیا اطلاعات شخصی من در گزراش اعتباری نمایش داده میشود؟",
+      "expected_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.585,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3150.4,
+      "retrieved_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a",
+        "ebc8fc00-ee6e-422d-91d7-5cf0d96f8e2c",
+        "56421fe5-5de8-4da1-b76d-5d24dd7f55ef",
+        "e0bc997d-b09c-4b75-85e6-9d63194a2f94",
+        "f08149ba-08bb-4f37-8f60-14acb9c5f696"
+      ]
+    },
+    {
+      "query": "راستی، آیا پس از امضای قرارداد نیاز به حضور فیزیکی نماینده شرکت در دفتر شرکت اعتبارسنجی ایران وجود دارد . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.34,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4834.2,
+      "retrieved_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c",
+        "96ca87a9-729f-4d5d-80e0-e14c3bb03d80",
+        "33bae47f-dac7-4f40-99dd-713ff767b7db",
+        "dd8b07f4-9810-428d-9773-baea122dd372",
+        "4e887254-f66d-47e0-87a0-244d6164a706"
+      ]
+    },
+    {
+      "query": "راستی، چرا امتیاز اعتباری و رتبه اعتباری من مهم است . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.606,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3568.9,
+      "retrieved_ids": [
+        "f78240a1-9c9d-4983-a127-790e50051b96",
+        "48592927-abd9-4617-8a78-2bf71e5ffba9",
+        "fc1ac313-aaed-4187-9e1d-2de3ab4327da",
+        "a6a0e2c8-dc81-4c3e-8cc9-5f3f7720de57",
+        "1066505b-1a65-427a-80f4-ef3ae47f5110"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، آیا اطلاعات شخصی من در گزارش اعتباری نمایش داده میشه . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.676,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2810.5,
+      "retrieved_ids": [
+        "f08149ba-08bb-4f37-8f60-14acb9c5f696",
+        "56421fe5-5de8-4da1-b76d-5d24dd7f55ef",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0",
+        "a6a0e2c8-dc81-4c3e-8cc9-5f3f7720de57",
+        "2465d81c-7483-4ed0-ab03-04b51b16e4d8"
+      ]
+    },
+    {
+      "query": "آیا پس از امضای قرارداد نیاز به حضور فیزیکی نماینده شرکت در دفتر شرکت اعتبارسنجی ایران وجود دارد",
+      "expected_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4088.8,
+      "retrieved_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c",
+        "96ca87a9-729f-4d5d-80e0-e14c3bb03d80",
+        "33bae47f-dac7-4f40-99dd-713ff767b7db",
+        "6af94614-4ee0-4184-a909-732b539bfe1b",
+        "dd8b07f4-9810-428d-9773-baea122dd372"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، در صورت گم شدن رمز فایل دسترسی یا احتمال افشای آن، چه اقدامی باید انجام شود . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.569,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3120.2,
+      "retrieved_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7",
+        "60f55df5-5385-4d26-b3d9-50abb07baf99",
+        "e823fb45-cebc-403d-a36a-3cd66f727332",
+        "b83027c5-64e2-4433-a6f5-4e7d9bfa3f2d",
+        "589d7a2e-e77b-4ac1-a035-a53a31892e2a"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، اگر در زمان زلزله یا بلایای طبیعی نتونستم بدهی پرداخت کنم، رتبه‌ام آسیب میبینه . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.523,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4324.6,
+      "retrieved_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c",
+        "86ad9ae5-aa00-48b0-adff-e90faa4160ce",
+        "182c51ba-3bab-40e7-8ee8-d01da61f1d06",
+        "641ca03e-d9b6-4a4a-a44a-0ffa5fa0aca7",
+        "1066505b-1a65-427a-80f4-ef3ae47f5110"
+      ]
+    },
+    {
+      "query": "آیا در گزارش اعتبارسنجی چک، اطلاعات املاک و اسکان و کدپستی مربوط به شخص درج میشود؟",
+      "expected_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.452,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2778.6,
+      "retrieved_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "8fc6612f-e339-4b82-96e2-449a0460e4aa",
+        "5ab41d12-e432-4c96-a79e-adaa5eef2ce6",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0",
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ]
+    },
+    {
+      "query": "تغییر ساختار سابقه منفی گزارش اعتباری نسخه فعلی امتیاز اعتباری",
+      "expected_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.56,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2369.8,
+      "retrieved_ids": [
+        "69ce8f5f-a575-45db-a4a7-f87497165b2d",
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "18cca00c-8df1-4923-9ad3-80b9383c15ad",
+        "f5ed598f-4b52-483d-b9e5-54a7f48e30b0",
+        "7b52e396-dff6-4c83-8b53-d3ffd87b1128"
+      ]
+    },
+    {
+      "query": "ببخشید، آیا داده‌های مالیاتی در تعیین اعتبار اهمیت دارد . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.409,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2608.5,
+      "retrieved_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2",
+        "5829ffb0-80bf-4bf4-aa27-fd53d777e774",
+        "72860f0a-5433-47d0-a071-0cfa02fa9151",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0",
+        "a6a0e2c8-dc81-4c3e-8cc9-5f3f7720de57"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم همان‌طور که اشاره شد کسی چک و نقد زمانی چه می‌کند می‌تواند خروجی چک بروز نماید؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.787,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2955.6,
+      "retrieved_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54",
+        "16502cb0-c512-4f26-b397-1f010fe35e59",
+        "ff663dfc-4a9b-4feb-be77-c04fb8d2f272",
+        "bc8e03a9-0631-4041-b978-1959b957f63f",
+        "6bb3b8d4-0ff5-4a21-9c33-2707c2816018"
+      ]
+    },
+    {
+      "query": "چه اطلاعاتی در خلاصه وضعیت اعتبارى گزارش اعتباری نمایش داده می‌شود؟",
+      "expected_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.347,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2776.6,
+      "retrieved_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d",
+        "ebc8fc00-ee6e-422d-91d7-5cf0d96f8e2c",
+        "92472bf3-e7da-4319-bc87-1065a9fe8916",
+        "e0bc997d-b09c-4b75-85e6-9d63194a2f94",
+        "335f8942-c759-4355-aa93-433d338a9d73"
+      ]
+    },
+    {
+      "query": "تامین کنندگان اطلاعات پایگاه داده داده اعتباری اعتبارسنجی ریسک",
+      "expected_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.319,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3072.5,
+      "retrieved_ids": [
+        "92df49cc-092f-4f59-b2f7-7ba7b26b54a9",
+        "6884202c-e91a-43e0-ae5e-d4d04ca062d0",
+        "0d61471a-d55d-4a58-9c25-57744336ca7f",
+        "c7cda5b3-07e7-4290-a9f4-2efdfb945655",
+        "2f4eaa75-fa9d-4263-a065-f9e193d73700"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، کسی که چک برگشتی را رفع سوءاثر و نقد می‌کند چه زمانی می‌شهد گزارش اعتبارسنجی چک بروز شده را دریافت نماید . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.752,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3218.3,
+      "retrieved_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54",
+        "d129e517-98ec-488f-8adc-afa140bfb781",
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897",
+        "895db705-7f85-4a9b-810e-dc1d251d4b49"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که آیا اهمیت مالیاتی در تعیین اعتبار داده‌های دارد؟؟",
+      "expected_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.37,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2594.7,
+      "retrieved_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2",
+        "5829ffb0-80bf-4bf4-aa27-fd53d777e774",
+        "0c709839-ef38-4d98-91c7-caf137012304",
+        "72860f0a-5433-47d0-a071-0cfa02fa9151",
+        "e74ce849-7787-4f1a-b5b2-f732a7af16b2"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید آیا محکومیت‌های غیر مالی در خروجی اعتبارسنجی قرار می‌گیرن؟؟",
+      "expected_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.631,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3354.8,
+      "retrieved_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c",
+        "8d7f36a2-bd01-4db4-9f09-b2cbb4cce71f",
+        "e9ca442c-a080-4f3a-abf0-79e08f9268c5",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0",
+        "4422cd9a-8772-4de4-aff3-199b3636bc79"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که اگر امتیاز(رتبه خاص) چک شخصی کم باشد(C یا رفتار و 6 ماه بعد از این استعلام، هیچ D) بدی در حوزه چک نداشته باشد، امتیاز وی چگونه تحت تاثیر قرار میگیرد؟؟",
+      "expected_ids": [
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.525,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 3329.7,
+      "retrieved_ids": [
+        "e23394e6-a69c-4e0c-9dde-a9cab9ce64e0",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b",
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e",
+        "93c1ed2d-c403-4829-bfce-5ee83d18e6a6",
+        "b37d52cf-f31b-469a-9a30-f6910171a9f4"
+      ]
+    },
+    {
+      "query": "مسئولیت بانک‌ها و موسسات اعتباری در ارسال داده چیست",
+      "expected_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3034.9,
+      "retrieved_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2",
+        "3eee8f48-bdf6-40ff-b797-88f73331dd48",
+        "37775a79-6eea-48d8-992b-497f5f545aa8",
+        "2f4eaa75-fa9d-4263-a065-f9e193d73700",
+        "bdeacd57-bb8f-4eb9-986a-2660a65a1005"
+      ]
+    },
+    {
+      "query": "چرا امتیاز اعتباری و رتبه اعتباری من مهم است",
+      "expected_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2495.8,
+      "retrieved_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece",
+        "48592927-abd9-4617-8a78-2bf71e5ffba9",
+        "f78240a1-9c9d-4983-a127-790e50051b96",
+        "69756928-fa26-48b0-b9ed-83ef5de973ea",
+        "fc1ac313-aaed-4187-9e1d-2de3ab4327da"
+      ]
+    },
+    {
+      "query": "سلام، در صورت تغییر نام یک شرکت، چگونه این تغییر در گزارش اعتباری آن منعکس میشه . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.52,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2966.2,
+      "retrieved_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e",
+        "5e846ee2-ee88-48f3-8622-3cdd66ba2e9a",
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "7ff35b78-100d-4131-9cf8-2460d0d73d63",
+        "ee5eacc8-1168-476a-87f6-d483187b3e32"
+      ]
+    },
+    {
+      "query": "اگر بدهی زمان زلزله یا بلایای طبیعی نتونستم در تسویه کنم، رتبه‌ام آسیب میبینه؟",
+      "expected_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.489,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3659.2,
+      "retrieved_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c",
+        "86ad9ae5-aa00-48b0-adff-e90faa4160ce",
+        "182c51ba-3bab-40e7-8ee8-d01da61f1d06",
+        "641ca03e-d9b6-4a4a-a44a-0ffa5fa0aca7",
+        "b3179be8-08c5-412d-a2a1-aec1b209f3fa"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید چرا امتیاز اعتباری مهم رتبه اعتباری من و است؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.724,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3995.9,
+      "retrieved_ids": [
+        "f78240a1-9c9d-4983-a127-790e50051b96",
+        "48592927-abd9-4617-8a78-2bf71e5ffba9",
+        "fa2db451-78af-444f-82a2-393d22098c24",
+        "a6a0e2c8-dc81-4c3e-8cc9-5f3f7720de57",
+        "55e5ea28-5a1e-4ad0-a1d4-1bc8f8c9bdc6"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که طبق متن تفاوت شرکت شما (شرکت مرآت یا حافظ ایرانیان، چیست؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.38,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 3741.3,
+      "retrieved_ids": [
+        "42976708-482b-4582-ba8f-40ba83eac586",
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5",
+        "17d909f0-1206-4b38-a510-c0579c272831",
+        "3ef044e5-3f6d-4647-b6b2-59533eb80a97",
+        "3ae7fc8a-7e8e-4540-9c6f-2bb5f2807ce5"
+      ]
+    },
+    {
+      "query": "موسسات اعتباری تسهیلات پایگاه داده داده اعتباری بانک مرکزی مدیریت داده ها",
+      "expected_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.669,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3329.6,
+      "retrieved_ids": [
+        "f6e7db40-1c2b-44b8-ac2d-815c2b44964b",
+        "acb9d91a-acb4-4da6-ba81-70867c739d4f",
+        "4143facf-494c-428d-add7-a631d631c3a0",
+        "538ceb0a-769d-40c2-a0ba-da5659f7c51f",
+        "3eee8f48-bdf6-40ff-b797-88f73331dd48"
+      ]
+    },
+    {
+      "query": "تفاوت شرکت شما حافظ رقبایتان (شرکت مرآت یا با سامان ایرانیان، اسم رقبا) چیست؟",
+      "expected_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.738,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3511.9,
+      "retrieved_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5",
+        "17d909f0-1206-4b38-a510-c0579c272831",
+        "42976708-482b-4582-ba8f-40ba83eac586",
+        "3ae7fc8a-7e8e-4540-9c6f-2bb5f2807ce5",
+        "3ef044e5-3f6d-4647-b6b2-59533eb80a97"
+      ]
+    },
+    {
+      "query": "کسی که چک برگشتی را رفع سوءاثر و نقد می‌کند چه زمانی می‌تواند گزراش اعتبارسنجی چک بروز شده را دریافت نماید؟",
+      "expected_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.588,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2820.9,
+      "retrieved_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54",
+        "d129e517-98ec-488f-8adc-afa140bfb781",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897",
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "895db705-7f85-4a9b-810e-dc1d251d4b49"
+      ]
+    },
+    {
+      "query": "در صورت گم شدن رمز فایل دسترسی یا احتمال افشای آن، چه اقدامی باید انجام شود",
+      "expected_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2583.5,
+      "retrieved_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7",
+        "60f55df5-5385-4d26-b3d9-50abb07baf99",
+        "e823fb45-cebc-403d-a36a-3cd66f727332",
+        "b83027c5-64e2-4433-a6f5-4e7d9bfa3f2d",
+        "589d7a2e-e77b-4ac1-a035-a53a31892e2a"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که در عمل آیا نمایش اعتباری داده من می‌شود؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.541,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2677.4,
+      "retrieved_ids": [
+        "f352895a-2758-4fee-a845-5441041ffccc",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0",
+        "0c70e5e8-9a96-4dfb-81e3-b211f817bd56",
+        "5589be85-941f-4fbf-aaee-bbe0b7a9100b",
+        "56421fe5-5de8-4da1-b76d-5d24dd7f55ef"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، داده‌های قوه قضاییه چه کاربردی در اعتبارسنجی دارند . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.566,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2766.7,
+      "retrieved_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded",
+        "cdc51e8e-626c-490a-8b21-ff66fa0d06e9",
+        "4d58cd7e-a5ed-44cb-890b-615a6e8e9127",
+        "f3e31b6a-5b95-4438-a897-bb3231046956",
+        "6343c21d-a61e-4661-90e7-44dc346ade80"
+      ]
+    },
+    {
+      "query": "بروزرسانی اطلاعات برگشت چک رفع سواثر",
+      "expected_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.643,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 3151.3,
+      "retrieved_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54",
+        "895db705-7f85-4a9b-810e-dc1d251d4b49",
+        "af9fbe87-2bac-4e9c-aed4-5bd3d3fa8004",
+        "11b47228-7d1a-4274-80ad-580aa23854cf"
+      ]
+    },
+    {
+      "query": "مسئولیت بانک‌ها در موسسات اعتباری و فرستادن داده چیست؟",
+      "expected_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.449,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3131.2,
+      "retrieved_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2",
+        "3eee8f48-bdf6-40ff-b797-88f73331dd48",
+        "4143facf-494c-428d-add7-a631d631c3a0",
+        "05afe0a1-6f6a-4d55-988c-32947e205b3b",
+        "042e55dc-bf8f-481a-9f5c-371f6dbd3668"
+      ]
+    },
+    {
+      "query": "حضور فیزیکی قرارداد نماینده شرکت اعتبارسنجی API پنل اعتباریتو",
+      "expected_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.395,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3298.1,
+      "retrieved_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c",
+        "f20d6521-05c8-4151-a6fa-fc871a146b53",
+        "8ae1c88f-18c3-4ebb-ba6d-3de629574afa",
+        "33bae47f-dac7-4f40-99dd-713ff767b7db",
+        "96ca87a9-729f-4d5d-80e0-e14c3bb03d80"
+      ]
+    },
+    {
+      "query": "آیا پس از امضای قرارداد نیاز به حضور فیزیکی نماینده شرکت در دفتر شرکت اعتبارسنجی ایران وجود دارد؟",
+      "expected_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.78,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3132.9,
+      "retrieved_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c",
+        "96ca87a9-729f-4d5d-80e0-e14c3bb03d80",
+        "33bae47f-dac7-4f40-99dd-713ff767b7db",
+        "6af94614-4ee0-4184-a909-732b539bfe1b",
+        "dd8b07f4-9810-428d-9773-baea122dd372"
+      ]
+    },
+    {
+      "query": "مسئولیت بانکها و موسسات اعتبارى در ارسال داده چیست؟",
+      "expected_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.374,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3114.7,
+      "retrieved_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2",
+        "3eee8f48-bdf6-40ff-b797-88f73331dd48",
+        "4143facf-494c-428d-add7-a631d631c3a0",
+        "2f4eaa75-fa9d-4263-a065-f9e193d73700",
+        "05afe0a1-6f6a-4d55-988c-32947e205b3b"
+      ]
+    },
+    {
+      "query": "اطلاعات هویتی محرمانه دسترسی محدود",
+      "expected_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.518,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2304.9,
+      "retrieved_ids": [
+        "1e065b4c-9509-47b0-9d79-c9b8cb01370e",
+        "1ee015c5-7671-465e-9aed-5966a971705c",
+        "5b2bc0eb-ba47-4c6b-879f-31a63dda5d03",
+        "e823fb45-cebc-403d-a36a-3cd66f727332",
+        "2ce9859a-fee9-4f80-9c98-858082001040"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که در صورت تغییر نام یک شرکت، چگونه این تغییر در اعتباری خروجی آن منعکس می‌شود؟؟",
+      "expected_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.531,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2735.3,
+      "retrieved_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e",
+        "9dfc3fc7-ea6a-4950-b269-adf4ac503a19",
+        "e14e5eae-66e4-4805-a3f6-3f60b2ae7099",
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "5e846ee2-ee88-48f3-8622-3cdd66ba2e9a"
+      ]
+    },
+    {
+      "query": "چه اطلاعاتی در خلاصه وضعیت اعتباری گزارش اعتباری نمایش داده می‌شود",
+      "expected_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3138.2,
+      "retrieved_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d",
+        "ebc8fc00-ee6e-422d-91d7-5cf0d96f8e2c",
+        "92472bf3-e7da-4319-bc87-1065a9fe8916",
+        "e0bc997d-b09c-4b75-85e6-9d63194a2f94",
+        "8f978e4c-a6d0-4177-9150-7cd6c92bb341"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم کسی که چک برگشتی را رفع سوءاثر و نقد می‌کند چه زمانی می‌تواند خروجی اعتبارسنجی چک بروز شده را دریافت نماید؟؟",
+      "expected_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.447,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3080.5,
+      "retrieved_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54",
+        "d129e517-98ec-488f-8adc-afa140bfb781",
+        "4eab14ad-fd76-4cba-a33b-fadb9b49dbe3",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897",
+        "895db705-7f85-4a9b-810e-dc1d251d4b49"
+      ]
+    },
+    {
+      "query": "آیا اطلاعات شخصی من در گزارش اعتباری نمایش داده می‌شود",
+      "expected_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2629.9,
+      "retrieved_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a",
+        "f289be53-fb4a-442f-b8dc-7f7220d8a863",
+        "ebc8fc00-ee6e-422d-91d7-5cf0d96f8e2c",
+        "165fb46b-dd31-44b7-80f7-377803d521c6",
+        "f08149ba-08bb-4f37-8f60-14acb9c5f696"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم در این بخش اگر امتیاز(رتبه خاص) چک چگونه کم باشد(C D) و ماه این هیچ در حوزه چک شخصی نداشته تاثیر میگیرد؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.577,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3564.9,
+      "retrieved_ids": [
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e",
+        "93c1ed2d-c403-4829-bfce-5ee83d18e6a6",
+        "e23394e6-a69c-4e0c-9dde-a9cab9ce64e0",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b",
+        "c6449ee7-82f1-4036-add8-68f727fbd673"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید آیا می‌توان گزارش‌های مصرف را خود خودکار در سیستم به‌صورت ذخیره کرد؟؟",
+      "expected_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.711,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 3298.2,
+      "retrieved_ids": [
+        "80d7791a-da09-4643-bf88-2655fadada22",
+        "f20d6521-05c8-4151-a6fa-fc871a146b53",
+        "a4fcc464-071d-46e1-bc53-9999933d709a",
+        "59ad0753-e3b8-42cb-b6e2-041d38b1fe8b",
+        "5b2bc0eb-ba47-4c6b-879f-31a63dda5d03"
+      ]
+    },
+    {
+      "query": "معافیت بانکی گزارش اعتباری اقساط زلزله بلایای طبیعی تاخیر در بازپرداخت",
+      "expected_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.473,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 3971.6,
+      "retrieved_ids": [
+        "7d272815-6896-48f4-8c73-3e0f561babbf",
+        "821862f7-126e-4d08-ac63-660879402192",
+        "682e8963-4760-4f69-a777-98a693d9b33c",
+        "182c51ba-3bab-40e7-8ee8-d01da61f1d06",
+        "b3179be8-08c5-412d-a2a1-aec1b209f3fa"
+      ]
+    },
+    {
+      "query": "تلفن فکس پایگاه داده داده اعتباری وب سایت مدیریت داده ها",
+      "expected_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.59,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 3398.5,
+      "retrieved_ids": [
+        "36820dcd-7d16-4f54-8782-9681bb57cc75",
+        "5656d2ea-f5e9-4655-beca-98cb85151d79",
+        "c6d93503-f7ba-46a2-91b2-4c379870dc1a",
+        "42a5c0cf-3623-483a-877e-e87e6942d181",
+        "d3894185-c788-4e7f-917f-8ec73652bc4c"
+      ]
+    },
+    {
+      "query": "در صورت تغییر نام یک شرکت، چگونه این تغییر در گزارش اعتباری آن منعکس می‌شود",
+      "expected_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3373.3,
+      "retrieved_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e",
+        "7ff35b78-100d-4131-9cf8-2460d0d73d63",
+        "5e846ee2-ee88-48f3-8622-3cdd66ba2e9a",
+        "cfb47c87-9e5a-4b7d-b300-641f90f12c2e",
+        "df1f756a-557e-4cbc-b904-e3c650ab983d"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید در صورت گم ورود رمز فایل شدن یا احتمال افشای آن، چه اقدامی باید انجام شود؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.462,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 5158.7,
+      "retrieved_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7",
+        "60f55df5-5385-4d26-b3d9-50abb07baf99",
+        "e823fb45-cebc-403d-a36a-3cd66f727332",
+        "8d2646bf-7d68-4d27-9f52-38d890cbe34b",
+        "75483cd0-7a50-4a1e-bbeb-cf19a16044b5"
+      ]
+    },
+    {
+      "query": "جدول نوع تماس (Type Of Contact) شامل چه مواردی است",
+      "expected_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3381.1,
+      "retrieved_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79",
+        "c6d93503-f7ba-46a2-91b2-4c379870dc1a",
+        "36820dcd-7d16-4f54-8782-9681bb57cc75",
+        "f9f487ac-1809-4f2f-bcf1-63b333165dd9",
+        "02c5f69b-3aa2-4f24-b59f-097652bed086"
+      ]
+    },
+    {
+      "query": "امتیاز تسهیلات چک های برگشتی تعهدات تسهیلات",
+      "expected_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.518,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 4159.3,
+      "retrieved_ids": [
+        "5a5988e1-6f71-411d-badf-89b9121926d1",
+        "5448bfc9-4123-461c-8d8c-567a77cb7c2f",
+        "4eab14ad-fd76-4cba-a33b-fadb9b49dbe3",
+        "fbdb60a8-9def-4adc-9e1d-a8b8dd850e58",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0"
+      ]
+    },
+    {
+      "query": "امتیاز کسانی که در زنجیره انتقال چک بوده اند چگونه تحت تاثیر قرار میگیرد؟ (سوال یه مقدار ناقص است)",
+      "expected_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3568.7,
+      "retrieved_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "84dba59f-ed6a-415d-bc21-1505fd15bcb4",
+        "ef4d6a2e-db19-4c35-9e39-c23191add5aa",
+        "e12c5cc5-6ed2-4a9b-b7b2-7368d0e0f562",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b"
+      ]
+    },
+    {
+      "query": "چقدر طول می‌کشد تا گزارش اعتباری من به‌روز شود",
+      "expected_ids": [
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3762.1,
+      "retrieved_ids": [
+        "1fb6bf2b-37f7-4838-8d69-6f09f81a059e",
+        "6d741933-740b-4003-89a3-ae7845207d0c",
+        "df6b359b-f561-4ac2-80b2-3da4dd06aaff",
+        "ee23d1e0-9c3d-4516-a270-323e5913a31f",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897"
+      ]
+    },
+    {
+      "query": "ذخیره خودکار کاربران مجاز محرمانگی API پنل اعتباریتو",
+      "expected_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.75,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3787.7,
+      "retrieved_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53",
+        "5b2bc0eb-ba47-4c6b-879f-31a63dda5d03",
+        "1e065b4c-9509-47b0-9d79-c9b8cb01370e",
+        "80d7791a-da09-4643-bf88-2655fadada22",
+        "a4fcc464-071d-46e1-bc53-9999933d709a"
+      ]
+    },
+    {
+      "query": "آیا می‌توان گزراش‌های مصرف را به‌صورت خودکار در سیستم خود ذخیره کرد؟",
+      "expected_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.556,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 5014.7,
+      "retrieved_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53",
+        "80d7791a-da09-4643-bf88-2655fadada22",
+        "6c68cce7-8d83-463d-8815-912e6538b5cb",
+        "199dd8c3-e9ec-486d-8a2e-91b1f25c57b4",
+        "5b2bc0eb-ba47-4c6b-879f-31a63dda5d03"
+      ]
+    },
+    {
+      "query": "اگر در زمان زلزله یا بلایای طبیعی نتونستم بدهی پرداخت کنم، رتبه‌ام آسیب میبینه",
+      "expected_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 4865.5,
+      "retrieved_ids": [
+        "86ad9ae5-aa00-48b0-adff-e90faa4160ce",
+        "682e8963-4760-4f69-a777-98a693d9b33c",
+        "182c51ba-3bab-40e7-8ee8-d01da61f1d06",
+        "641ca03e-d9b6-4a4a-a44a-0ffa5fa0aca7",
+        "b3179be8-08c5-412d-a2a1-aec1b209f3fa"
+      ]
+    },
+    {
+      "query": "آیا در گزارش اعتبارسنجی چک، اطلاعات املاک و اسکان و کدپستی مربوط به شخص درج می‌شود",
+      "expected_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3071.1,
+      "retrieved_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "8fc6612f-e339-4b82-96e2-449a0460e4aa",
+        "5cd5bbf5-96b8-40dd-a871-c78d3428b3bf",
+        "5ab41d12-e432-4c96-a79e-adaa5eef2ce6",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0"
+      ]
+    },
+    {
+      "query": "سلام، امتیاز کسانی که در زنجیره انتقال چک بوده اند چگونه تحت تاثیر قرار میگیرد؟ (سوال یه مقدار ناقص است)؟",
+      "expected_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.492,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3191.7,
+      "retrieved_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "84dba59f-ed6a-415d-bc21-1505fd15bcb4",
+        "ef4d6a2e-db19-4c35-9e39-c23191add5aa",
+        "e12c5cc5-6ed2-4a9b-b7b2-7368d0e0f562",
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که در عمل چرا امتیاز من مهم است؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.395,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 4344.3,
+      "retrieved_ids": [
+        "d0209bed-10bb-40c9-b413-2ac535371c1a",
+        "0c70e5e8-9a96-4dfb-81e3-b211f817bd56",
+        "5589be85-941f-4fbf-aaee-bbe0b7a9100b",
+        "b037f7de-39be-4b4b-8040-9fc8b33a4969",
+        "783e98ba-76da-45ef-9898-ef32c4342b7e"
+      ]
+    },
+    {
+      "query": "دادههای قوه قضاییه چه کاربردی در اعتبارسنجی دارند؟",
+      "expected_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.75,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3601.2,
+      "retrieved_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded",
+        "cdc51e8e-626c-490a-8b21-ff66fa0d06e9",
+        "4d58cd7e-a5ed-44cb-890b-615a6e8e9127",
+        "6343c21d-a61e-4661-90e7-44dc346ade80",
+        "31b54cf7-15fe-4c17-bb40-3915aee114e8"
+      ]
+    },
+    {
+      "query": "اگر امتیاز(رتبه خاص) چک شخصی کم باشد(C یا D) و 6 ماه بعد از این استعلام، هیچ رفتار بدی در حوزه چک نداشته باشد، امتیاز وی چگونه تحت تاثیر قرار میگیرد",
+      "expected_ids": [
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 4439.6,
+      "retrieved_ids": [
+        "e23394e6-a69c-4e0c-9dde-a9cab9ce64e0",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b",
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e",
+        "93c1ed2d-c403-4829-bfce-5ee83d18e6a6",
+        "96f9df53-a176-432f-8861-e4ddf4ac89b2"
+      ]
+    },
+    {
+      "query": "تامین کنندگان مالیات پایگاه داده داده اعتباری اظهارنامه سابقه پرداخت",
+      "expected_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.431,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3721.3,
+      "retrieved_ids": [
+        "2c7c96a8-fb45-4cde-b5f1-e720036d8385",
+        "7509d95d-944b-40c0-a565-8f8500e4782b",
+        "fea51c68-25e4-41dc-8432-c47173dec92d",
+        "b86c6d7d-d7c1-4233-aa7a-71c50e2caf25",
+        "f5ed598f-4b52-483d-b9e5-54a7f48e30b0"
+      ]
+    },
+    {
+      "query": "در صورت تغییر نام یک شرکت، چگونه این تغییر در گزارش اعتباری آن منعکس میشود؟",
+      "expected_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.461,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4096.2,
+      "retrieved_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e",
+        "7ff35b78-100d-4131-9cf8-2460d0d73d63",
+        "5e846ee2-ee88-48f3-8622-3cdd66ba2e9a",
+        "cfb47c87-9e5a-4b7d-b300-641f90f12c2e",
+        "9dfc3fc7-ea6a-4950-b269-adf4ac503a19"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که امتیاز کسانی که در زنجیره انتقال چک بوده اند چگونه تحت تاثیر قرار یه (سوال میگیرد؟ مقدار ناقص است) . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.581,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4309.2,
+      "retrieved_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "ef4d6a2e-db19-4c35-9e39-c23191add5aa",
+        "84dba59f-ed6a-415d-bc21-1505fd15bcb4",
+        "e12c5cc5-6ed2-4a9b-b7b2-7368d0e0f562",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید در این بخش چه وضعیت خلاصه در نمایش می‌شود؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.577,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4701.2,
+      "retrieved_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d",
+        "8e27d79d-aca2-4b54-871a-6bde96167c70",
+        "13ef96a1-abcc-4016-af68-3755efb31013",
+        "10c121db-e1e1-4b3c-8787-a90227e8fbdb",
+        "dc6f2945-571f-4341-b95d-828c989bb007"
+      ]
+    },
+    {
+      "query": "چقدر طول می‌کشد تا خروجی اعتباری من به‌روز شود؟",
+      "expected_ids": [
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.73,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3441.7,
+      "retrieved_ids": [
+        "6d741933-740b-4003-89a3-ae7845207d0c",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897",
+        "fd87cd2b-1666-4722-b015-510496c69abd",
+        "fca06a1b-8102-420d-96b0-1c9dec809cad",
+        "ee23d1e0-9c3d-4516-a270-323e5913a31f"
+      ]
+    },
+    {
+      "query": "جدول نوع تماس (Type Of Contact) شامل چه مواردی است؟",
+      "expected_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.76,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3489.0,
+      "retrieved_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79",
+        "c6d93503-f7ba-46a2-91b2-4c379870dc1a",
+        "02c5f69b-3aa2-4f24-b59f-097652bed086",
+        "f9f487ac-1809-4f2f-bcf1-63b333165dd9",
+        "4b02228b-4805-4359-ab49-80ba17f3d578"
+      ]
+    },
+    {
+      "query": "سلام، آیا محکومیت‌های غیر مالی در گزارش اعتبارسنجی قرار می‌گیرن . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.731,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3975.0,
+      "retrieved_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c",
+        "8d7f36a2-bd01-4db4-9f09-b2cbb4cce71f",
+        "670da760-d192-42a1-a048-2b1b3f6ac319",
+        "92472bf3-e7da-4319-bc87-1065a9fe8916",
+        "39e9d9f6-996a-4894-a012-027d9a393e80"
+      ]
+    },
+    {
+      "query": "آیا دادههای مالیاتی در تعیین اعتبار اهمیت دارد؟",
+      "expected_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.774,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2876.8,
+      "retrieved_ids": [
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2",
+        "5829ffb0-80bf-4bf4-aa27-fd53d777e774",
+        "5b793b03-64b8-472e-b3ea-fb7ae7b03cf7",
+        "72860f0a-5433-47d0-a071-0cfa02fa9151",
+        "e74ce849-7787-4f1a-b5b2-f732a7af16b2"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم بر اساس اسناد مسئولیت داده موسسات در و چیست؟؟",
+      "expected_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.411,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3871.2,
+      "retrieved_ids": [
+        "f8f3bcd6-073a-48b4-b61f-88aab5ed7ff2",
+        "ae753e07-f87e-413e-8250-23e863045df6",
+        "eb0817f4-f185-4263-ae7d-2304fed375ad",
+        "37775a79-6eea-48d8-992b-497f5f545aa8",
+        "917fc416-8f02-4ec2-848e-f90244bb731e"
+      ]
+    },
+    {
+      "query": "آیا اطلاعات نمایش من در خروجی اعتباری شخصی داده می‌شود؟",
+      "expected_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.49,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2938.7,
+      "retrieved_ids": [
+        "b7500c97-327b-49d7-b36a-64318e45548a",
+        "165fb46b-dd31-44b7-80f7-377803d521c6",
+        "56421fe5-5de8-4da1-b76d-5d24dd7f55ef",
+        "e0bc997d-b09c-4b75-85e6-9d63194a2f94",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم همان‌طور که اشاره شد جدول (Type تماس Of شامل است؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.512,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3193.3,
+      "retrieved_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79",
+        "c6d93503-f7ba-46a2-91b2-4c379870dc1a",
+        "f9f487ac-1809-4f2f-bcf1-63b333165dd9",
+        "31e36670-2d6d-4247-ba13-789afb286864",
+        "81928dfb-f0f0-47c1-8600-5180dbb52cd6"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که طبق متن آیا خروجی چک، اطلاعات مربوط اسکان کدپستی املاک می‌شود؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.409,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3776.7,
+      "retrieved_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "8fc6612f-e339-4b82-96e2-449a0460e4aa",
+        "cd231377-88d7-4fc4-9a1f-a515bab53761",
+        "cf520dad-d45d-4a80-be99-d0e7f5c9a816",
+        "163518d6-bd7e-41aa-87d7-b896b48aa886"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که چه اطلاعاتی در خلاصه وضعیت اعتباری خروجی اعتباری نمایش داده می‌شود؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.547,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3837.1,
+      "retrieved_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d",
+        "92472bf3-e7da-4319-bc87-1065a9fe8916",
+        "1cf7c6e4-a377-48c8-8ba8-5db86ba1ba05",
+        "61c8f3f4-5235-4d07-a85f-1bddf7368344",
+        "f289be53-fb4a-442f-b8dc-7f7220d8a863"
+      ]
+    },
+    {
+      "query": "آیا محکومیت‌های غیر مالی در گزارش اعتبارسنجی قرار می‌گیرن",
+      "expected_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3536.0,
+      "retrieved_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c",
+        "8d7f36a2-bd01-4db4-9f09-b2cbb4cce71f",
+        "e9ca442c-a080-4f3a-abf0-79e08f9268c5",
+        "4422cd9a-8772-4de4-aff3-199b3636bc79",
+        "92472bf3-e7da-4319-bc87-1065a9fe8916"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم داده‌های چه قضاییه قوه کاربردی در اعتبارسنجی دارند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.378,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3816.6,
+      "retrieved_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded",
+        "cdc51e8e-626c-490a-8b21-ff66fa0d06e9",
+        "4d58cd7e-a5ed-44cb-890b-615a6e8e9127",
+        "31b54cf7-15fe-4c17-bb40-3915aee114e8",
+        "6343c21d-a61e-4661-90e7-44dc346ade80"
+      ]
+    },
+    {
+      "query": "در صورت گم شدن رمز فایل دسترسی یا احتمال افشای آن، چه اقدامی باید انجام شود؟",
+      "expected_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.73,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2911.5,
+      "retrieved_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7",
+        "60f55df5-5385-4d26-b3d9-50abb07baf99",
+        "e823fb45-cebc-403d-a36a-3cd66f727332",
+        "b83027c5-64e2-4433-a6f5-4e7d9bfa3f2d",
+        "589d7a2e-e77b-4ac1-a035-a53a31892e2a"
+      ]
+    },
+    {
+      "query": "تفاوت شرکت شما با رقبایتان (شرکت مرآت یا حافظ سامان ایرانیان، اسم رقبا) چیست",
+      "expected_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3789.6,
+      "retrieved_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5",
+        "17d909f0-1206-4b38-a510-c0579c272831",
+        "42976708-482b-4582-ba8f-40ba83eac586",
+        "3ae7fc8a-7e8e-4540-9c6f-2bb5f2807ce5",
+        "3ef044e5-3f6d-4647-b6b2-59533eb80a97"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید بر اساس اسناد آیا از امکان یک شرکت سابقه در دارد تغییر و امتیاز و جدیدی کند؟؟",
+      "expected_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.619,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3285.6,
+      "retrieved_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "5389ef37-5e51-4cdd-bd55-c5f5ca1d1c62",
+        "0f2df58f-e506-4b24-a3b1-7a6673d8c57a",
+        "9dfc3fc7-ea6a-4950-b269-adf4ac503a19",
+        "e14e5eae-66e4-4805-a3f6-3f60b2ae7099"
+      ]
+    },
+    {
+      "query": "اگر امتیاز(رتبه خاص) چک شخصی کم باشد(C یا D) و 6 ماه بعد از این استعلام، هیچ رفتار بدی در حوزه چک نداشته باشد، امتیاز وی چگونه تحت تاثیر قرار میگیرد؟",
+      "expected_ids": [
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.612,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 3585.4,
+      "retrieved_ids": [
+        "e23394e6-a69c-4e0c-9dde-a9cab9ce64e0",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b",
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e",
+        "93c1ed2d-c403-4829-bfce-5ee83d18e6a6",
+        "96f9df53-a176-432f-8861-e4ddf4ac89b2"
+      ]
+    },
+    {
+      "query": "آیا می‌توان گزارش‌های مصرف را به‌صورت خودکار در سیستم خود ذخیره کرد",
+      "expected_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2743.5,
+      "retrieved_ids": [
+        "80d7791a-da09-4643-bf88-2655fadada22",
+        "f20d6521-05c8-4151-a6fa-fc871a146b53",
+        "a4fcc464-071d-46e1-bc53-9999933d709a",
+        "59ad0753-e3b8-42cb-b6e2-041d38b1fe8b",
+        "5b2bc0eb-ba47-4c6b-879f-31a63dda5d03"
+      ]
+    },
+    {
+      "query": "چقدر طول می‌کشد تا گزراش اعتبارى من به‌روز شود؟",
+      "expected_ids": [
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.606,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 2721.1,
+      "retrieved_ids": [
+        "6d741933-740b-4003-89a3-ae7845207d0c",
+        "ee23d1e0-9c3d-4516-a270-323e5913a31f",
+        "df6b359b-f561-4ac2-80b2-3da4dd06aaff",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897",
+        "64880d85-7f6e-4794-9e1a-761f019d2fc5"
+      ]
+    },
+    {
+      "query": "چرا امتیاز اعتباری و رتبه اعتباری من مهم است؟",
+      "expected_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.633,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 2641.0,
+      "retrieved_ids": [
+        "dfaf0c4e-91bd-433f-b2e7-cf9f48fd2ece",
+        "afce678d-b98f-44c0-9e64-9fd05f932984",
+        "48592927-abd9-4617-8a78-2bf71e5ffba9",
+        "f78240a1-9c9d-4983-a127-790e50051b96",
+        "fa2db451-78af-444f-82a2-393d22098c24"
+      ]
+    },
+    {
+      "query": "امتیاز کسانی زنجیره انتقال بوده چگونه",
+      "expected_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.322,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 3423.2,
+      "retrieved_ids": [
+        "ef4d6a2e-db19-4c35-9e39-c23191add5aa",
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "84dba59f-ed6a-415d-bc21-1505fd15bcb4",
+        "dabf8cbd-d4d1-4c57-86da-a63ee17c412e",
+        "a26c91f4-b550-497c-9e72-ab9c99a9c004"
+      ]
+    },
+    {
+      "query": "به روزرسانی ماهانه تأیید داده بازتاب فوری رتبه اعتباری",
+      "expected_ids": [
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.703,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3492.9,
+      "retrieved_ids": [
+        "bbbd2ca0-4399-443e-bc3b-2832c633e9d8",
+        "5885da76-aa19-4b48-ac48-f7321fae9116",
+        "28d56851-8308-4b3c-a07c-31be171fd5cf",
+        "8f189f81-ceae-45da-96f6-7411b9a59f5f",
+        "d72402ce-ec53-4bf7-aad0-95a340ddf25c"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید در عمل آیا در مصرف به‌صورت خودکار می‌توان خود کرد؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.592,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3694.3,
+      "retrieved_ids": [
+        "f20d6521-05c8-4151-a6fa-fc871a146b53",
+        "80d7791a-da09-4643-bf88-2655fadada22",
+        "199dd8c3-e9ec-486d-8a2e-91b1f25c57b4",
+        "20980071-f60a-4141-9508-382d2d127a9b",
+        "02e19174-24f7-48ca-b2d1-1d0ec00a26cb"
+      ]
+    },
+    {
+      "query": "راستی، آیا در گزارش اعتبارسنجی چک، اطلاعات املاک و اسکان و کدپستی مربوط به شخص درج میشه . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.542,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3449.9,
+      "retrieved_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "8fc6612f-e339-4b82-96e2-449a0460e4aa",
+        "5ab41d12-e432-4c96-a79e-adaa5eef2ce6",
+        "b7500c97-327b-49d7-b36a-64318e45548a",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0"
+      ]
+    },
+    {
+      "query": "کدپستی املاک و اسکان ادرس",
+      "expected_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.792,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 3591.6,
+      "retrieved_ids": [
+        "8fc6612f-e339-4b82-96e2-449a0460e4aa",
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "5ab41d12-e432-4c96-a79e-adaa5eef2ce6",
+        "dc46e771-ba82-499e-af1a-8b813e6fb8af",
+        "53dacde9-d283-420f-b45a-24fbe4066858"
+      ]
+    },
+    {
+      "query": "گم شدن رمز افشای رمز واحد فنی صدور دسترسی جدید",
+      "expected_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.399,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 2558.1,
+      "retrieved_ids": [
+        "60f55df5-5385-4d26-b3d9-50abb07baf99",
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7",
+        "b83027c5-64e2-4433-a6f5-4e7d9bfa3f2d",
+        "e823fb45-cebc-403d-a36a-3cd66f727332",
+        "10c76307-72b0-4d77-b8ed-ac72e128e340"
+      ]
+    },
+    {
+      "query": "کسی که چک برگشتی را رفع سوءاثر و نقد می‌کند چه زمانی می‌تواند گزارش اعتبارسنجی چک بروز شده را دریافت نماید",
+      "expected_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3082.0,
+      "retrieved_ids": [
+        "55fd7fbb-4974-4cb8-8b77-66d6e8be2f54",
+        "d129e517-98ec-488f-8adc-afa140bfb781",
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897",
+        "895db705-7f85-4a9b-810e-dc1d251d4b49"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم در این بخش در صورت شدن احتمال افشای آن، اقدامی باید انجام شود؟؟",
+      "expected_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.739,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3857.3,
+      "retrieved_ids": [
+        "25cf63ab-72bc-4d3b-ad0b-620fa38e7ac7",
+        "8d2646bf-7d68-4d27-9f52-38d890cbe34b",
+        "a6afe845-77f3-4f17-9d2e-09fb5c641762",
+        "fa37bb0d-9808-4a56-a683-834e7fc71680",
+        "9479a9b8-cfbf-4932-8ebc-7b2d57542c39"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید جدول نوع شامل (Type Of Contact) تماس چه مواردی است؟؟",
+      "expected_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.347,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3622.1,
+      "retrieved_ids": [
+        "5656d2ea-f5e9-4655-beca-98cb85151d79",
+        "c6d93503-f7ba-46a2-91b2-4c379870dc1a",
+        "f9f487ac-1809-4f2f-bcf1-63b333165dd9",
+        "b270f5a2-efb6-4b0d-b654-6f55e06ab5eb",
+        "0082bfd2-5fed-48a7-b262-73600bb0679b"
+      ]
+    },
+    {
+      "query": "امتیاز کسانی که در زنجیره انتقال چک بوده اند چگونه تحت تاثیر قرار میگیرد؟ (سوال یه مقدار ناقص است)",
+      "expected_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.668,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3145.8,
+      "retrieved_ids": [
+        "c6449ee7-82f1-4036-add8-68f727fbd673",
+        "84dba59f-ed6a-415d-bc21-1505fd15bcb4",
+        "ef4d6a2e-db19-4c35-9e39-c23191add5aa",
+        "e12c5cc5-6ed2-4a9b-b7b2-7368d0e0f562",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که بر اساس اسناد آیا پس از امضای حضور فیزیکی نماینده دفتر اعتبارسنجی دارد؟؟",
+      "expected_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.305,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3133.3,
+      "retrieved_ids": [
+        "a2ede6da-08ad-414c-ac55-c97246938e6c",
+        "96ca87a9-729f-4d5d-80e0-e14c3bb03d80",
+        "33bae47f-dac7-4f40-99dd-713ff767b7db",
+        "6af94614-4ee0-4184-a909-732b539bfe1b",
+        "9e2eca34-6576-45c7-9f11-720fc2663e9c"
+      ]
+    },
+    {
+      "query": "ببخشید، تفاوت شرکت شما با رقبایتان (شرکت مرآت یا حافظ سامان ایرانیان، اسم رقبا) چیست . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.49,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4681.0,
+      "retrieved_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5",
+        "17d909f0-1206-4b38-a510-c0579c272831",
+        "42976708-482b-4582-ba8f-40ba83eac586",
+        "3ae7fc8a-7e8e-4540-9c6f-2bb5f2807ce5",
+        "3ef044e5-3f6d-4647-b6b2-59533eb80a97"
+      ]
+    },
+    {
+      "query": "آیا محکومیتهای غیر مالی در گزارش اعتبارسنجی قرار می‌گیرن؟",
+      "expected_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.632,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3881.4,
+      "retrieved_ids": [
+        "666b1679-d2fe-4dff-83d2-d11be5aa595c",
+        "8d7f36a2-bd01-4db4-9f09-b2cbb4cce71f",
+        "e9ca442c-a080-4f3a-abf0-79e08f9268c5",
+        "4422cd9a-8772-4de4-aff3-199b3636bc79",
+        "670da760-d192-42a1-a048-2b1b3f6ac319"
+      ]
+    },
+    {
+      "query": "اگر در زمان زلزله یا بلایای طبیعی نتونستم بدهی پرداخت کنم، رتبهام آسیب میبینه؟",
+      "expected_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.649,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4351.7,
+      "retrieved_ids": [
+        "682e8963-4760-4f69-a777-98a693d9b33c",
+        "86ad9ae5-aa00-48b0-adff-e90faa4160ce",
+        "182c51ba-3bab-40e7-8ee8-d01da61f1d06",
+        "641ca03e-d9b6-4a4a-a44a-0ffa5fa0aca7",
+        "bf138e2b-dfc3-486a-9bb3-3847cefbe6a7"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید در این بخش داده‌های اعتبارسنجی کاربردی چه دارند؟ . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.335,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 3845.9,
+      "retrieved_ids": [
+        "31b54cf7-15fe-4c17-bb40-3915aee114e8",
+        "f352895a-2758-4fee-a845-5441041ffccc",
+        "fb52468a-34e7-47ff-a2c4-af4481638114",
+        "81928dfb-f0f0-47c1-8600-5180dbb52cd6",
+        "f4534de3-de8e-4b25-9e9c-bcdfd2562aa2"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید همان‌طور که اشاره شد تغییر تغییر یک شرکت، این نام اعتباری می‌شود؟؟",
+      "expected_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.726,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4806.1,
+      "retrieved_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e",
+        "9dfc3fc7-ea6a-4950-b269-adf4ac503a19",
+        "e14e5eae-66e4-4805-a3f6-3f60b2ae7099",
+        "7ff35b78-100d-4131-9cf8-2460d0d73d63",
+        "5e846ee2-ee88-48f3-8622-3cdd66ba2e9a"
+      ]
+    },
+    {
+      "query": "داده‌های قوه قضاییه چه کاربردی در اعتبارسنجی دارند",
+      "expected_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 4812.2,
+      "retrieved_ids": [
+        "44be29cb-0591-4213-b5d9-87f2debf4ded",
+        "cdc51e8e-626c-490a-8b21-ff66fa0d06e9",
+        "4d58cd7e-a5ed-44cb-890b-615a6e8e9127",
+        "6343c21d-a61e-4661-90e7-44dc346ade80",
+        "8d7f36a2-bd01-4db4-9f09-b2cbb4cce71f"
+      ]
+    },
+    {
+      "query": "سلام، چه اطلاعاتی در خلاصه وضعیت اعتباری گزارش اعتباری نمایش داده میشه . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.407,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 5130.2,
+      "retrieved_ids": [
+        "4dfd2969-1e0c-4b30-9c84-aac4b2fc938d",
+        "ebc8fc00-ee6e-422d-91d7-5cf0d96f8e2c",
+        "92472bf3-e7da-4319-bc87-1065a9fe8916",
+        "dc6f2945-571f-4341-b95d-828c989bb007",
+        "61c8f3f4-5235-4d07-a85f-1bddf7368344"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که همان‌طور که اشاره شد چقدر به‌روز اعتباری طول من شود؟؟",
+      "expected_ids": [
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.717,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3532.6,
+      "retrieved_ids": [
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349",
+        "92dfb729-c9e2-49b9-bb53-c200cff1af1c",
+        "1fb6bf2b-37f7-4838-8d69-6f09f81a059e",
+        "fca06a1b-8102-420d-96b0-1c9dec809cad",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که آیا امکان دارد یک با شرکت سابقه منفی در خروجی اعتباری، پس از تغییر مدیریت و سهامداران، امتیاز اعتباری و رتبه اعتباری جدیدی دریافت کند؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.332,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 5191.3,
+      "retrieved_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "7b52e396-dff6-4c83-8b53-d3ffd87b1128",
+        "5389ef37-5e51-4cdd-bd55-c5f5ca1d1c62",
+        "71b675a5-7817-4ac9-986d-f6afb44e3fe8",
+        "e14e5eae-66e4-4805-a3f6-3f60b2ae7099"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، چقدر طول می‌کشد تا گزارش اعتباری من به‌روز شود . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "47eace9c-ec1c-48fb-8609-1bd4f8216349"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.331,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 4488.3,
+      "retrieved_ids": [
+        "2465d81c-7483-4ed0-ab03-04b51b16e4d8",
+        "df6b359b-f561-4ac2-80b2-3da4dd06aaff",
+        "ee23d1e0-9c3d-4516-a270-323e5913a31f",
+        "6d741933-740b-4003-89a3-ae7845207d0c",
+        "98fec5ef-f69b-4841-b7c0-f392952c9897"
+      ]
+    },
+    {
+      "query": "بدحسابی چک عدم فعالیت در چک افزایش امتیاز چک",
+      "expected_ids": [
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.792,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 3632.5,
+      "retrieved_ids": [
+        "c8bacac3-68c5-4946-806d-f42a46962d5e",
+        "48728a1d-4692-4cbd-a5e8-f226eef7d14c",
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e",
+        "93c1ed2d-c403-4829-bfce-5ee83d18e6a6",
+        "e23394e6-a69c-4e0c-9dde-a9cab9ce64e0"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که آیا در خروجی اعتبارسنجی چک، اطلاعات مربوط و اسکان و کدپستی املاک به شخص درج می‌شود؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.433,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 5110.5,
+      "retrieved_ids": [
+        "d31f5d31-0d98-44bc-8772-ea1185981596",
+        "8fc6612f-e339-4b82-96e2-449a0460e4aa",
+        "1def5a3e-36be-47ee-9ff1-8552bb9c78d0",
+        "5ab41d12-e432-4c96-a79e-adaa5eef2ce6",
+        "b7500c97-327b-49d7-b36a-64318e45548a"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، آیا امکان دارد یک شرکت با سابقه منفی در گزارش اعتباری، پس از تغییر مدیریت و سهامداران، امتیاز اعتباری و رتبه اعتباری جدیدی دریافت کند . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.465,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 5230.7,
+      "retrieved_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "7b52e396-dff6-4c83-8b53-d3ffd87b1128",
+        "71b675a5-7817-4ac9-986d-f6afb44e3fe8",
+        "e14e5eae-66e4-4805-a3f6-3f60b2ae7099",
+        "2eb17f04-298f-4c12-82ef-a0941aec1376"
+      ]
+    },
+    {
+      "query": "مقایسه رقبا مجوز بانک مرکزی پایگاه داده ملی شرکت مرآت حافظ سامان ایرانیان اعتبارسنجی ایران",
+      "expected_ids": [
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.77,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 4660.5,
+      "retrieved_ids": [
+        "3ae7fc8a-7e8e-4540-9c6f-2bb5f2807ce5",
+        "3ef044e5-3f6d-4647-b6b2-59533eb80a97",
+        "89f5ade1-dd5e-474b-9cce-9f16472110a5",
+        "17d909f0-1206-4b38-a510-c0579c272831",
+        "42976708-482b-4582-ba8f-40ba83eac586"
+      ]
+    },
+    {
+      "query": "ببخشید، اگر امتیاز(رتبه خاص) چک شخصی کم باشد(C یا D) و 6 ماه بعد از این استعلام، هیچ رفتار بدی در حوزه چک نداشته باشد، امتیاز وی چگونه تحت تاثیر قرار میگیرد . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.367,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 5593.5,
+      "retrieved_ids": [
+        "e23394e6-a69c-4e0c-9dde-a9cab9ce64e0",
+        "ac377ec3-997f-4d92-8b98-fa5287aee00b",
+        "39c8c0bb-b10a-43dc-93c6-3d6087b58e7e",
+        "93c1ed2d-c403-4829-bfce-5ee83d18e6a6",
+        "96f9df53-a176-432f-8861-e4ddf4ac89b2"
+      ]
+    },
+    {
+      "query": "تغییر نام بانک اصلاح گزارش اعتباری",
+      "expected_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.358,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3752.5,
+      "retrieved_ids": [
+        "b13d0abb-8f65-4f1c-a87c-ae3a965b0b9e",
+        "30405177-6337-4fca-872a-714a00f9fe5e",
+        "5e846ee2-ee88-48f3-8622-3cdd66ba2e9a",
+        "1dfc21ba-08e8-4eb8-b852-ef302ebd83a5",
+        "9fea7ff7-fee9-4a5b-b157-33c5913d2a88"
+      ]
+    },
+    {
+      "query": "آیا امکان دارد یک شرکت با سابقه منفی در گزراش اعتبارى، پس از تغییر مدیریت و سهامداران، امتیاز اعتباری و رتبه اعتباری جدیدی دریافت کند؟",
+      "expected_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.703,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 3706.1,
+      "retrieved_ids": [
+        "df1f756a-557e-4cbc-b904-e3c650ab983d",
+        "7b52e396-dff6-4c83-8b53-d3ffd87b1128",
+        "5389ef37-5e51-4cdd-bd55-c5f5ca1d1c62",
+        "71b675a5-7817-4ac9-986d-f6afb44e3fe8",
+        "5f08c767-e424-4105-8107-719ce743330b"
+      ]
+    }
+  ]
+}
