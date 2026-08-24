@@ -10,7 +10,7 @@
 
 <div class="card">
     <h3>Run a Retrieval Benchmark</h3>
-    <p style="opacity:0.85;">Each dataset query is searched against the live KB (BM25 + TF-IDF RRF fusion, top-k returned). Hit@K and MRR are computed against expected chunk ids, then broken down by query format and difficulty.</p>
+    <p style="opacity:0.85;">Each dataset query is searched against the live KB (BM25 + Dense + RRF fusion, top-k returned). Hit@K and MRR are computed against expected chunk ids, then broken down by query format and difficulty.</p>
     <form method="post" action="/benchmarks/run" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
         <div class="form-group">
             <label>Test Dataset</label>
@@ -31,6 +31,30 @@
         <button type="submit" class="btn btn-primary" id="run-btn">Run Benchmark</button>
     </form>
     <div id="job-area" style="display:none; margin-top: 1rem;"></div>
+</div>
+
+<div class="card">
+    <h3>RAGAS Quality Evaluation</h3>
+    <p style="opacity:0.85;">Evaluate retrieval quality with LLM-based metrics: faithfulness, answer relevance, and context recall. Requires RAGAS + OpenAI API key.</p>
+    <form method="post" action="/benchmarks/ragas" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+        <div class="form-group">
+            <label>Test Dataset</label>
+            <select name="dataset" class="form-control">
+                {% for ds in datasets %}
+                <option value="{{ ds }}" {% if ds == 'test_questions.json' %}selected{% endif %}>{{ ds }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Top-K</label>
+            <input type="number" name="top_k" value="5" min="1" max="20" class="form-control" style="width:90px;">
+        </div>
+        <div class="form-group">
+            <label>Sample Size</label>
+            <input type="number" name="sample_size" value="10" min="1" max="120" class="form-control" style="width:90px;">
+        </div>
+        <button type="submit" class="btn btn-primary" id="ragas-btn">Run RAGAS</button>
+    </form>
 </div>
 
 <div class="card">

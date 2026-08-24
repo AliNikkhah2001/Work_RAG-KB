@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import math
+import os
 import re
 import time
 from collections import Counter
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
@@ -15,6 +18,7 @@ from sqlalchemy import select
 
 from kb_manager.config import PROJECT_ROOT
 from kb_manager.dense import DenseSemanticIndex, load_or_build
+from kb_manager.hyde import HyDEGenerator
 from kb_manager.reranker import CrossEncoderReranker, get_reranker
 
 if TYPE_CHECKING:
@@ -26,6 +30,12 @@ _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 _RERANKER_TOP_K = 50  # Number of candidates to rerank
+
+# HyDE configuration (disabled by default; set KB_HYDE_ENABLED=true to enable)
+_HYDE_ENABLED = os.getenv("KB_HYDE_ENABLED", "false").lower() == "true"
+_HYDE_LLM_MODEL = os.getenv("KB_HYDE_LLM", "gpt-4o-mini")
+_HYDE_LLM_API_KEY = os.getenv("KB_HYDE_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+_HYDE_LLM_BASE_URL = os.getenv("KB_HYDE_BASE_URL", os.getenv("OPENAI_BASE_URL", ""))
 
 # Persian character normalization map
 _PERSIAN_CHAR_MAP = {
@@ -209,8 +219,8 @@ class SearchSteps(BaseModel):
     elapsed_ms: float
 
 
-async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
-    """Load all chunks + docs and build BM25 + dense indexes + reranker."""
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+    """Load all chunks + docs and build BM25 + dense indexes + reranker + HyDE."""
     from kb_manager.models.database import Chunk, Document
     from kb_manager.web.deps import db
 
@@ -258,10 +268,21 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
     )
 
     reranker = get_reranker(model_name=_RERANKER_MODEL)
-    return chunk_data, bm25, dense, reranker
+
+    # HyDE: optional LLM-based hypothetical document generation
+    hyde = None
+    if _HYDE_ENABLED and _HYDE_LLM_API_KEY:
+        hyde = HyDEGenerator(
+            llm_model=_HYDE_LLM_MODEL,
+            llm_api_key=_HYDE_LLM_API_KEY,
+            llm_base_url=_HYDE_LLM_BASE_URL,
+            embedding_model=_DENSE_MODEL,
+        )
+
+    return chunk_data, bm25, dense, reranker, hyde
 
 
-_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker] | None = None
+_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
 _index_cache_count: int = 0
 
 
@@ -272,7 +293,7 @@ def _invalidate_index_cache() -> None:
     _index_cache_count = 0
 
 
-async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
     """Return the cached index, building it on first use."""
     global _index_cache, _index_cache_count
 
@@ -289,8 +310,8 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25,
     if _index_cache is not None and _index_cache_count == chunk_count:
         return _index_cache
 
-    chunk_data, bm25, dense, reranker = await _build_index()
-    _index_cache = (chunk_data, bm25, dense, reranker)
+    chunk_data, bm25, dense, reranker, hyde = await _build_index()
+    _index_cache = (chunk_data, bm25, dense, reranker, hyde)
     _index_cache_count = chunk_count
     return _index_cache
 
@@ -307,12 +328,16 @@ def _compute_idf(chunk_data: list) -> dict[str, float]:
 
 
 async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
-    """Run full search pipeline with step tracking."""
+    """Run full search pipeline with step tracking.
+
+    Pipeline: BM25 + Dense + [HyDE] → RRF → Cross-encoder reranker
+    HyDE is optional: only runs when KB_HYDE_ENABLED=true and API key is set.
+    """
     start = time.monotonic()
     normalized = query.strip()
     tokens = _tokenize(normalized)
 
-    chunk_data, bm25, dense, reranker = await _get_index()
+    chunk_data, bm25, dense, reranker, hyde = await _get_index()
 
     # --- Step 2: BM25 ---
     bm25_raw = bm25.search(normalized, top_k=top_k * 3)
@@ -355,11 +380,27 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
             ordinal=cd[5] if isinstance(cd[5], int) else 0,
         ))
 
-    # --- Step 4: Merge (RRF - Reciprocal Rank Fusion over 2 legs) ---
+    # --- Step 3b: HyDE (optional) ---
+    hyde_scores: dict[str, float] = {}
+    if hyde is not None and hyde.is_available:
+        hyde_vec = hyde.get_hyde_vector(normalized)
+        if hyde_vec is not None and dense._matrix is not None:
+            # Cosine similarity: dense matrix is already L2-normalized
+            sims = dense._matrix @ hyde_vec
+            hyde_order = np.argsort(-sims)[:top_k * 3]
+            for idx in hyde_order:
+                chunk_id = dense._ids[idx]
+                if chunk_id in bm25_id_map:
+                    hyde_scores[chunk_id] = float(sims[idx])
+
+    # --- Step 4: Merge (RRF - Reciprocal Rank Fusion over 2-3 legs) ---
     ranked_lists: list[list[tuple[str, float]]] = [
         [(cid, s) for cid, s in bm25_raw if cid in bm25_id_map],
         list(dense_raw),
     ]
+    # Add HyDE leg if available
+    if hyde_scores:
+        ranked_lists.append(list(hyde_scores.items()))
 
     merged: dict[str, SearchResult] = {}
     k = 60  # RRF constant

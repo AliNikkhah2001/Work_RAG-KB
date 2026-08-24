@@ -76,6 +76,18 @@ class ParserConfig:
 
 
 @dataclass(frozen=True)
+class HyDEConfig:
+    """Configuration for HyDE (Hypothetical Document Embeddings)."""
+
+    enabled: bool = False
+    llm_model: str = "gpt-4o-mini"
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+    num_hypotheses: int = 1
+    prompt_template: str = ""  # empty = use default Persian template
+
+
+@dataclass(frozen=True)
 class RagasConfig:
     """Configuration for RAGAS LLM-based evaluation."""
 
@@ -93,6 +105,7 @@ class AppConfig:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
+    hyde: HyDEConfig = field(default_factory=HyDEConfig)
     ragas: RagasConfig = field(default_factory=RagasConfig)
     source_dir: str = str(PROJECT_ROOT / "data")
     output_dir: str = str(PROJECT_ROOT / "data" / "processed")
@@ -130,6 +143,13 @@ def load_config() -> AppConfig:
         ),
         parser=ParserConfig(
             xlsx_engine=os.getenv("KB_XLSX_ENGINE", "auto"),
+        ),
+        hyde=HyDEConfig(
+            enabled=os.getenv("KB_HYDE_ENABLED", "false").lower() == "true",
+            llm_model=os.getenv("KB_HYDE_LLM", "gpt-4o-mini"),
+            llm_api_key=os.getenv("KB_HYDE_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+            llm_base_url=os.getenv("KB_HYDE_BASE_URL", os.getenv("OPENAI_BASE_URL", "")),
+            num_hypotheses=int(os.getenv("KB_HYDE_NUM", "1")),
         ),
         ragas=RagasConfig(
             llm_model=os.getenv("KB_RAGAS_LLM", "gpt-4o-mini"),

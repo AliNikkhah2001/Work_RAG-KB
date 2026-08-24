@@ -433,3 +433,136 @@ async def snapshot_file(label: str, name: str):
     if (not safe.exists()) or (snap_dir not in safe.parents and safe.parent != snap_dir):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(safe)
+
+
+# ---------------------------------------------------------------------------
+# RAGAS evaluation
+# ---------------------------------------------------------------------------
+
+RAGAS_RESULTS_JSON = DATA_DIR / "ragas_results.json"
+
+
+async def _run_ragas_evaluation(
+    job_id: str,
+    dataset_name: str,
+    top_k: int,
+    sample_size: int,
+) -> None:
+    """Run RAGAS quality evaluation (faithfulness, answer relevance, context recall)."""
+    from kb_manager.config import load_config
+    from kb_manager.evaluation.ragas_metrics import RagasEvaluator
+    from kb_manager.web.routes.search import search_knowledge_base_sync
+
+    job = _JOBS[job_id]
+    try:
+        dataset_path = DATA_DIR / dataset_name
+        dataset = _adapter(str(dataset_path))
+
+        if sample_size and sample_size > 0 and sample_size < len(dataset):
+            dataset = dataset[:sample_size]
+
+        job["total"] = len(dataset)
+        job["progress"] = 0
+        if len(dataset) == 0:
+            raise ValueError(f"Dataset {dataset_name} is empty")
+
+        config = load_config()
+        evaluator = RagasEvaluator(config.ragas)
+
+        if not evaluator.available():
+            raise RuntimeError(
+                "RAGAS dependencies not installed. "
+                "Install with: pip install ragas langchain-openai datasets"
+            )
+
+        questions: list[str] = []
+        answers: list[str] = []
+        retrieved_contexts: list[list[str]] = []
+        ground_truth: list[str] = []
+
+        for i, item in enumerate(dataset):
+            query = item.get("query", "")
+            gt_answer = item.get("answer", item.get("ground_truth", ""))
+
+            # Search
+            steps = search_knowledge_base_sync(query, top_k)
+            contexts = [r.content_preview for r in steps.final_results]
+
+            # Use ground truth as answer (reference-based evaluation)
+            answer = gt_answer if gt_answer else query
+
+            questions.append(query)
+            answers.append(answer)
+            retrieved_contexts.append(contexts)
+            ground_truth.append(gt_answer)
+
+            job["progress"] = i + 1
+
+        # Run RAGAS
+        scores = evaluator.evaluate(
+            questions=questions,
+            answers=answers,
+            retrieved_contexts=retrieved_contexts,
+            ground_truth=ground_truth if any(ground_truth) else None,
+        )
+
+        result = {
+            "version": "live-kb",
+            "created_at": datetime.now(UTC).isoformat(),
+            "dataset": dataset_name,
+            "total_queries": len(questions),
+            "top_k": top_k,
+            "scores": scores,
+        }
+
+        with open(RAGAS_RESULTS_JSON, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+
+        job["status"] = "done"
+        job["finished_at"] = datetime.now(UTC).isoformat()
+
+    except Exception as e:
+        logger.exception("RAGAS evaluation job %s failed", job_id)
+        job["status"] = "error"
+        job["error"] = str(e)[:500]
+        job["finished_at"] = datetime.now(UTC).isoformat()
+
+
+@router.post("/ragas")
+async def run_ragas_evaluation(
+    dataset: str = Form("test_questions.json"),
+    top_k: int = Form(5),
+    sample_size: int = Form(10),
+):
+    """Start a RAGAS quality evaluation job."""
+    dataset = dataset.strip()
+    if not (DATA_DIR / dataset).exists():
+        raise HTTPException(status_code=404, detail=f"Dataset not found: {dataset}")
+
+    job_id = uuid.uuid4().hex[:12]
+    job = {
+        "id": job_id,
+        "status": "running",
+        "progress": 0,
+        "total": 0,
+        "dataset": dataset,
+        "top_k": top_k,
+        "sample_size": sample_size,
+        "type": "ragas",
+        "started_at": datetime.now(UTC).isoformat(),
+        "finished_at": None,
+        "error": "",
+    }
+    _JOBS[job_id] = job
+    _JOBS[job_id]["_task"] = asyncio.create_task(
+        _run_ragas_evaluation(job_id, dataset, top_k, sample_size)
+    )
+    return RedirectResponse(f"/benchmarks?job={job_id}", status_code=303)
+
+
+@router.get("/ragas/result")
+async def ragas_result():
+    """Latest RAGAS evaluation results as JSON."""
+    if not RAGAS_RESULTS_JSON.exists():
+        raise HTTPException(status_code=404, detail="No RAGAS results yet")
+    return FileResponse(RAGAS_RESULTS_JSON, media_type="application/json")
