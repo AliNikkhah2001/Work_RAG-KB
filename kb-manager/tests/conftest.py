@@ -144,7 +144,7 @@ def preprocessor():
     """Return a PersianPreprocessor instance."""
     from kb_manager.preprocessor import PersianPreprocessor
 
-    return PersianPreprocessor(spell_check=False)
+    return PersianPreprocessor()
 
 
 @pytest.fixture()
@@ -152,7 +152,7 @@ def preprocessor_pipeline():
     """Return a PreprocessingPipeline instance."""
     from kb_manager.preprocessor.pipeline import PreprocessingPipeline
 
-    return PreprocessingPipeline(spell_check=False)
+    return PreprocessingPipeline()
 
 
 @pytest.fixture()

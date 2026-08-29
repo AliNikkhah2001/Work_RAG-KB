@@ -165,31 +165,11 @@ def _remove_extra_spaces(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Light spell-check (articles only, not technical codes)
+# Light spell-check (articles only, not technical codes) — REMOVED
+# The _COMMON_TYPOS dict contained only identity mappings (no actual corrections).
+# _light_spell_check was a no-op. If spell-check is needed, implement properly
+# with a real dictionary or integrate with Hazm/Shekar spell-checker.
 # ---------------------------------------------------------------------------
-
-# Very small lookup for ultra-common typos found in Persian KB articles.
-# This is intentionally lightweight – real spell-checking is expensive.
-_COMMON_TYPOS: dict[str, str] = {
-    "انجام": "انجام",
-    "اصلی": "اصلی",
-    "نرم‌افزار": "نرم‌افزار",
-    "سخت‌افزار": "سخت‌افزار",
-}
-
-_TECH_CODE_PATTERN = re.compile(r"\b[A-Za-z0-9_\-]{3,}\b")  # looks like a code/ID
-
-
-def _light_spell_check(text: str) -> str:
-    """Fix a handful of very common typos – skip technical codes."""
-    tokens = text.split()
-    result: list[str] = []
-    for token in tokens:
-        if _TECH_CODE_PATTERN.fullmatch(token):
-            result.append(token)
-            continue
-        result.append(_COMMON_TYPOS.get(token, token))
-    return " ".join(result)
 
 
 # ---------------------------------------------------------------------------
@@ -219,11 +199,9 @@ class PersianPreprocessor:
         *,
         use_hazm: bool = True,
         use_shekar: bool = True,
-        spell_check: bool = True,
     ) -> None:
         self._use_hazm = use_hazm and _HAZM_AVAILABLE
         self._use_shekar = use_shekar and _SHEKAR_AVAILABLE
-        self._spell_check = spell_check
 
         self._hazm_norm: object | None = None
         if self._use_hazm:
@@ -297,10 +275,6 @@ class PersianPreprocessor:
 
         # 7. Extra spaces
         text = _remove_extra_spaces(text)
-
-        # 8. Spell check (optional)
-        if self._spell_check:
-            text = _light_spell_check(text)
 
         return text
 

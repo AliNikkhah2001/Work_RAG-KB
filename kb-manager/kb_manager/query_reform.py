@@ -259,12 +259,6 @@ class MultiQueryGenerator:
         except json.JSONDecodeError:
             return [ReformulatedQuery(query=original_query, query_type="original", original_query=original_query)]
 
-    def generate_beam(self, query: str, beam_size: int = 5) -> List[ReformulatedQuery]:
-        """Generate queries using beam search for diversity."""
-        # For now, use standard generation with higher temperature
-        # True beam search would require model-level access
-        return self.generate(query)
-
 
 # ---------------------------------------------------------------------------
 # RRF Fusion

@@ -99,7 +99,6 @@ _PERSIAN_STOP_WORDS: frozenset[str] = frozenset(
         "طی",
         "ضمن",
         "نوع",
-        " manner",
         "مورد",
         "اول",
         "دوم",
@@ -339,9 +338,6 @@ class PreprocessingPipeline:
     persian_preprocessor:
         Optional custom :class:`PersianPreprocessor`.  A default instance
         is created when *None*.
-    spell_check:
-        Forwarded to :class:`PersianPreprocessor` when no custom one is
-        provided.
     max_keywords:
         Maximum number of keywords to extract.
     """
@@ -350,10 +346,9 @@ class PreprocessingPipeline:
         self,
         persian_preprocessor: PersianPreprocessor | None = None,
         *,
-        spell_check: bool = True,
         max_keywords: int = 15,
     ) -> None:
-        self._pp = persian_preprocessor or PersianPreprocessor(spell_check=spell_check)
+        self._pp = persian_preprocessor or PersianPreprocessor()
         self._max_keywords = max_keywords
 
     def run(self, text: str) -> PreprocessingResult:

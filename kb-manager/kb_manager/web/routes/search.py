@@ -364,17 +364,6 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         return _index_cache
 
 
-def _compute_idf(chunk_data: list) -> dict[str, float]:
-    """Compute IDF across all chunks."""
-    doc_count = len(chunk_data)
-    df: dict[str, int] = {}
-    for _, _, _, _, content, _, _ in chunk_data:
-        tokens = set(_tokenize(content))
-        for t in tokens:
-            df[t] = df.get(t, 0) + 1
-    return {t: math.log((doc_count - c + 0.5) / (c + 0.5) + 1.0) for t, c in df.items()}
-
-
 async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     """Run full search pipeline with step tracking.
 

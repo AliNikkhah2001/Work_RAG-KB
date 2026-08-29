@@ -20,9 +20,6 @@ import numpy as np
 
 _MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
-# Context template for contextual retrieval (Anthropic-style)
-_CONTEXT_TEMPLATE = "Title: {title}\nHeading: {heading}\nContent: {content}"
-
 
 class DenseSemanticIndex:
     """Cosine-similarity index over precomputed chunk embeddings.
