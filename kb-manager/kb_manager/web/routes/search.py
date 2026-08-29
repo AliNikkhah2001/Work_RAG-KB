@@ -284,6 +284,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
 
 _index_cache: tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
 _index_cache_count: int = 0
+_index_lock = asyncio.Lock()
 
 
 def _invalidate_index_cache() -> None:
@@ -294,7 +295,7 @@ def _invalidate_index_cache() -> None:
 
 
 async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
-    """Return the cached index, building it on first use."""
+    """Return the cached index, building it on first use (thread-safe)."""
     global _index_cache, _index_cache_count
 
     from sqlalchemy import func
@@ -310,10 +311,14 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
     if _index_cache is not None and _index_cache_count == chunk_count:
         return _index_cache
 
-    chunk_data, bm25, dense, reranker, hyde = await _build_index()
-    _index_cache = (chunk_data, bm25, dense, reranker, hyde)
-    _index_cache_count = chunk_count
-    return _index_cache
+    # F29 fix: protect rebuild with lock and double-check after acquiring
+    async with _index_lock:
+        if _index_cache is not None and _index_cache_count == chunk_count:
+            return _index_cache
+        chunk_data, bm25, dense, reranker, hyde = await _build_index()
+        _index_cache = (chunk_data, bm25, dense, reranker, hyde)
+        _index_cache_count = chunk_count
+        return _index_cache
 
 
 def _compute_idf(chunk_data: list) -> dict[str, float]:
@@ -462,15 +467,22 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
 # Routes
 # ---------------------------------------------------------------------------
 
-_sync_loop: asyncio.AbstractEventLoop | None = None
+def _run_sync(coro):
+    """Run coroutine from sync context without breaking a running loop (F2/F29 fix)."""
+    import concurrent.futures
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        fut = pool.submit(asyncio.run, coro)
+        return fut.result()
 
 
 def search_knowledge_base_sync(query: str, top_k: int = 10) -> SearchSteps:
-    """Synchronous wrapper for search_knowledge_base with a persistent event loop."""
-    global _sync_loop
-    if _sync_loop is None or _sync_loop.is_closed():
-        _sync_loop = asyncio.new_event_loop()
-    return _sync_loop.run_until_complete(search_knowledge_base(query, top_k))
+    """Synchronous wrapper — safe from both sync and async callers."""
+    return _run_sync(search_knowledge_base(query, top_k))
 
 @router.get("")
 async def search_page(request: Request):
@@ -483,7 +495,6 @@ async def search_page(request: Request):
 @router.post("/api")
 async def search_api(request: Request):
     """Search API endpoint - returns JSON with step-by-step results."""
-    import asyncio
     import traceback
 
     try:
@@ -498,7 +509,8 @@ async def search_api(request: Request):
         return {"error": "Empty query"}
 
     try:
-        steps = await asyncio.to_thread(search_knowledge_base_sync, query, top_k)
+        # F2/F29 fix: directly await async pipeline — no to_thread/_sync_loop indirection
+        steps = await search_knowledge_base(query, top_k)
         return steps.model_dump()
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}
