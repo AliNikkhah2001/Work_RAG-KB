@@ -121,6 +121,7 @@ async def main():
     parser.add_argument("--offset", type=int, default=0, help="Skip first N chunks (for parallel workers)")
     parser.add_argument("--suffix", default="", help="Suffix for output filenames (parallel workers)")
     parser.add_argument("--skip-validation", action="store_true", help="Skip LLM validation")
+    parser.add_argument("--exclude-ids", default="", help="File with chunk IDs (one per line) to skip — for resuming failed runs")
     args = parser.parse_args()
 
     # Load config
@@ -147,6 +148,15 @@ async def main():
     
     if args.limit:
         chunks = chunks[:args.limit]
+
+    if getattr(args, "exclude_ids", ""):
+        from pathlib import Path as _P
+        done = set()
+        with open(_P(args.exclude_ids), encoding="utf-8") as _f:
+            done = {line.strip() for line in _f if line.strip()}
+        before = len(chunks)
+        chunks = [c for c in chunks if c["id"] not in done]
+        logger.info(f"Excluded {before - len(chunks)} already-done chunks (--exclude-ids)")
     
     logger.info(f"Loaded {len(chunks)} chunks from database")
     
@@ -190,21 +200,28 @@ async def main():
         
         logger.info(f"[{i+1}/{len(chunks)}] Processing chunk {chunk_id[:8]}...")
         
-        # Generate QA pairs
-        try:
-            qa_pairs = qa_gen.generate(content, chunk_id)
-            stats["qa_generated"] += len(qa_pairs)
-            
-            # Validate if enabled
-            if validator:
-                valid_qa = validator.filter_batch(qa_pairs, chunk_texts)
-                stats["qa_passed"] += len(valid_qa)
-                qa_pairs = valid_qa
-            
-            all_qa.extend(qa_pairs)
-            
-        except Exception as e:
-            logger.error(f"QA generation failed for chunk {chunk_id}: {e}")
+        # Generate QA pairs (with retry — local LLM servers drop connections under load)
+        qa_pairs = []
+        for attempt in range(3):
+            try:
+                qa_pairs = qa_gen.generate(content, chunk_id)
+                break
+            except Exception as e:
+                if attempt < 2:
+                    logger.warning(f"QA generation attempt {attempt+1} failed for {chunk_id}: {e} — retrying")
+                    time.sleep(5 * (attempt + 1))
+                else:
+                    logger.error(f"QA generation failed for chunk {chunk_id}: {e}")
+        
+        stats["qa_generated"] += len(qa_pairs)
+        
+        # Validate if enabled
+        if validator and qa_pairs:
+            valid_qa = validator.filter_batch(qa_pairs, chunk_texts)
+            stats["qa_passed"] += len(valid_qa)
+            qa_pairs = valid_qa
+        
+        all_qa.extend(qa_pairs)
         
         # Generate conversation (if ratio allows)
         import random

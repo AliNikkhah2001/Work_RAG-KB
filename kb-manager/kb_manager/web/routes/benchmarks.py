@@ -23,7 +23,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from kb_manager.config import PROJECT_ROOT
-from kb_manager.web.app import templates
+from kb_manager.web.templating import templates
 
 try:
     from kb_manager.evaluation.benchmark import summarize_ir_metrics

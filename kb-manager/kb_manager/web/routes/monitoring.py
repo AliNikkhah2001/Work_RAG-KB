@@ -6,7 +6,8 @@ from fastapi import APIRouter, Request
 from sqlalchemy import func, select
 
 from kb_manager.models.database import Chunk, Document, IngestionJob, RetrievalLog
-from kb_manager.web.app import db, templates
+from kb_manager.web.app import db
+from kb_manager.web.templating import templates
 
 router = APIRouter()
 

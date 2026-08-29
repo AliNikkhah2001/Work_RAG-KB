@@ -43,7 +43,8 @@
     "database": {
       "path": "data/kb_test.db",
       "chunk_types": [
-        "qa_pair"
+        "qa_pair",
+        "body"
       ]
     },
     "logging": {
@@ -53,13 +54,13 @@
     }
   },
   "stats": {
-    "total_chunks": 694,
-    "qa_generated": 472,
-    "conversations_generated": 175,
+    "total_chunks": 1193,
+    "qa_generated": 9472,
+    "conversations_generated": 0,
     "qa_passed": 0,
     "conversations_passed": 0,
-    "start_time": 1787569652.817545
+    "start_time": 1787571925.8008382
   },
-  "elapsed_seconds": 1817.4321751594543,
-  "timestamp": "2026-08-24 11:37:50"
+  "elapsed_seconds": 20517.218497514725,
+  "timestamp": "2026-08-24 17:27:23"
 }

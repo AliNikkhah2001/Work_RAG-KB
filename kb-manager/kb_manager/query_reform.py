@@ -142,15 +142,13 @@ class HyDEGenerator:
         top_k: int = 10,
     ) -> List[tuple[str, float]]:
         """Generate HyDE doc, embed it, and search dense index."""
+        # Generate HyDE doc, then search dense index directly with its text
+        # (DenseSemanticIndex.search embeds the query internally).
         hyde_doc = self.generate(query)
         if not hyde_doc.content:
             return []
 
-        # Embed the hypothetical document
-        query_embedding = dense_index.embed_query(hyde_doc.content)
-        
-        # Search dense index
-        return dense_index.search(query_embedding, top_k=top_k)
+        return dense_index.search(hyde_doc.content, top_k=top_k)
 
 
 # ---------------------------------------------------------------------------

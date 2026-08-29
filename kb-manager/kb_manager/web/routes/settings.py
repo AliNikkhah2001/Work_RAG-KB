@@ -14,7 +14,7 @@ from kb_manager.config import (
     AppConfig,
     load_config,
 )
-from kb_manager.web.app import templates
+from kb_manager.web.templating import templates
 
 router = APIRouter(tags=["settings"])
 

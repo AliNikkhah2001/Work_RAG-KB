@@ -30,12 +30,21 @@ from kb_manager.retrieval.orchestrator import (
     get_retriever,
     invalidate_retriever,
 )
-from kb_manager.web.app import templates
+from kb_manager.web.templating import templates
 
 if TYPE_CHECKING:
     pass
 
 router = APIRouter()
+
+
+async def search_knowledge_base(query: str, k: int = 5):
+    """Programmatic search entry point (used by benchmarks).
+
+    Returns SearchSteps with .final_results; uses the 'auto' strategy.
+    """
+    retriever = await get_retriever()
+    return await retriever.search(query=query, strategy="auto", top_k=k)
 
 
 class SearchRequest(BaseModel):

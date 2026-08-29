@@ -9,7 +9,8 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 
 from kb_manager.models.database import IngestionJob
-from kb_manager.web.app import db, templates
+from kb_manager.web.app import db
+from kb_manager.web.templating import templates
 
 router = APIRouter()
 

@@ -253,6 +253,11 @@ class VLLMClient(LLMClient):
 class MockLLMClient(LLMClient):
     """Mock LLM client for testing."""
 
+    def __init__(self, *args, **kwargs):
+        # Tolerate factory kwargs (model, base_url, ...) so code paths that
+        # build a client from config work without a real backend.
+        pass
+
     def generate(
         self,
         prompt: str,
