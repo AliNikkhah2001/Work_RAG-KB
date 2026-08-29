@@ -61,16 +61,15 @@ class CrossEncoderReranker:
         logger.info("Loading cross-encoder model %s …", self._model_name)
 
         self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
+        # Phase 1 fix F11: use float16 only on non-CPU (cuda) — None should not imply float16
+        actual_device = self._device or ("cuda" if torch.cuda.is_available() else "cpu")
+        dtype = torch.float16 if actual_device != "cpu" else torch.float32
         self._model = AutoModelForSequenceClassification.from_pretrained(
             self._model_name,
-            torch_dtype=torch.float16 if self._device != "cpu" else torch.float32,
+            torch_dtype=dtype,
         )
 
-        if self._device:
-            self._model.to(self._device)
-        else:
-            import torch
-            self._model.to("cuda" if torch.cuda.is_available() else "cpu")
+        self._model.to(actual_device)
 
         self._model.eval()
         logger.info(
@@ -107,13 +106,13 @@ class CrossEncoderReranker:
 
         self._ensure_model()
 
-        # Sort by initial score and take top candidates for reranking
-        # (cross-encoder is expensive, so we only rerank a subset)
+        # Sort by initial score; search already limits to _RERANKER_TOP_K (50)
+        # Do not silently truncate to top_k*3 — rerank all candidates passed in
         rerank_pool = sorted(
             candidates,
             key=lambda x: x.get(score_key, 0),
             reverse=True,
-        )[: min(top_k * 3, len(candidates))]
+        )
 
         # Prepare (query, passage) pairs
         pairs = []

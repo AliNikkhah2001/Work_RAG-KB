@@ -219,7 +219,7 @@ class SearchSteps(BaseModel):
     elapsed_ms: float
 
 
-async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
     """Load all chunks + docs and build BM25 + dense indexes + reranker + HyDE."""
     from kb_manager.models.database import Chunk, Document
     from kb_manager.web.deps import db
@@ -235,7 +235,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
         doc_map = {d.id: d for d in docs_result.scalars().all()}
 
     docs_for_bm25 = []
-    chunk_data = []
+    chunk_data: list[tuple[str, str, str, str, str, str, int]] = []
     dense_titles = []
     dense_headings = []
     dense_chunk_types = []
@@ -247,7 +247,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
         keyword_text = " ".join(c.keywords) if c.keywords else ""
         boosted_content = c.content + " " + keyword_text + " " + keyword_text + " " + keyword_text
         docs_for_bm25.append((c.id, boosted_content))
-        chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type))
+        chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type, c.ordinal))
         dense_titles.append(title)
         dense_headings.append(c.heading_path)
         dense_chunk_types.append(c.chunk_type)
@@ -282,7 +282,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
     return chunk_data, bm25, dense, reranker, hyde
 
 
-_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
+_index_cache: tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
 _index_cache_count: int = 0
 
 
@@ -293,7 +293,7 @@ def _invalidate_index_cache() -> None:
     _index_cache_count = 0
 
 
-async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
     """Return the cached index, building it on first use."""
     global _index_cache, _index_cache_count
 
@@ -320,7 +320,7 @@ def _compute_idf(chunk_data: list) -> dict[str, float]:
     """Compute IDF across all chunks."""
     doc_count = len(chunk_data)
     df: dict[str, int] = {}
-    for _, _, _, _, content, _ in chunk_data:
+    for _, _, _, _, content, _, _ in chunk_data:
         tokens = set(_tokenize(content))
         for t in tokens:
             df[t] = df.get(t, 0) + 1
@@ -358,7 +358,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
             heading_path=cd[3],
             content_preview=cd[4][:300],
             bm25_score=round(score, 4),
-            ordinal=cd[5] if isinstance(cd[5], int) else 0,
+            ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
     # --- Step 3: Dense semantic (embedding cosine) ---
@@ -377,7 +377,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
             content_preview=cd[4][:300],
             dense_score=round(score, 4),
             semantic_score=round(score, 4),  # repurpose semantic_score for dense
-            ordinal=cd[5] if isinstance(cd[5], int) else 0,
+            ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
     # --- Step 3b: HyDE (optional) ---
@@ -421,7 +421,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
                     semantic_score=round(dense_scores.get(chunk_id, 0), 4),
                     dense_score=round(dense_scores.get(chunk_id, 0), 4),
                     hybrid_score=round(rrf_score, 6),
-                    ordinal=cd[5] if isinstance(cd[5], int) else 0,
+                    ordinal=cd[6] if isinstance(cd[6], int) else 0,
                 )
             else:
                 merged[chunk_id].hybrid_score += rrf_score
