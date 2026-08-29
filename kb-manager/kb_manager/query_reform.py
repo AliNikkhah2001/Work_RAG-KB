@@ -78,11 +78,11 @@ class HyDEDocument:
 # ---------------------------------------------------------------------------
 
 class HyDEGenerator:
-    """Generates hypothetical documents (HyDE) for query expansion.
+    """Generates hypothetical documents (HyDE) for query expansion — DEPRECATED.
 
-    Based on "Precise Zero-Shot Dense Retrieval without Relevance Labels"
-    (Gao et al., 2022). Generates a hypothetical answer document for the query,
-    then uses its embedding for retrieval.
+    Use ``kb_manager.hyde.HyDEGenerator`` (httpx + SentenceTransformer) as the
+    canonical implementation. This class is kept for backward compat and now
+    warns on instantiation (B13/B14 fix).
     """
 
     def __init__(
@@ -91,6 +91,13 @@ class HyDEGenerator:
         prompt_template: str = _HYDE_PROMPT_FA,
         max_length: int = 512,
     ) -> None:
+        import warnings
+
+        warnings.warn(
+            "kb_manager.query_reform.HyDEGenerator is deprecated; use kb_manager.hyde.HyDEGenerator",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._llm = llm_client
         self._prompt_template = prompt_template
         self._max_length = max_length
@@ -141,16 +148,14 @@ class HyDEGenerator:
         dense_index: Any,
         top_k: int = 10,
     ) -> List[tuple[str, float]]:
-        """Generate HyDE doc, embed it, and search dense index."""
+        """Generate HyDE doc, embed it, and search dense index (F7 fix: use correct API)."""
         hyde_doc = self.generate(query)
         if not hyde_doc.content:
             return []
 
-        # Embed the hypothetical document
-        query_embedding = dense_index.embed_query(hyde_doc.content)
-        
-        # Search dense index
-        return dense_index.search(query_embedding, top_k=top_k)
+        # DenseSemanticIndex.search expects string, not embedding; use content directly
+        # (canonical HyDE uses embedding vector via dense._matrix @ hyde_vec in search.py)
+        return dense_index.search(hyde_doc.content, top_k=top_k)
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +177,13 @@ class MultiQueryGenerator:
         num_queries: int = 6,
         beam_size: int = 5,
     ) -> None:
+        import warnings
+
+        warnings.warn(
+            "kb_manager.query_reform.MultiQueryGenerator is placeholder; use canonical retrieval or implement beam search",
+            UserWarning,
+            stacklevel=2,
+        )
         self._llm = llm_client
         self._prompt_template = prompt_template
         self._num_queries = num_queries
@@ -212,11 +224,19 @@ class MultiQueryGenerator:
             )]
 
     def _extract_json(self, response: Any) -> str:
-        """Extract JSON from LLM response."""
+        """Extract JSON from LLM response (F22 fix: strict, non-greedy)."""
         text = str(response).strip()
-        
-        # Try to find JSON array in response
-        match = re.search(r'\[.*\]', text, re.DOTALL)
+        # Try to parse first balanced JSON array via raw_decode
+        try:
+            start = text.find("[")
+            if start != -1:
+                decoder = json.JSONDecoder()
+                obj, end = decoder.raw_decode(text[start:])
+                return json.dumps(obj, ensure_ascii=False)
+        except Exception:
+            pass
+        # Fallback: non-greedy regex
+        match = re.search(r"\[.*?\]", text, re.DOTALL)
         if match:
             return match.group(0)
         return text

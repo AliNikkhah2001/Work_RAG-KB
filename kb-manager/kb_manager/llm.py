@@ -378,6 +378,10 @@ def create_llm_client(
     if backend not in backends:
         raise ValueError(f"Unknown backend: {backend}. Choose from {list(backends.keys())}")
     
+    # F25 fix: warn when mock is used without explicit allow (prevents silent synthetic nonsense)
+    if backend == "mock" and os.getenv("KB_ALLOW_MOCK", "true").lower() not in ("1", "true", "yes", "on"):
+        logger.warning("MockLLMClient requested without KB_ALLOW_MOCK=true — synthetic generation will produce canned Persian nonsense")
+    
     client_class = backends[backend]
     
     # Set default model per backend
