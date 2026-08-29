@@ -74,31 +74,7 @@ app.include_router(versions.router, prefix="/versions", tags=["versions"])
 app.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
 app.include_router(search.router, prefix="/search", tags=["search"])
 app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
-
-# Workaround for FastAPI 0.141+ include_router not working properly
-# Manually add cleanup routes with /cleanup prefix
-for route in cleanup.router.routes:
-    if hasattr(route, "path"):
-        # Create a copy of the route with prefixed path
-        from fastapi.routing import APIRoute
-        if isinstance(route, APIRoute):
-            new_route = APIRoute(
-                path="/cleanup" + route.path,
-                endpoint=route.endpoint,
-                methods=route.methods,
-                response_class=route.response_class,
-                name=route.name,
-                tags=route.tags,
-                summary=route.summary,
-                description=route.description,
-                response_model=route.response_model,
-                status_code=route.status_code,
-                dependencies=route.dependencies,
-                callbacks=route.callbacks,
-                openapi_extra=route.openapi_extra,
-                include_in_schema=route.include_in_schema,
-            )
-            app.router.routes.append(new_route)
+app.include_router(cleanup.router, prefix="/cleanup", tags=["cleanup"])
 
 
 @app.get("/")

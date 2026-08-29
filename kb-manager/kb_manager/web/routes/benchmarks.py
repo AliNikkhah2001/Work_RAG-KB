@@ -51,6 +51,15 @@ DUP_STATS_JSON = DATA_DIR / "qa_duplication.json"
 
 _JOBS: dict[str, dict[str, Any]] = {}
 
+def _evict_old_jobs() -> None:
+    """Keep at most 100 jobs, evict oldest completed (D30 fix)."""
+    if len(_JOBS) <= 100:
+        return
+    # Sort by started_at, keep newest 100
+    sorted_items = sorted(_JOBS.items(), key=lambda kv: kv[1].get("started_at", ""))
+    for k, _ in sorted_items[:-100]:
+        _JOBS.pop(k, None)
+
 
 # ---------------------------------------------------------------------------
 # Benchmark execution helpers
@@ -227,6 +236,7 @@ async def run_benchmark(
         "finished_at": None,
         "error": "",
     }
+    _evict_old_jobs()
     _JOBS[job_id] = job
     _JOBS[job_id]["_task"] = asyncio.create_task(
         _run_benchmark(job_id, dataset, top_k, sample_size)
@@ -522,6 +532,7 @@ async def run_ragas_evaluation(
         "finished_at": None,
         "error": "",
     }
+    _evict_old_jobs()
     _JOBS[job_id] = job
     _JOBS[job_id]["_task"] = asyncio.create_task(
         _run_ragas_evaluation(job_id, dataset, top_k, sample_size)

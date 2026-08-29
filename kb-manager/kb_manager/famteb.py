@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 try:
     from datasets import load_dataset
@@ -204,10 +207,9 @@ def load_multiple_famteb_datasets(
             datasets[key] = load_famteb_retrieval_dataset(
                 key, max_samples=max_samples_per_dataset
             )
-            print(f"Loaded {key}: {len(datasets[key].queries)} queries, "
-                  f"{len(datasets[key].corpus)} docs")
+            logger.info("Loaded %s: %d queries, %d docs", key, len(datasets[key].queries), len(datasets[key].corpus))
         except Exception as e:
-            print(f"Failed to load {key}: {e}")
+            logger.warning("Failed to load %s: %s", key, e)
     return datasets
 
 

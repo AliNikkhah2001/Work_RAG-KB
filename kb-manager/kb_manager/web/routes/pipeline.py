@@ -17,6 +17,18 @@ router = APIRouter()
 # Active background tasks
 _running_tasks: dict[str, asyncio.Task] = {}
 
+def _evict_old_tasks() -> None:
+    """Keep at most 50 pipeline tasks, evict done (D30 fix)."""
+    if len(_running_tasks) <= 50:
+        return
+    done = [k for k, v in list(_running_tasks.items()) if v.done()]
+    for k in done:
+        _running_tasks.pop(k, None)
+    if len(_running_tasks) > 50:
+        # keep newest 50
+        for k in list(_running_tasks.keys())[:-50]:
+            _running_tasks.pop(k, None)
+
 
 @router.get("")
 async def pipeline_status(request: Request):
@@ -113,8 +125,11 @@ async def run_pipeline(
                     job_rec.error_log = str(exc)[:2000]
                     job_rec.completed_at = datetime.now(UTC)
 
+    _evict_old_tasks()
     task = asyncio.create_task(_run())
     _running_tasks[job_id] = task
+    # Clean up when done to prevent leak
+    task.add_done_callback(lambda t, jid=job_id: _running_tasks.pop(jid, None) if t.done() else None)
 
     return RedirectResponse("/pipeline", status_code=302)
 
