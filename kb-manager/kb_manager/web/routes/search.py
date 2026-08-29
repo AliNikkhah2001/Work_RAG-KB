@@ -284,40 +284,79 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
 
 _index_cache: tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
 _index_cache_count: int = 0
+_index_cache_fp: str | None = None
 _index_lock = asyncio.Lock()
 
 
 def _invalidate_index_cache() -> None:
     """Drop the cached index so the next search rebuilds it."""
-    global _index_cache, _index_cache_count
+    global _index_cache, _index_cache_count, _index_cache_fp
     _index_cache = None
     _index_cache_count = 0
+    _index_cache_fp = None
 
 
 async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
-    """Return the cached index, building it on first use (thread-safe)."""
-    global _index_cache, _index_cache_count
+    """Return the cached index, building it on first use (thread-safe, F5 fix)."""
+    global _index_cache, _index_cache_count, _index_cache_fp
 
-    from sqlalchemy import func
+    from sqlalchemy import func, select
 
-    from kb_manager.models.database import Chunk
+    from kb_manager.models.database import Chunk, Document
     from kb_manager.web.deps import db
+    from kb_manager.dense import DenseSemanticIndex
 
     async with db.session() as session:
-        chunk_count = (
-            await session.execute(select(func.count(Chunk.id)))
-        ).scalar_one()
+        chunk_count = (await session.execute(select(func.count(Chunk.id)))).scalar_one()
 
-    if _index_cache is not None and _index_cache_count == chunk_count:
-        return _index_cache
+    # Fast path: count mismatch → rebuild; count match but need fingerprint check for same-count content change (F5)
+    if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+        # Compute current fingerprint via lightweight DB scan to detect stale cache
+        async with db.session() as session:
+            result = await session.execute(select(Chunk))
+            all_chunks = result.scalars().all()
+            if len(all_chunks) == chunk_count:
+                doc_ids = list({c.document_id for c in all_chunks})
+                docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+                doc_map = {d.id: d for d in docs_result.scalars().all()}
+                texts = [c.content for c in all_chunks]
+                titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
+                headings = [c.heading_path for c in all_chunks]
+                ctypes = [c.chunk_type for c in all_chunks]
+                cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                if cur_fp == _index_cache_fp:
+                    return _index_cache
+                # fingerprint mismatch → stale, fall through to rebuild
+            # else count actually changed → rebuild
 
-    # F29 fix: protect rebuild with lock and double-check after acquiring
     async with _index_lock:
-        if _index_cache is not None and _index_cache_count == chunk_count:
-            return _index_cache
+        # Double-check after acquiring lock
+        if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+            # Re-check fingerprint under lock to avoid race
+            async with db.session() as session:
+                result = await session.execute(select(Chunk))
+                all_chunks = result.scalars().all()
+                if len(all_chunks) == chunk_count:
+                    doc_ids = list({c.document_id for c in all_chunks})
+                    docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+                    doc_map = {d.id: d for d in docs_result.scalars().all()}
+                    texts = [c.content for c in all_chunks]
+                    titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
+                    headings = [c.heading_path for c in all_chunks]
+                    ctypes = [c.chunk_type for c in all_chunks]
+                    cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                    if cur_fp == _index_cache_fp:
+                        return _index_cache
         chunk_data, bm25, dense, reranker, hyde = await _build_index()
+        # Compute and store fingerprint for future same-count checks
+        texts = [cd[4] for cd in chunk_data]
+        titles = [cd[2] for cd in chunk_data]
+        headings = [cd[3] for cd in chunk_data]
+        ctypes = [cd[5] for cd in chunk_data]
+        cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
         _index_cache = (chunk_data, bm25, dense, reranker, hyde)
         _index_cache_count = chunk_count
+        _index_cache_fp = cur_fp
         return _index_cache
 
 

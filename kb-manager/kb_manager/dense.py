@@ -113,12 +113,35 @@ class DenseSemanticIndex:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def fingerprint(texts: list[str]) -> str:
-        """Content fingerprint used to invalidate the disk cache."""
+    def fingerprint(
+        texts: list[str],
+        titles: Optional[list[str]] = None,
+        headings: Optional[list[str]] = None,
+        chunk_types: Optional[list[str]] = None,
+        model_name: str = _MODEL_NAME,
+        use_context: bool = True,
+    ) -> str:
+        """Content fingerprint used to invalidate the disk cache.
+
+        Includes contextual metadata and model identity so a heading/title
+        change or model switch correctly invalidates the cache (F4 fix).
+        """
         h = hashlib.sha256()
-        for t in texts:
-            h.update(len(t).to_bytes(4, "little"))
-            h.update(t.encode("utf-8"))
+        h.update(model_name.encode("utf-8"))
+        h.update(b"|use_context=" + (b"1" if use_context else b"0"))
+        # Use contextual texts if available so title/heading changes invalidate
+        if use_context and titles is not None and headings is not None:
+            for i, t in enumerate(texts):
+                title = titles[i] if i < len(titles) else ""
+                heading = headings[i] if i < len(headings) else ""
+                ctype = chunk_types[i] if chunk_types and i < len(chunk_types) else ""
+                ctx = DenseSemanticIndex.build_context_text(t, title, heading, ctype)
+                h.update(len(ctx).to_bytes(4, "little"))
+                h.update(ctx.encode("utf-8"))
+        else:
+            for t in texts:
+                h.update(len(t).to_bytes(4, "little"))
+                h.update(t.encode("utf-8"))
         return h.hexdigest()
 
     def build(
@@ -237,7 +260,7 @@ def load_or_build(
     rebuild.  When ``embed_fn`` is provided (e.g. a test double) it is used
     instead of the sentence-transformer model and caching is skipped.
     """
-    fp = DenseSemanticIndex.fingerprint(texts)
+    fp = DenseSemanticIndex.fingerprint(texts, titles, headings, chunk_types, model_name, use_context)
     index = DenseSemanticIndex(
         model_name=model_name, batch_size=batch_size, embed_fn=embed_fn, use_context=use_context
     )

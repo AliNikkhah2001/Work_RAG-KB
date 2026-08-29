@@ -67,14 +67,14 @@ async def run_pipeline(
     if not source_dir.strip():
         source_dir = config.source_dir
 
-    # Create job record
+    # Create job record (F31 fix: do not store config in error_log)
     async with db.session() as session:
         job = IngestionJob(
             job_type=job_type,
             status="running",
             source_dir=source_dir,
             started_at=datetime.now(UTC),
-            error_log=f"parent_scope={parent_scope}",
+            error_log=None,
         )
         session.add(job)
         await session.flush()
@@ -84,7 +84,12 @@ async def run_pipeline(
     async def _run():
         try:
             async with db.session() as session:
-                orchestrator = PipelineOrchestrator(database=db)
+                # F31 fix: actually apply parent_scope to chunker instead of stuffing it in error_log
+                from kb_manager.chunker.semantic import SemanticChunker
+
+                scope = parent_scope if parent_scope in ("sheet", "document") else "sheet"
+                chunker = SemanticChunker(parent_scope=scope)
+                orchestrator = PipelineOrchestrator(database=db, chunker=chunker)
                 if job_type == "full_rebuild":
                     summary = await orchestrator.run_full_rebuild(source_dir)
                 else:

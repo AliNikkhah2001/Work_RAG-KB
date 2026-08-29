@@ -107,7 +107,7 @@ class AppConfig:
     parser: ParserConfig = field(default_factory=ParserConfig)
     hyde: HyDEConfig = field(default_factory=HyDEConfig)
     ragas: RagasConfig = field(default_factory=RagasConfig)
-    source_dir: str = str(PROJECT_ROOT / "data")
+    source_dir: str = str(PROJECT_ROOT / "kb-source")
     output_dir: str = str(PROJECT_ROOT / "data" / "processed")
     web_host: str = "0.0.0.0"
     web_port: int = 8000
@@ -116,6 +116,9 @@ class AppConfig:
 def load_config() -> AppConfig:
     """Load config from environment variables with sensible defaults."""
     db_url = os.getenv("KB_DB_URL", "sqlite+aiosqlite:///./data/kb_test.db")
+    # F27 fix: prefer kb-source submodule if it exists (check both kb-manager/kb-source and ../kb-source), fallback to data
+    _kb_source_candidates = [PROJECT_ROOT / "kb-source", PROJECT_ROOT.parent / "kb-source"]
+    _default_source = next((str(p) for p in _kb_source_candidates if p.exists()), str(PROJECT_ROOT / "data"))
     return AppConfig(
         db=DatabaseConfig(
             host=os.getenv("KB_DB_HOST", "localhost"),
@@ -139,7 +142,7 @@ def load_config() -> AppConfig:
             max_tokens=int(os.getenv("KB_CHUNK_MAX", "512")),
             parent_max_tokens=int(os.getenv("KB_CHUNK_PARENT_MAX", "1536")),
             parent_scope=os.getenv("KB_CHUNK_PARENT_SCOPE", "sheet"),
-            dedup_questions=os.getenv("KB_CHUNK_DEDUP_QUESTIONS", "false").lower() == "true",
+            dedup_questions=os.getenv("KB_CHUNK_DEDUP_QUESTIONS", "true").lower() == "true",
         ),
         parser=ParserConfig(
             xlsx_engine=os.getenv("KB_XLSX_ENGINE", "auto"),
@@ -158,7 +161,7 @@ def load_config() -> AppConfig:
             base_url=os.getenv("KB_RAGAS_BASE_URL", ""),
             k=int(os.getenv("KB_RAGAS_K", "5")),
         ),
-        source_dir=os.getenv("KB_SOURCE_DIR", str(PROJECT_ROOT / "kb-source")),
+        source_dir=os.getenv("KB_SOURCE_DIR", _default_source),
         output_dir=os.getenv("KB_OUTPUT_DIR", str(PROJECT_ROOT / "data" / "processed")),
         web_host=os.getenv("KB_WEB_HOST", "0.0.0.0"),
         web_port=int(os.getenv("KB_WEB_PORT", "8000")),
