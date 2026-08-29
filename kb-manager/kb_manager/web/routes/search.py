@@ -81,11 +81,11 @@ _STOPWORDS = frozenset(
 
 def _tokenize(text: str) -> list[str]:
     """Tokenize text into lowercase words + Persian char 3-grams, removing stopwords."""
-    # Apply Persian character normalization
+    # Apply Persian character normalization (F34: map intentionally separate from preprocessor/persian.py which preserves digits for display; search normalizes digits for BM25)
     text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
 
-    # Extract word tokens (Persian, Arabic, Latin, digits)
-    word_tokens = re.findall(r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\u200C\u200D\d]+", text)
+    # Extract word tokens (Persian, Arabic, Latin, digits) — F12 fix: no \u200c/\u200D (ZWNJ already mapped to space)
+    word_tokens = re.findall(r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\d]+", text)
     word_tokens = [t for t in word_tokens if t not in _STOPWORDS and len(t) > 1]
 
     # Generate Persian character 3-grams for typo/orthographic robustness
@@ -219,7 +219,7 @@ class SearchSteps(BaseModel):
     elapsed_ms: float
 
 
-async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
     """Load all chunks + docs and build BM25 + dense indexes + reranker + HyDE."""
     from kb_manager.models.database import Chunk, Document
     from kb_manager.web.deps import db
@@ -234,7 +234,8 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
         )
         doc_map = {d.id: d for d in docs_result.scalars().all()}
 
-    docs_for_bm25 = []
+    docs_for_bm25_content = []
+    docs_for_bm25_kw = []
     chunk_data: list[tuple[str, str, str, str, str, str, int]] = []
     dense_titles = []
     dense_headings = []
@@ -242,18 +243,21 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
     for c in all_chunks:
         doc = doc_map.get(c.document_id)
         title = doc.title if doc else "Unknown"
-        # Boost keywords in BM25 by repeating them in the content
-        # Keywords get 3x weight by being added 3 times
         keyword_text = " ".join(c.keywords) if c.keywords else ""
-        boosted_content = c.content + " " + keyword_text + " " + keyword_text + " " + keyword_text
-        docs_for_bm25.append((c.id, boosted_content))
+        # F10 fix: separate BM25 indexes for content and keywords (no length-penalized duplication)
+        docs_for_bm25_content.append((c.id, c.content))
+        docs_for_bm25_kw.append((c.id, keyword_text))
         chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type, c.ordinal))
         dense_titles.append(title)
         dense_headings.append(c.heading_path)
         dense_chunk_types.append(c.chunk_type)
 
-    bm25 = BM25()
-    bm25.index(docs_for_bm25)
+    bm25_content = BM25()
+    bm25_content.index(docs_for_bm25_content)
+    bm25_kw = BM25()
+    bm25_kw.index(docs_for_bm25_kw)
+    # Keep combined tuple for backward compat; search will use weighted sum
+    bm25 = (bm25_content, bm25_kw)
 
     dense_texts = [cd[4] for cd in chunk_data]
     dense_ids = [cd[0] for cd in chunk_data]
@@ -282,7 +286,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
     return chunk_data, bm25, dense, reranker, hyde
 
 
-_index_cache: tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
+_index_cache: tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
 _index_cache_count: int = 0
 _index_cache_fp: str | None = None
 _index_lock = asyncio.Lock()
@@ -296,7 +300,7 @@ def _invalidate_index_cache() -> None:
     _index_cache_fp = None
 
 
-async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], BM25, DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
     """Return the cached index, building it on first use (thread-safe, F5 fix)."""
     global _index_cache, _index_cache_count, _index_cache_fp
 
@@ -381,10 +385,22 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     normalized = query.strip()
     tokens = _tokenize(normalized)
 
-    chunk_data, bm25, dense, reranker, hyde = await _get_index()
+    chunk_data, bm25_pair, dense, reranker, hyde = await _get_index()
+    # F10 fix: handle both old single BM25 and new tuple pair for migration
+    if isinstance(bm25_pair, tuple):
+        bm25_content, bm25_kw = bm25_pair
+    else:
+        bm25_content, bm25_kw = bm25_pair, None  # type: ignore[assignment]
 
-    # --- Step 2: BM25 ---
-    bm25_raw = bm25.search(normalized, top_k=top_k * 3)
+    # --- Step 2: BM25 (weighted content + 3*keywords, no length penalty) ---
+    bm25_raw_content = bm25_content.search(normalized, top_k=top_k * 3)
+    bm25_raw_kw = bm25_kw.search(normalized, top_k=top_k * 3) if bm25_kw is not None else []
+    bm25_scores_combined: dict[str, float] = {}
+    for cid, s in bm25_raw_content:
+        bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + s
+    for cid, s in bm25_raw_kw:
+        bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + 3.0 * s
+    bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     bm25_id_map = {cd[0]: cd for cd in chunk_data}
     bm25_results = []
     bm25_scores = {}
