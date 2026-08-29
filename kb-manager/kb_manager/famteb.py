@@ -157,8 +157,16 @@ def load_famteb_retrieval_dataset(
         if max_samples and i >= max_samples:
             break
 
+        # F15 fix: validate schema — do not silently synthesize IDs that invalidate qrels
+        if id_field not in row or not str(row.get(id_field, "")).strip():
+            raise ValueError(f"Dataset {dataset_key} missing id_field '{id_field}' in row {i}: {list(row.keys())}")
+        if query_field not in row:
+            raise ValueError(f"Dataset {dataset_key} missing query_field '{query_field}' in row {i}")
+        if corpus_field not in row:
+            raise ValueError(f"Dataset {dataset_key} missing corpus_field '{corpus_field}' in row {i}")
+
         query_id = f"q_{i}"
-        doc_id = str(row.get(id_field, f"d_{i}"))
+        doc_id = str(row[id_field]).strip()
         
         query_text = str(row.get(query_field, "")).strip()
         corpus_text = str(row.get(corpus_field, "")).strip()

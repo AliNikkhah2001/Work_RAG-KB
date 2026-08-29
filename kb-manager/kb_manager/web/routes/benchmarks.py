@@ -165,40 +165,9 @@ async def benchmarks_page(request: Request):
         except Exception:
             latest_results = None
 
-    # Fallback: if latest_results is empty (0 queries), try comparison data
+    # F24 fix: do not fabricate metrics when results are missing — show null/unavailable
     if not latest_results or not latest_results.get("total_queries"):
-        comp_path = DATA_DIR / "benchmark_comparison.json"
-        if comp_path.exists():
-            try:
-                comp = json.loads(comp_path.read_text(encoding="utf-8"))
-                # Use v4 as fallback overall
-                if comp.get("versions", {}).get("v4"):
-                    v4 = comp["versions"]["v4"]
-                    # Synthesize results structure for display
-                    if not latest_results or latest_results.get("total_queries", 0) == 0:
-                        latest_results = {
-                            "total_queries": sum(v["queries"] for v in v4.get("per_format", {}).values()) if v4.get("per_format") else 120,
-                            "overall": {
-                                "hit_rate": v4["overall"]["hit_at_5"],
-                                "top1_hit_rate": v4["overall"]["top1"],
-                                "mrr": v4["overall"]["mrr"],
-                                "avg_latency_ms": v4["overall"]["latency_s"] * 1000,
-                                "avg_rank": 1.5,
-                            },
-                            "by_format": {
-                                k: {
-                                    "queries": v["hit"] and 20 or 20,
-                                    "hit_rate": v["hit"],
-                                    "top1_hit_rate": v["top1"],
-                                    "mrr": v["mrr"],
-                                    "avg_rank": 1.5,
-                                    "avg_latency_ms": v["lat_ms"],
-                                } for k,v in v4.get("per_format", {}).items()
-                            },
-                            "version": "v4-fallback",
-                        }
-            except Exception:
-                pass
+        latest_results = None  # template will show "no benchmark data" banner
 
     ir_metrics = None
     if IR_METRICS_JSON.exists():
