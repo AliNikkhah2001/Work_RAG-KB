@@ -12,19 +12,19 @@ import logging
 import os
 import sys
 
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///C:/Users/10225/Downloads/KB/kb-manager/data/kb_test.db"
+if not os.getenv("KB_DB_URL"):
+    os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///./data/kb_test.db"
 if not os.getenv("KB_XLSX_ENGINE"):
     os.environ["KB_XLSX_ENGINE"] = "calamine"
-sys.path.insert(0, r"C:\Users\10225\Downloads\KB\kb-manager")
-os.chdir(r"C:\Users\10225\Downloads\KB\kb-manager")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("reingest_dedup")
 
 KB_DIRS = [
-    r"C:\Users\10225\Downloads\KB\extracted_new\31Tir1405",
-    r"C:\Users\10225\Downloads\KB\1405-05-20",
+    os.getenv("KB_SOURCE_DIR", str(__import__("pathlib").Path(__file__).resolve().parent.parent / "kb-source" / "clean_files")),
+    os.getenv("KB_SOURCE_DIR_2", ""),
 ]
+KB_DIRS = [d for d in KB_DIRS if d and __import__("pathlib").Path(d).exists()]
 
 
 async def _wipe(session) -> None:
@@ -98,7 +98,10 @@ async def main() -> None:
     # Final duplication stats straight from the DB.
     from kb_manager.versioning.snapshot import export_compact
 
-    export = export_compact(r"C:\Users\10225\Downloads\KB\kb-manager\data\kb_test.db")
+    db_path = os.getenv("KB_DB_URL", "sqlite+aiosqlite:///./data/kb_test.db").replace("sqlite+aiosqlite:///", "")
+    if not __import__("pathlib").Path(db_path).is_absolute():
+        db_path = str(__import__("pathlib").Path(__file__).resolve().parent / db_path.lstrip("./"))
+    export = export_compact(db_path)
     counts = export["counts"]
 
     print("\n" + "=" * 60)
@@ -117,7 +120,9 @@ async def main() -> None:
     for k, v in counts.items():
         print(f"    {k:<26} {v}")
 
-    with open(r"C:\Users\10225\Downloads\KB\kb-manager\data\reingest_dedup_summary.json", "w", encoding="utf-8") as f:
+    out_path = __import__("pathlib").Path(__file__).resolve().parent / "data" / "reingest_dedup_summary.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump({"combined": combined, "dedup": dedup, "counts": counts}, f, ensure_ascii=False, indent=2)
 
 

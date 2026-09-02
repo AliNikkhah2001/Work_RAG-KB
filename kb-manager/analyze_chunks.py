@@ -1,6 +1,6 @@
-import sqlite3
-
-conn = sqlite3.connect(r"C:\Users\10225\Downloads\KB\kb-manager\data\kb_test.db")
+import os, pathlib, sqlite3
+DB_PATH = os.getenv("KB_DB_PATH", str(pathlib.Path(__file__).resolve().parent / "data" / "kb_test.db"))
+conn = sqlite3.connect(DB_PATH)
 cur = conn.cursor()
 
 # Find QA chunks that are missing answer fields
@@ -53,6 +53,7 @@ for content, tc, meta in very_short[:5]:
 
 conn.close()
 
-with open(r"C:\Users\10225\Downloads\KB\kb-manager\chunk_analysis.txt", "w", encoding="utf-8") as f:
+out = pathlib.Path(__file__).resolve().parent / "chunk_analysis.txt"
+with open(out, "w", encoding="utf-8") as f:
     f.write("\n".join(results))
-print("done")
+print(f"done → {out}")

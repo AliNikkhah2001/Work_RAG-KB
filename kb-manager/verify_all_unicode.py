@@ -1,10 +1,11 @@
 import os, glob, codecs, json
 
-sys_out = codecs.open(r"C:\Users\10225\Downloads\KB\kb-manager\verify_all_unicode.txt", "w", "utf-8")
+import pathlib
+_BASE = pathlib.Path(__file__).resolve().parent
+sys_out = codecs.open(str(_BASE / "verify_all_unicode.txt"), "w", "utf-8")
 
 roots = {
-    "31Tir1405": r"C:\Users\10225\Downloads\KB\extracted_new\31Tir1405",
-    "1405-05-20": r"C:\Users\10225\Downloads\KB\1405-05-20",
+    "kb-source": os.getenv("KB_SOURCE_DIR", str(pathlib.Path(__file__).resolve().parent.parent / "kb-source" / "clean_files")),
 }
 
 from kb_manager.parsers.xlsx_parser import XlsxParser

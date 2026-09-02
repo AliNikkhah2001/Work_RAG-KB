@@ -1,5 +1,8 @@
 import os
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_test.db"
+
+# Respect existing env; default to portable SQLite path relative to repo.
+if not os.getenv("KB_DB_URL"):
+    os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///./data/kb_test.db"
 import uvicorn
 
 if __name__ == "__main__":
