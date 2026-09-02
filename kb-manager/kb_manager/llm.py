@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import asyncio
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -17,6 +17,20 @@ class LLMResponse:
     """Standardized LLM response."""
     text: str
     metadata: Optional[Dict[str, Any]] = None
+
+
+def _run_sync(coro):
+    """Run coroutine from sync context without breaking a running loop (F2 fix)."""
+    import concurrent.futures
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    # Running loop detected — run in a dedicated thread's loop to avoid RuntimeError
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        fut = pool.submit(asyncio.run, coro)
+        return fut.result()
 
 
 class LLMClient(ABC):
@@ -42,6 +56,28 @@ class LLMClient(ABC):
     ) -> List[LLMResponse]:
         """Generate text for multiple prompts."""
         pass
+
+    async def agenerate(
+        self,
+        prompt: str,
+        max_tokens: int = 512,
+        temperature: float = 0.3,
+        **kwargs,
+    ) -> LLMResponse:
+        """Async variant — default wraps sync generate in thread."""
+        import asyncio
+
+        return await asyncio.to_thread(self.generate, prompt, max_tokens, temperature, **kwargs)
+
+    async def agenerate_batch(
+        self,
+        prompts: List[str],
+        max_tokens: int = 512,
+        temperature: float = 0.3,
+    ) -> List[LLMResponse]:
+        import asyncio
+
+        return await asyncio.to_thread(self.generate_batch, prompts, max_tokens, temperature)
 
 
 class OpenAIClient(LLMClient):
@@ -92,6 +128,15 @@ class OpenAIClient(LLMClient):
             metadata={"model": self._model, "usage": response.usage.model_dump() if response.usage else None},
         )
 
+    async def agenerate(
+        self,
+        prompt: str,
+        max_tokens: int = 512,
+        temperature: float = 0.3,
+        **kwargs,
+    ) -> LLMResponse:
+        return await self._generate_async(prompt, max_tokens, temperature)
+
     def generate(
         self,
         prompt: str,
@@ -99,8 +144,7 @@ class OpenAIClient(LLMClient):
         temperature: float = 0.3,
         **kwargs,
     ) -> LLMResponse:
-        import asyncio
-        return asyncio.run(self._generate_async(prompt, max_tokens, temperature))
+        return _run_sync(self._generate_async(prompt, max_tokens, temperature))
 
     def generate_batch(
         self,
@@ -108,13 +152,20 @@ class OpenAIClient(LLMClient):
         max_tokens: int = 512,
         temperature: float = 0.3,
     ) -> List[LLMResponse]:
-        import asyncio
-        
         async def _batch():
             tasks = [self._generate_async(p, max_tokens, temperature) for p in prompts]
             return await asyncio.gather(*tasks)
-        
-        return asyncio.run(_batch())
+
+        return _run_sync(_batch())
+
+    async def agenerate_batch(
+        self,
+        prompts: List[str],
+        max_tokens: int = 512,
+        temperature: float = 0.3,
+    ) -> List[LLMResponse]:
+        tasks = [self._generate_async(p, max_tokens, temperature) for p in prompts]
+        return await asyncio.gather(*tasks)
 
 
 class OllamaClient(LLMClient):
@@ -214,6 +265,15 @@ class VLLMClient(LLMClient):
             metadata={"model": self._model},
         )
 
+    async def agenerate(
+        self,
+        prompt: str,
+        max_tokens: int = 512,
+        temperature: float = 0.3,
+        **kwargs,
+    ) -> LLMResponse:
+        return await self._generate_async(prompt, max_tokens, temperature)
+
     def generate(
         self,
         prompt: str,
@@ -221,8 +281,7 @@ class VLLMClient(LLMClient):
         temperature: float = 0.3,
         **kwargs,
     ) -> LLMResponse:
-        import asyncio
-        return asyncio.run(self._generate_async(prompt, max_tokens, temperature))
+        return _run_sync(self._generate_async(prompt, max_tokens, temperature))
 
     def generate_batch(
         self,
@@ -230,8 +289,6 @@ class VLLMClient(LLMClient):
         max_tokens: int = 512,
         temperature: float = 0.3,
     ) -> List[LLMResponse]:
-        import asyncio
-        
         async def _batch():
             self._ensure_client()
             tasks = [
@@ -249,9 +306,28 @@ class VLLMClient(LLMClient):
                     metadata={"model": self._model},
                 ) for r in responses
             ]
-        
-        import asyncio
-        return asyncio.run(_batch())
+
+        return _run_sync(_batch())
+
+    async def agenerate_batch(
+        self,
+        prompts: List[str],
+        max_tokens: int = 512,
+        temperature: float = 0.3,
+    ) -> List[LLMResponse]:
+        self._ensure_client()
+        tasks = [
+            self._client.chat.completions.create(
+                model=self._model,
+                messages=[{"role": "user", "content": p}],
+                max_tokens=max_tokens,
+                temperature=temperature,
+            ) for p in prompts
+        ]
+        responses = await asyncio.gather(*tasks)
+        return [
+            LLMResponse(text=r.choices[0].message.content or "", metadata={"model": self._model}) for r in responses
+        ]
 
 
 class MockLLMClient(LLMClient):
@@ -300,6 +376,10 @@ def create_llm_client(
     
     if backend not in backends:
         raise ValueError(f"Unknown backend: {backend}. Choose from {list(backends.keys())}")
+    
+    # F25 fix: warn when mock is used without explicit allow (prevents silent synthetic nonsense)
+    if backend == "mock" and os.getenv("KB_ALLOW_MOCK", "true").lower() not in ("1", "true", "yes", "on"):
+        logger.warning("MockLLMClient requested without KB_ALLOW_MOCK=true — synthetic generation will produce canned Persian nonsense")
     
     client_class = backends[backend]
     

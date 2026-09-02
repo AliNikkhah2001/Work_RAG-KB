@@ -222,10 +222,11 @@ def _ranx_compute_all(
     return {label: float(scores[label]) for label in metric_labels}
 
 
-class RAGEvaluator:
-    """RAG-specific evaluation metrics.
+class HeuristicOverlapEvaluator:
+    """Heuristic overlap metrics — NOT LLM-judged.
 
-    These require an LLM judge for reference-free evaluation.
+    Previous name RAGEvaluator implied LLM faithfulness; renamed to avoid
+    conflation with real RAGAS (ragas_metrics.RagasEvaluator). Pure term overlap.
     """
 
     @staticmethod
@@ -262,7 +263,11 @@ class RAGEvaluator:
         answer: str, contexts: list[str]
     ) -> float:
         """Simple heuristic: answer term overlap with context."""
-        return RAGEvaluator.answer_coverage(answer, contexts)
+        return HeuristicOverlapEvaluator.answer_coverage(answer, contexts)
+
+
+# Backward compat alias — do not use in new code
+RAGEvaluator = HeuristicOverlapEvaluator
 
 
 class EvaluationRunner:
@@ -346,8 +351,8 @@ class EvaluationRunner:
             search_results = search_fn(query, k)
             contexts = [r[2] for r in search_results if len(r) > 2]
 
-            # Context relevance
-            cr = RAGEvaluator.context_relevance(query, contexts)
+            # Context relevance — heuristic, not LLM (see HeuristicOverlapEvaluator)
+            cr = HeuristicOverlapEvaluator.context_relevance(query, contexts)
             context_relevances.append(cr)
 
             # Use expected answer if no answer function provided
@@ -355,10 +360,10 @@ class EvaluationRunner:
             if answer_fn:
                 answer = answer_fn(query, contexts)
 
-            # Answer coverage / faithfulness
-            ac = RAGEvaluator.answer_coverage(answer, contexts)
+            # Answer coverage / faithfulness — heuristic overlap
+            ac = HeuristicOverlapEvaluator.answer_coverage(answer, contexts)
             answer_coverages.append(ac)
-            fs = RAGEvaluator.faithfulness_score(answer, contexts)
+            fs = HeuristicOverlapEvaluator.faithfulness_score(answer, contexts)
             faithfulness_scores.append(fs)
 
         return {

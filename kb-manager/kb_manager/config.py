@@ -76,6 +76,18 @@ class ParserConfig:
 
 
 @dataclass(frozen=True)
+class HyDEConfig:
+    """Configuration for HyDE (Hypothetical Document Embeddings)."""
+
+    enabled: bool = False
+    llm_model: str = "gpt-4o-mini"
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+    num_hypotheses: int = 1
+    prompt_template: str = ""  # empty = use default Persian template
+
+
+@dataclass(frozen=True)
 class RagasConfig:
     """Configuration for RAGAS LLM-based evaluation."""
 
@@ -93,8 +105,9 @@ class AppConfig:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
+    hyde: HyDEConfig = field(default_factory=HyDEConfig)
     ragas: RagasConfig = field(default_factory=RagasConfig)
-    source_dir: str = str(PROJECT_ROOT / "data")
+    source_dir: str = str(PROJECT_ROOT / "kb-source")
     output_dir: str = str(PROJECT_ROOT / "data" / "processed")
     web_host: str = "0.0.0.0"
     web_port: int = 8000
@@ -103,6 +116,9 @@ class AppConfig:
 def load_config() -> AppConfig:
     """Load config from environment variables with sensible defaults."""
     db_url = os.getenv("KB_DB_URL", "sqlite+aiosqlite:///./data/kb_test.db")
+    # F27 fix: prefer kb-source submodule if it exists (check both kb-manager/kb-source and ../kb-source), fallback to data
+    _kb_source_candidates = [PROJECT_ROOT / "kb-source", PROJECT_ROOT.parent / "kb-source"]
+    _default_source = next((str(p) for p in _kb_source_candidates if p.exists()), str(PROJECT_ROOT / "data"))
     return AppConfig(
         db=DatabaseConfig(
             host=os.getenv("KB_DB_HOST", "localhost"),
@@ -126,10 +142,17 @@ def load_config() -> AppConfig:
             max_tokens=int(os.getenv("KB_CHUNK_MAX", "512")),
             parent_max_tokens=int(os.getenv("KB_CHUNK_PARENT_MAX", "1536")),
             parent_scope=os.getenv("KB_CHUNK_PARENT_SCOPE", "sheet"),
-            dedup_questions=os.getenv("KB_CHUNK_DEDUP_QUESTIONS", "false").lower() == "true",
+            dedup_questions=os.getenv("KB_CHUNK_DEDUP_QUESTIONS", "true").lower() == "true",
         ),
         parser=ParserConfig(
             xlsx_engine=os.getenv("KB_XLSX_ENGINE", "auto"),
+        ),
+        hyde=HyDEConfig(
+            enabled=os.getenv("KB_HYDE_ENABLED", "false").lower() == "true",
+            llm_model=os.getenv("KB_HYDE_LLM", "gpt-4o-mini"),
+            llm_api_key=os.getenv("KB_HYDE_API_KEY", os.getenv("OPENAI_API_KEY", "")),
+            llm_base_url=os.getenv("KB_HYDE_BASE_URL", os.getenv("OPENAI_BASE_URL", "")),
+            num_hypotheses=int(os.getenv("KB_HYDE_NUM", "1")),
         ),
         ragas=RagasConfig(
             llm_model=os.getenv("KB_RAGAS_LLM", "gpt-4o-mini"),
@@ -138,7 +161,7 @@ def load_config() -> AppConfig:
             base_url=os.getenv("KB_RAGAS_BASE_URL", ""),
             k=int(os.getenv("KB_RAGAS_K", "5")),
         ),
-        source_dir=os.getenv("KB_SOURCE_DIR", str(PROJECT_ROOT / "kb-source")),
+        source_dir=os.getenv("KB_SOURCE_DIR", _default_source),
         output_dir=os.getenv("KB_OUTPUT_DIR", str(PROJECT_ROOT / "data" / "processed")),
         web_host=os.getenv("KB_WEB_HOST", "0.0.0.0"),
         web_port=int(os.getenv("KB_WEB_PORT", "8000")),

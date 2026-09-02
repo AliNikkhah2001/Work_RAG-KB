@@ -58,15 +58,15 @@ _TYPO_MAP = [
     ("دسترسی", "دسترسى"),
     ("می‌شود", "میشود"),
     ("می‌کنند", "میکنند"),
-    ("باید", "باید"),
-    ("دریافت", "دریافت"),
-    ("قرارداد", "قرارداد"),
+    ("باید", "بايد"),  # Arabic ya vs Persian ya
+    ("دریافت", "دريافت"),  # Arabic ya
+    ("قرارداد", "قراردات"),  # missing ر
     ("اعتباری", "اعتبارى"),
     ("گزارش", "گزراش"),
-    ("تسهیلات", "تسهیلات"),
-    ("تسویه", "تسویه"),
-    ("کاربر", "کاربر"),
-    ("سازمان", "سازمان"),
+    ("تسهیلات", "تسهيلات"),
+    ("تسویه", "تسويه"),
+    ("کاربر", "كاربر"),  # Arabic kaf
+    ("سازمان", "سزمان"),  # missing ا
 ]
 
 
@@ -119,18 +119,14 @@ def _shuffle_middle(text: str, swaps: int) -> str:
 
 
 def _drop_ratio(text: str, ratio: float) -> str:
-    """Remove a fraction of non-edge content words."""
+    """Remove a fraction of non-edge content words by position (F8 fix)."""
     words = text.split()
     if len(words) <= 4:
         return text
     drop_n = max(1, int(len(words) * ratio))
-    drop = set(
-        random.sample(
-            words[1:-1] if len(words) > 2 else words,
-            min(drop_n, len(words) - 2),
-        )
-    )
-    return " ".join(w for w in words if w not in drop)
+    # Drop by index, not by word value — otherwise repeated words are all removed
+    indices = set(random.sample(range(1, len(words) - 1), min(drop_n, len(words) - 2)))
+    return " ".join(w for i, w in enumerate(words) if i not in indices)
 
 
 def format_verbatim(question: str, keywords: str = "") -> str:

@@ -26,8 +26,9 @@ async def list_chunks(request: Request, page: int = 1, per_page: int = 50):
         result = await session.execute(
             select(Chunk)
             .options(load_only(
-                Chunk.id, Chunk.document_id, Chunk.ordinal, 
-                Chunk.chunk_type, Chunk.heading_path, 
+                Chunk.id, Chunk.document_id, Chunk.ordinal,
+                Chunk.chunk_type, Chunk.heading_path,
+                Chunk.content,
                 Chunk.token_count, Chunk.quality_score, Chunk.is_verified,
                 Chunk.created_at
             ))

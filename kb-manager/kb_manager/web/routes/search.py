@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import math
+import os
 import re
 import time
 from collections import Counter
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
@@ -15,7 +18,12 @@ from sqlalchemy import select
 
 from kb_manager.config import PROJECT_ROOT
 from kb_manager.dense import DenseSemanticIndex, load_or_build
+from kb_manager.hyde import HyDEGenerator
 from kb_manager.reranker import CrossEncoderReranker, get_reranker
+
+# query expansion (Phase 11: synonym + multi-query beam5)
+_SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+_SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
 
 if TYPE_CHECKING:
     pass
@@ -27,26 +35,21 @@ _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 _RERANKER_TOP_K = 50  # Number of candidates to rerank
 
-# Persian character normalization map
+# HyDE configuration (disabled by default; set KB_HYDE_ENABLED=true to enable)
+_HYDE_ENABLED = os.getenv("KB_HYDE_ENABLED", "false").lower() == "true"
+_HYDE_LLM_MODEL = os.getenv("KB_HYDE_LLM", "gpt-4o-mini")
+_HYDE_LLM_API_KEY = os.getenv("KB_HYDE_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+_HYDE_LLM_BASE_URL = os.getenv("KB_HYDE_BASE_URL", os.getenv("OPENAI_BASE_URL", ""))
+
+# Persian char map — now delegates to regex_persian central source
+from kb_manager.preprocessor.regex_persian import ARABIC_TO_PERSIAN_MAP as _BASE_MAP
+
 _PERSIAN_CHAR_MAP = {
-    # Arabic yeh -> Persian yeh
-    "\u064a": "\u06cc",  # ي -> ی
-    "\u0649": "\u06cc",  # ى -> ی
-    # Arabic kaf -> Persian kaf
-    "\u0643": "\u06a9",  # ك -> ک
-    # Arabic teh marbuta -> Persian heh
-    "\u0629": "\u0647",  # ة -> ه
-    # Alef variants -> basic alef
-    "\u0671": "\u0627",  # ٱ -> ا
-    "\u0623": "\u0627",  # أ -> ا
-    "\u0625": "\u0627",  # إ -> ا
-    "\u0622": "\u0622",  # آ -> آ (keep)
-    # ZWNJ handling - replace with space for tokenization
-    "\u200c": " ",  # ZWNJ -> space
-    # Arabic-Indic digits -> ASCII
+    **_BASE_MAP,
+    "\u0622": "\u0622",  # آ keep (search preserves آ vs normalizer)
+    "\u200c": " ",  # ZWNJ -> space for tokenization
     "\u0660": "0", "\u0661": "1", "\u0662": "2", "\u0663": "3", "\u0664": "4",
     "\u0665": "5", "\u0666": "6", "\u0667": "7", "\u0668": "8", "\u0669": "9",
-    # Extended Arabic-Indic digits
     "\u06f0": "0", "\u06f1": "1", "\u06f2": "2", "\u06f3": "3", "\u06f4": "4",
     "\u06f5": "5", "\u06f6": "6", "\u06f7": "7", "\u06f8": "8", "\u06f9": "9",
 }
@@ -69,13 +72,25 @@ _STOPWORDS = frozenset(
 )
 
 
+def _expand_query_for_bm25(query: str) -> list[str]:
+    """Return beam queries for keyword_only robustness (synonym+soundex)."""
+    if not _SYNONYM_ENABLED:
+        return [query]
+    try:
+        from kb_manager.query_expansion import generate_multi_queries
+
+        return generate_multi_queries(query, beam=_SYNONYM_BEAM)
+    except Exception:
+        return [query]
+
+
 def _tokenize(text: str) -> list[str]:
     """Tokenize text into lowercase words + Persian char 3-grams, removing stopwords."""
-    # Apply Persian character normalization
-    text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
+    from kb_manager.preprocessor.regex_persian import DIACRITICS_RE, TOKEN_RE
 
-    # Extract word tokens (Persian, Arabic, Latin, digits)
-    word_tokens = re.findall(r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\u200C\u200D\d]+", text)
+    text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
+    text = DIACRITICS_RE.sub("", text)  # parsitext: strip harakat before tokenize
+    word_tokens = TOKEN_RE.findall(text)
     word_tokens = [t for t in word_tokens if t not in _STOPWORDS and len(t) > 1]
 
     # Generate Persian character 3-grams for typo/orthographic robustness
@@ -209,8 +224,8 @@ class SearchSteps(BaseModel):
     elapsed_ms: float
 
 
-async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
-    """Load all chunks + docs and build BM25 + dense indexes + reranker."""
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+    """Load all chunks + docs and build BM25 + dense indexes + reranker + HyDE."""
     from kb_manager.models.database import Chunk, Document
     from kb_manager.web.deps import db
 
@@ -224,26 +239,30 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
         )
         doc_map = {d.id: d for d in docs_result.scalars().all()}
 
-    docs_for_bm25 = []
-    chunk_data = []
+    docs_for_bm25_content = []
+    docs_for_bm25_kw = []
+    chunk_data: list[tuple[str, str, str, str, str, str, int]] = []
     dense_titles = []
     dense_headings = []
     dense_chunk_types = []
     for c in all_chunks:
         doc = doc_map.get(c.document_id)
         title = doc.title if doc else "Unknown"
-        # Boost keywords in BM25 by repeating them in the content
-        # Keywords get 3x weight by being added 3 times
         keyword_text = " ".join(c.keywords) if c.keywords else ""
-        boosted_content = c.content + " " + keyword_text + " " + keyword_text + " " + keyword_text
-        docs_for_bm25.append((c.id, boosted_content))
-        chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type))
+        # F10 fix: separate BM25 indexes for content and keywords (no length-penalized duplication)
+        docs_for_bm25_content.append((c.id, c.content))
+        docs_for_bm25_kw.append((c.id, keyword_text))
+        chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type, c.ordinal))
         dense_titles.append(title)
         dense_headings.append(c.heading_path)
         dense_chunk_types.append(c.chunk_type)
 
-    bm25 = BM25()
-    bm25.index(docs_for_bm25)
+    bm25_content = BM25()
+    bm25_content.index(docs_for_bm25_content)
+    bm25_kw = BM25()
+    bm25_kw.index(docs_for_bm25_kw)
+    # Keep combined tuple for backward compat; search will use weighted sum
+    bm25 = (bm25_content, bm25_kw)
 
     dense_texts = [cd[4] for cd in chunk_data]
     dense_ids = [cd[0] for cd in chunk_data]
@@ -258,64 +277,139 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
     )
 
     reranker = get_reranker(model_name=_RERANKER_MODEL)
-    return chunk_data, bm25, dense, reranker
+
+    # HyDE: optional LLM-based hypothetical document generation
+    hyde = None
+    if _HYDE_ENABLED and _HYDE_LLM_API_KEY:
+        hyde = HyDEGenerator(
+            llm_model=_HYDE_LLM_MODEL,
+            llm_api_key=_HYDE_LLM_API_KEY,
+            llm_base_url=_HYDE_LLM_BASE_URL,
+            embedding_model=_DENSE_MODEL,
+        )
+
+    return chunk_data, bm25, dense, reranker, hyde
 
 
-_index_cache: tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker] | None = None
+_index_cache: tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
 _index_cache_count: int = 0
+_index_cache_fp: str | None = None
+_index_lock = asyncio.Lock()
 
 
 def _invalidate_index_cache() -> None:
     """Drop the cached index so the next search rebuilds it."""
-    global _index_cache, _index_cache_count
+    global _index_cache, _index_cache_count, _index_cache_fp
     _index_cache = None
     _index_cache_count = 0
+    _index_cache_fp = None
 
 
-async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
-    """Return the cached index, building it on first use."""
-    global _index_cache, _index_cache_count
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+    """Return the cached index, building it on first use (thread-safe, F5 fix)."""
+    global _index_cache, _index_cache_count, _index_cache_fp
 
-    from sqlalchemy import func
+    from sqlalchemy import func, select
 
-    from kb_manager.models.database import Chunk
+    from kb_manager.models.database import Chunk, Document
     from kb_manager.web.deps import db
+    from kb_manager.dense import DenseSemanticIndex
 
     async with db.session() as session:
-        chunk_count = (
-            await session.execute(select(func.count(Chunk.id)))
-        ).scalar_one()
+        chunk_count = (await session.execute(select(func.count(Chunk.id)))).scalar_one()
 
-    if _index_cache is not None and _index_cache_count == chunk_count:
+    # Fast path: count mismatch → rebuild; count match but need fingerprint check for same-count content change (F5)
+    if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+        # Compute current fingerprint via lightweight DB scan to detect stale cache
+        async with db.session() as session:
+            result = await session.execute(select(Chunk))
+            all_chunks = result.scalars().all()
+            if len(all_chunks) == chunk_count:
+                doc_ids = list({c.document_id for c in all_chunks})
+                docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+                doc_map = {d.id: d for d in docs_result.scalars().all()}
+                texts = [c.content for c in all_chunks]
+                titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
+                headings = [c.heading_path for c in all_chunks]
+                ctypes = [c.chunk_type for c in all_chunks]
+                cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                if cur_fp == _index_cache_fp:
+                    return _index_cache
+                # fingerprint mismatch → stale, fall through to rebuild
+            # else count actually changed → rebuild
+
+    async with _index_lock:
+        # Double-check after acquiring lock
+        if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+            # Re-check fingerprint under lock to avoid race
+            async with db.session() as session:
+                result = await session.execute(select(Chunk))
+                all_chunks = result.scalars().all()
+                if len(all_chunks) == chunk_count:
+                    doc_ids = list({c.document_id for c in all_chunks})
+                    docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+                    doc_map = {d.id: d for d in docs_result.scalars().all()}
+                    texts = [c.content for c in all_chunks]
+                    titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
+                    headings = [c.heading_path for c in all_chunks]
+                    ctypes = [c.chunk_type for c in all_chunks]
+                    cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                    if cur_fp == _index_cache_fp:
+                        return _index_cache
+        chunk_data, bm25, dense, reranker, hyde = await _build_index()
+        # Compute and store fingerprint for future same-count checks
+        texts = [cd[4] for cd in chunk_data]
+        titles = [cd[2] for cd in chunk_data]
+        headings = [cd[3] for cd in chunk_data]
+        ctypes = [cd[5] for cd in chunk_data]
+        cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+        _index_cache = (chunk_data, bm25, dense, reranker, hyde)
+        _index_cache_count = chunk_count
+        _index_cache_fp = cur_fp
         return _index_cache
-
-    chunk_data, bm25, dense, reranker = await _build_index()
-    _index_cache = (chunk_data, bm25, dense, reranker)
-    _index_cache_count = chunk_count
-    return _index_cache
-
-
-def _compute_idf(chunk_data: list) -> dict[str, float]:
-    """Compute IDF across all chunks."""
-    doc_count = len(chunk_data)
-    df: dict[str, int] = {}
-    for _, _, _, _, content, _ in chunk_data:
-        tokens = set(_tokenize(content))
-        for t in tokens:
-            df[t] = df.get(t, 0) + 1
-    return {t: math.log((doc_count - c + 0.5) / (c + 0.5) + 1.0) for t, c in df.items()}
 
 
 async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
-    """Run full search pipeline with step tracking."""
+    """Run full search pipeline with step tracking.
+
+    Pipeline: BM25 + Dense + [HyDE] → RRF → Cross-encoder reranker
+    HyDE is optional: only runs when KB_HYDE_ENABLED=true and API key is set.
+    """
     start = time.monotonic()
     normalized = query.strip()
     tokens = _tokenize(normalized)
 
-    chunk_data, bm25, dense, reranker = await _get_index()
+    chunk_data, bm25_pair, dense, reranker, hyde = await _get_index()
+    # F10 fix: handle both old single BM25 and new tuple pair for migration
+    if isinstance(bm25_pair, tuple):
+        bm25_content, bm25_kw = bm25_pair
+    else:
+        bm25_content, bm25_kw = bm25_pair, None  # type: ignore[assignment]
 
-    # --- Step 2: BM25 ---
-    bm25_raw = bm25.search(normalized, top_k=top_k * 3)
+    # --- Step 2: BM25 (weighted content + 3*keywords, no length penalty) ---
+    # multi-query beam: run BM25 for each expanded query
+    beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
+    bm25_raw_content_all: list[tuple[str, float]] = []
+    bm25_raw_kw_all: list[tuple[str, float]] = []
+    for bq in beam_queries:
+        bm25_raw_content_all.extend(bm25_content.search(bq, top_k=top_k * 3))
+        if bm25_kw is not None:
+            bm25_raw_kw_all.extend(bm25_kw.search(bq, top_k=top_k * 3))
+    # aggregate max score per doc across beams
+    bm25_scores_combined: dict[str, float] = {}
+    for cid, s in bm25_raw_content_all:
+        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), s)
+    for cid, s in bm25_raw_kw_all:
+        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), 3.0 * s) if cid not in bm25_scores_combined else bm25_scores_combined[cid] + 3.0 * s
+    # if single beam, keep original sum behavior; else max already
+    if len(beam_queries) == 1:
+        # recompute exact sum for single-query case (preserve original)
+        bm25_scores_combined = {}
+        for cid, s in bm25_content.search(normalized, top_k=top_k * 3):
+            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + s
+        for cid, s in (bm25_kw.search(normalized, top_k=top_k * 3) if bm25_kw else []):
+            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + 3.0 * s
+    bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     bm25_id_map = {cd[0]: cd for cd in chunk_data}
     bm25_results = []
     bm25_scores = {}
@@ -333,11 +427,20 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
             heading_path=cd[3],
             content_preview=cd[4][:300],
             bm25_score=round(score, 4),
-            ordinal=cd[5] if isinstance(cd[5], int) else 0,
+            ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
-    # --- Step 3: Dense semantic (embedding cosine) ---
-    dense_raw = dense.search(normalized, top_k=top_k * 3)
+    # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
+    dense_raw_base = dense.search(normalized, top_k=top_k * 3)
+    if _SYNONYM_ENABLED and len(beam_queries) > 1:
+        dense_pool: dict[str, float] = dict(dense_raw_base)
+        for bq in beam_queries[1:]:
+            for cid, sc in dense.search(bq, top_k=top_k * 3):
+                if cid not in dense_pool or sc > dense_pool[cid]:
+                    dense_pool[cid] = sc
+        dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+    else:
+        dense_raw = dense_raw_base
     dense_scores = dict(dense_raw)
     dense_results = []
     for chunk_id, score in dense_raw:
@@ -352,14 +455,30 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
             content_preview=cd[4][:300],
             dense_score=round(score, 4),
             semantic_score=round(score, 4),  # repurpose semantic_score for dense
-            ordinal=cd[5] if isinstance(cd[5], int) else 0,
+            ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
-    # --- Step 4: Merge (RRF - Reciprocal Rank Fusion over 2 legs) ---
+    # --- Step 3b: HyDE (optional) ---
+    hyde_scores: dict[str, float] = {}
+    if hyde is not None and hyde.is_available:
+        hyde_vec = hyde.get_hyde_vector(normalized)
+        if hyde_vec is not None and dense._matrix is not None:
+            # Cosine similarity: dense matrix is already L2-normalized
+            sims = dense._matrix @ hyde_vec
+            hyde_order = np.argsort(-sims)[:top_k * 3]
+            for idx in hyde_order:
+                chunk_id = dense._ids[idx]
+                if chunk_id in bm25_id_map:
+                    hyde_scores[chunk_id] = float(sims[idx])
+
+    # --- Step 4: Merge (RRF - Reciprocal Rank Fusion over 2-3 legs) ---
     ranked_lists: list[list[tuple[str, float]]] = [
         [(cid, s) for cid, s in bm25_raw if cid in bm25_id_map],
         list(dense_raw),
     ]
+    # Add HyDE leg if available
+    if hyde_scores:
+        ranked_lists.append(list(hyde_scores.items()))
 
     merged: dict[str, SearchResult] = {}
     k = 60  # RRF constant
@@ -380,7 +499,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
                     semantic_score=round(dense_scores.get(chunk_id, 0), 4),
                     dense_score=round(dense_scores.get(chunk_id, 0), 4),
                     hybrid_score=round(rrf_score, 6),
-                    ordinal=cd[5] if isinstance(cd[5], int) else 0,
+                    ordinal=cd[6] if isinstance(cd[6], int) else 0,
                 )
             else:
                 merged[chunk_id].hybrid_score += rrf_score
@@ -421,15 +540,22 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
 # Routes
 # ---------------------------------------------------------------------------
 
-_sync_loop: asyncio.AbstractEventLoop | None = None
+def _run_sync(coro):
+    """Run coroutine from sync context without breaking a running loop (F2/F29 fix)."""
+    import concurrent.futures
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        fut = pool.submit(asyncio.run, coro)
+        return fut.result()
 
 
 def search_knowledge_base_sync(query: str, top_k: int = 10) -> SearchSteps:
-    """Synchronous wrapper for search_knowledge_base with a persistent event loop."""
-    global _sync_loop
-    if _sync_loop is None or _sync_loop.is_closed():
-        _sync_loop = asyncio.new_event_loop()
-    return _sync_loop.run_until_complete(search_knowledge_base(query, top_k))
+    """Synchronous wrapper — safe from both sync and async callers."""
+    return _run_sync(search_knowledge_base(query, top_k))
 
 @router.get("")
 async def search_page(request: Request):
@@ -442,7 +568,6 @@ async def search_page(request: Request):
 @router.post("/api")
 async def search_api(request: Request):
     """Search API endpoint - returns JSON with step-by-step results."""
-    import asyncio
     import traceback
 
     try:
@@ -457,7 +582,8 @@ async def search_api(request: Request):
         return {"error": "Empty query"}
 
     try:
-        steps = await asyncio.to_thread(search_knowledge_base_sync, query, top_k)
+        # F2/F29 fix: directly await async pipeline — no to_thread/_sync_loop indirection
+        steps = await search_knowledge_base(query, top_k)
         return steps.model_dump()
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}

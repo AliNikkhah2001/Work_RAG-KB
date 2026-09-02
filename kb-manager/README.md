@@ -9,11 +9,15 @@
 | **Documents** | 355 (78 XLSX source files) |
 | **Chunks** | 6,208 (974 QA pairs, 5,203 body, 31 QA parents) |
 | **DB** | SQLite (`data/kb_test.db`, ~2.7 GB) |
-| **Hit@5** | 84.2% (120 queries, 6 formats) |
+| **Hit@5** | 84.2% (120 queries, 6 formats) — *see Remediation Plan §7 for frozen A/B protocol* |
 | **MRR** | 0.751 |
 | **Avg Latency** | 4.2s per query (warm) |
 | **Web UI** | http://127.0.0.1:8000 |
 | **Tests** | 17/17 passing |
+| **Remediation Plan** | [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) — 12-section evidence-based roadmap (36 findings, P1 hold on `feat/hyde-ragas` merge) |
+| **Baseline** | `feat/hyde-ragas` `0d29fb1` · `master` `aa5c576` — frozen dataset required before any merge |
+
+> **Stabilization Notice:** Per `docs/REMEDIATION_PLAN.md` executive assessment, `feat/hyde-ragas` is **on hold** pending Phase 0-2 (cache invalidation, async safety, ordinal fix). Do not merge until controlled HyDE A/B with frozen `data/test_questions.json` checksum is recorded. See `docs/REMEDIATION_PLAN.md` §§1,3,5,11.
 
 ## Quick Start
 
@@ -186,6 +190,23 @@ python -m kb_manager.cli ingest --full  # Full rebuild via CLI
 python -m kb_manager.cli status         # Show KB stats
 python scripts/cleanup_incomplete_qa.py --dry-run  # Preview QA cleanup
 ```
+
+## Roadmap & Remediation
+
+Full audit and phased fix sequence: [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md)
+
+- **Phase 0** Safety net: frozen dataset + characterization tests
+- **Phase 1** Immediate crashes: lost ordinal, CPU dtype, chunk page, reranker pool
+- **Phase 2** Async boundary: `asyncio.run` → `await`
+- **Phase 3** Index/ingestion: fingerprint, invalidation, parent linking, dedup defaults (requires corpus rebuild + cache bump)
+- **Phase 4** Retrieval consolidation: shared Persian norm, BM25 weighting
+- **Phase 5** Evaluation integrity: deterministic query formats, real typo map, no fabricated metrics
+- **Phase 6** HyDE consolidation: one canonical `hyde.py`, mocked HTTP tests, disabled by default
+- **Phase 7** Operational hardening: dependency injection, job TTL, structured logging
+- **Phase 8** Dead code & branch cleanup (17 branches archived)
+- **Phase 9** Measured performance (50→30 rerank pool, quantization)
+
+See plan §§5,9 for PR sequence and §§11-12 for Definition of Done / Open Questions.
 
 ## License
 

@@ -36,9 +36,11 @@ _ARABIC_TO_PERSIAN: dict[str, str] = {
     "\u0625": "\u0627",  # إ → ا
     "\u0629": "\u0647",  # ة → ه
     "\u0649": "\u06cc",  # ى → ی
+    "\u0671": "\u0627",  # ٱ → ا (Alef Wasla)
 }
 
 # Characters that look the same in some fonts but have different code-points
+# NOTE: canonical source is regex_persian.ARABIC_TO_PERSIAN_MAP; kept here for backward compat
 _PERSIAN_CHARS_ONLY: dict[str, str] = {
     "\u0643": "\u06a9",  # ك → ک
     "\u0621": "\u0627",  # ء → ا
@@ -113,16 +115,28 @@ def _fix_zwnj(text: str) -> str:
 
 
 def _normalise_numbers(text: str) -> str:
-    """Normalise number characters.
+    """Unify digits + percent (parsitext port: 3-way digit unification)."""
+    from kb_manager.preprocessor.regex_persian import normalize_digits
 
-    We intentionally *keep* Arabic-Indic (٠-٩) and Extended Arabic-Indic
-    (۰-۹) digits as-is because they are common in Persian technical
-    documents.  Only normalise the presentation form of *Arabic* fractions
-    and percent signs.
-    """
-    # Arabic percent sign → ASCII %
+    # parsitext: keep display form but unify for indexing; here we unify to ASCII
+    # so search BM25 matches ۱۲۳, ١٢٣, 123 equally. Original display preserved upstream.
+    text = normalize_digits(text, to="ascii")
     text = text.replace("\u066a", "%")
     return text
+
+
+def _strip_diacritics(text: str) -> str:
+    """Remove Arabic harakat (parsitext diacritics removal)."""
+    from kb_manager.preprocessor.regex_persian import strip_diacritics
+
+    return strip_diacritics(text)
+
+
+def _reduce_repetition(text: str) -> str:
+    """Collapse 3+ repetitions to 2 (parsitext). Preserves digit runs."""
+    from kb_manager.preprocessor.regex_persian import reduce_repetition
+
+    return reduce_repetition(text)
 
 
 # ---------------------------------------------------------------------------
@@ -165,31 +179,11 @@ def _remove_extra_spaces(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Light spell-check (articles only, not technical codes)
+# Light spell-check (articles only, not technical codes) — REMOVED
+# The _COMMON_TYPOS dict contained only identity mappings (no actual corrections).
+# _light_spell_check was a no-op. If spell-check is needed, implement properly
+# with a real dictionary or integrate with Hazm/Shekar spell-checker.
 # ---------------------------------------------------------------------------
-
-# Very small lookup for ultra-common typos found in Persian KB articles.
-# This is intentionally lightweight – real spell-checking is expensive.
-_COMMON_TYPOS: dict[str, str] = {
-    "انجام": "انجام",
-    "اصلی": "اصلی",
-    "نرم‌افزار": "نرم‌افزار",
-    "سخت‌افزار": "سخت‌افزار",
-}
-
-_TECH_CODE_PATTERN = re.compile(r"\b[A-Za-z0-9_\-]{3,}\b")  # looks like a code/ID
-
-
-def _light_spell_check(text: str) -> str:
-    """Fix a handful of very common typos – skip technical codes."""
-    tokens = text.split()
-    result: list[str] = []
-    for token in tokens:
-        if _TECH_CODE_PATTERN.fullmatch(token):
-            result.append(token)
-            continue
-        result.append(_COMMON_TYPOS.get(token, token))
-    return " ".join(result)
 
 
 # ---------------------------------------------------------------------------
@@ -219,11 +213,9 @@ class PersianPreprocessor:
         *,
         use_hazm: bool = True,
         use_shekar: bool = True,
-        spell_check: bool = True,
     ) -> None:
         self._use_hazm = use_hazm and _HAZM_AVAILABLE
         self._use_shekar = use_shekar and _SHEKAR_AVAILABLE
-        self._spell_check = spell_check
 
         self._hazm_norm: object | None = None
         if self._use_hazm:
@@ -260,48 +252,35 @@ class PersianPreprocessor:
     def normalise(self, text: str) -> str:
         """Run the full Persian normalisation pipeline on *text*.
 
-        Order of operations:
-        1. Unicode normalisation (NFC)
-        2. Arabic → Persian character mapping
-        3. Shekar / Hazm normalisation (if available)
-        4. ZWNJ fix-ups
-        5. Number normalisation
-        6. Punctuation fix
-        7. Extra-space removal
-        8. Light spell-check (if enabled)
+        Order (parsitext-aligned):
+        1. Unicode NFC
+        2. Arabic → Persian mapping
+        3. Shekar/Hazm
+        4. ZWNJ fix
+        5. Diacritics strip (NEW)
+        6. Repetition reduction (NEW)
+        7. Number unification (CHANGED: 3-way)
+        8. Punctuation fix
+        9. Extra-space removal
         """
         if not text:
             return text
 
-        # 1. Unicode NFC
         text = unicodedata.normalize("NFC", text)
-
-        # 2. Arabic → Persian char mapping
         text = _apply_unicode_map(text, _ARABIC_TO_PERSIAN)
         text = _apply_unicode_map(text, _PERSIAN_CHARS_ONLY)
 
-        # 3. Shekar (preferred) or Hazm normaliser
         if self._use_shekar:
             text = self._shekar_normalise(text)
         elif self._use_hazm:
             text = self._hazm_normalise(text)
 
-        # 4. ZWNJ
         text = _fix_zwnj(text)
-
-        # 5. Numbers
+        text = _strip_diacritics(text)
+        text = _reduce_repetition(text)
         text = _normalise_numbers(text)
-
-        # 6. Punctuation
         text = _fix_punctuation(text)
-
-        # 7. Extra spaces
         text = _remove_extra_spaces(text)
-
-        # 8. Spell check (optional)
-        if self._spell_check:
-            text = _light_spell_check(text)
-
         return text
 
     # Convenience alias
