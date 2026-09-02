@@ -2,47 +2,296 @@
   "versions": {
     "v2": {
       "pipeline": "BM25 + TF-IDF (RRF k=60)",
-      "corpus": {"docs": 355, "chunks": 6208, "qa": 974, "distinct_q": 974, "dup": 0},
-      "overall": {"hit_at_5": 0.90, "top1": 0.633, "mrr": 0.736, "latency_s": 2.8},
+      "corpus": {
+        "docs": 355,
+        "chunks": 6208,
+        "qa": 974,
+        "distinct_q": 974,
+        "dup": 0
+      },
+      "overall": {
+        "hit_at_5": 0.9,
+        "top1": 0.633,
+        "mrr": 0.736,
+        "latency_s": 2.8
+      },
       "per_format": {
-        "verbatim": {"hit": 1.0, "top1": 0.85, "mrr": 0.90, "lat_ms": 2800},
-        "paraphrase": {"hit": 0.95, "top1": 0.70, "mrr": 0.80, "lat_ms": 2800},
-        "typo": {"hit": 0.90, "top1": 0.60, "mrr": 0.75, "lat_ms": 2800},
-        "conversational": {"hit": 0.85, "top1": 0.55, "mrr": 0.70, "lat_ms": 2800},
-        "reworded": {"hit": 0.80, "top1": 0.50, "mrr": 0.65, "lat_ms": 2800},
-        "keyword_only": {"hit": 0.45, "top1": 0.10, "mrr": 0.18, "lat_ms": 2800}
+        "verbatim": {
+          "hit": 1.0,
+          "top1": 0.85,
+          "mrr": 0.9,
+          "lat_ms": 2800
+        },
+        "paraphrase": {
+          "hit": 0.95,
+          "top1": 0.7,
+          "mrr": 0.8,
+          "lat_ms": 2800
+        },
+        "typo": {
+          "hit": 0.9,
+          "top1": 0.6,
+          "mrr": 0.75,
+          "lat_ms": 2800
+        },
+        "conversational": {
+          "hit": 0.85,
+          "top1": 0.55,
+          "mrr": 0.7,
+          "lat_ms": 2800
+        },
+        "reworded": {
+          "hit": 0.8,
+          "top1": 0.5,
+          "mrr": 0.65,
+          "lat_ms": 2800
+        },
+        "keyword_only": {
+          "hit": 0.45,
+          "top1": 0.1,
+          "mrr": 0.18,
+          "lat_ms": 2800
+        }
       }
     },
     "v3": {
       "pipeline": "BM25 + Dense MiniLM-L12-v2 + RRF k=60 + Contextual",
-      "corpus": {"docs": 355, "chunks": 6208, "qa": 974, "distinct_q": 974, "dup": 0},
-      "overall": {"hit_at_5": 0.892, "top1": 0.725, "mrr": 0.787, "latency_s": 1.9},
+      "corpus": {
+        "docs": 355,
+        "chunks": 6208,
+        "qa": 974,
+        "distinct_q": 974,
+        "dup": 0
+      },
+      "overall": {
+        "hit_at_5": 0.892,
+        "top1": 0.725,
+        "mrr": 0.787,
+        "latency_s": 1.9
+      },
       "per_format": {
-        "verbatim": {"hit": 1.0, "top1": 0.90, "mrr": 0.942, "lat_ms": 9820},
-        "paraphrase": {"hit": 1.0, "top1": 0.95, "mrr": 0.975, "lat_ms": 279},
-        "typo": {"hit": 1.0, "top1": 0.90, "mrr": 0.942, "lat_ms": 257},
-        "conversational": {"hit": 1.0, "top1": 0.85, "mrr": 0.917, "lat_ms": 277},
-        "reworded": {"hit": 0.95, "top1": 0.65, "mrr": 0.76, "lat_ms": 265},
-        "keyword_only": {"hit": 0.45, "top1": 0.10, "mrr": 0.18, "lat_ms": 243}
+        "verbatim": {
+          "hit": 1.0,
+          "top1": 0.9,
+          "mrr": 0.942,
+          "lat_ms": 9820
+        },
+        "paraphrase": {
+          "hit": 1.0,
+          "top1": 0.95,
+          "mrr": 0.975,
+          "lat_ms": 279
+        },
+        "typo": {
+          "hit": 1.0,
+          "top1": 0.9,
+          "mrr": 0.942,
+          "lat_ms": 257
+        },
+        "conversational": {
+          "hit": 1.0,
+          "top1": 0.85,
+          "mrr": 0.917,
+          "lat_ms": 277
+        },
+        "reworded": {
+          "hit": 0.95,
+          "top1": 0.65,
+          "mrr": 0.76,
+          "lat_ms": 265
+        },
+        "keyword_only": {
+          "hit": 0.45,
+          "top1": 0.1,
+          "mrr": 0.18,
+          "lat_ms": 243
+        }
       }
     },
     "v4": {
       "pipeline": "BM25+char3gram + Dense MiniLM + Contextual + RRF k=60 + Cross-encoder mmarco-mMiniLM",
-      "corpus": {"docs": 355, "chunks": 6208, "qa": 974, "distinct_q": 974, "dup": 0},
-      "overall": {"hit_at_5": 0.90, "top1": 0.65, "mrr": 0.775, "latency_s": 15.8},
+      "corpus": {
+        "docs": 355,
+        "chunks": 6208,
+        "qa": 974,
+        "distinct_q": 974,
+        "dup": 0
+      },
+      "overall": {
+        "hit_at_5": 0.9,
+        "top1": 0.65,
+        "mrr": 0.775,
+        "latency_s": 15.8
+      },
       "per_format": {
-        "verbatim": {"hit": 1.0, "top1": 0.75, "mrr": 0.875, "lat_ms": 50359},
-        "paraphrase": {"hit": 1.0, "top1": 0.50, "mrr": 0.75, "lat_ms": 7000},
-        "typo": {"hit": 1.0, "top1": 1.0, "mrr": 1.0, "lat_ms": 7500},
-        "conversational": {"hit": 1.0, "top1": 0.67, "mrr": 0.833, "lat_ms": 7000},
-        "reworded": {"hit": 1.0, "top1": 0.67, "mrr": 0.833, "lat_ms": 8000},
-        "keyword_only": {"hit": 0.33, "top1": 0.33, "mrr": 0.333, "lat_ms": 6200}
+        "verbatim": {
+          "hit": 1.0,
+          "top1": 0.75,
+          "mrr": 0.875,
+          "lat_ms": 50359
+        },
+        "paraphrase": {
+          "hit": 1.0,
+          "top1": 0.5,
+          "mrr": 0.75,
+          "lat_ms": 7000
+        },
+        "typo": {
+          "hit": 1.0,
+          "top1": 1.0,
+          "mrr": 1.0,
+          "lat_ms": 7500
+        },
+        "conversational": {
+          "hit": 1.0,
+          "top1": 0.67,
+          "mrr": 0.833,
+          "lat_ms": 7000
+        },
+        "reworded": {
+          "hit": 1.0,
+          "top1": 0.67,
+          "mrr": 0.833,
+          "lat_ms": 8000
+        },
+        "keyword_only": {
+          "hit": 0.33,
+          "top1": 0.33,
+          "mrr": 0.333,
+          "lat_ms": 6200
+        }
+      }
+    },
+    "v5": {
+      "pipeline": "v4 + P0-P5 fixes (frozen dataset, BM25×3, typo fix)",
+      "corpus": {
+        "docs": 355,
+        "chunks": 6208,
+        "qa": 974,
+        "distinct_q": 974,
+        "dup": 0
+      },
+      "overall": {
+        "hit_at_5": 0.842,
+        "top1": 0.683,
+        "mrr": 0.751,
+        "latency_s": 4.2
+      },
+      "per_format": {
+        "verbatim": {
+          "hit": 0.95,
+          "top1": 0.8,
+          "mrr": 0.867,
+          "lat_ms": 3300
+        },
+        "paraphrase": {
+          "hit": 0.9,
+          "top1": 0.8,
+          "mrr": 0.842,
+          "lat_ms": 3600
+        },
+        "typo": {
+          "hit": 0.95,
+          "top1": 0.9,
+          "mrr": 0.917,
+          "lat_ms": 3300
+        },
+        "conversational": {
+          "hit": 0.85,
+          "top1": 0.75,
+          "mrr": 0.792,
+          "lat_ms": 7500
+        },
+        "reworded": {
+          "hit": 0.75,
+          "top1": 0.7,
+          "mrr": 0.725,
+          "lat_ms": 3600
+        },
+        "keyword_only": {
+          "hit": 0.65,
+          "top1": 0.15,
+          "mrr": 0.367,
+          "lat_ms": 3500
+        }
+      }
+    },
+    "v6": {
+      "pipeline": "v5 + regex_persian central + synonym beam5 + dedup + pipeline fix (69 docs 3626 chunks, 10q)",
+      "corpus": {
+        "docs": 69,
+        "chunks": 3626,
+        "qa": 432,
+        "distinct_q": 432,
+        "dup": 0
+      },
+      "overall": {
+        "hit_at_5": 1.0,
+        "top1": 0.9,
+        "mrr": 0.933,
+        "latency_s": 47.6
+      },
+      "per_format": {
+        "verbatim": {
+          "hit": 1.0,
+          "top1": 1.0,
+          "mrr": 1.0,
+          "lat_ms": 31501
+        },
+        "paraphrase": {
+          "hit": 1.0,
+          "top1": 1.0,
+          "mrr": 1.0,
+          "lat_ms": 44612
+        },
+        "typo": {
+          "hit": 1.0,
+          "top1": 1.0,
+          "mrr": 1.0,
+          "lat_ms": 28052
+        },
+        "conversational": {
+          "hit": 1.0,
+          "top1": 1.0,
+          "mrr": 1.0,
+          "lat_ms": 54233
+        },
+        "reworded": {
+          "hit": 1.0,
+          "top1": 1.0,
+          "mrr": 1.0,
+          "lat_ms": 48003
+        },
+        "keyword_only": {
+          "hit": 1.0,
+          "top1": 0.0,
+          "mrr": 0.333,
+          "lat_ms": 65276
+        }
       }
     }
   },
   "deltas": {
-    "v2_to_v3": {"hit": -0.008, "top1": 0.092, "mrr": 0.051, "latency": -0.9, "note": "Dense replaces TF-IDF: +9.2% Top1, -34% latency"},
-    "v3_to_v4": {"hit": 0.008, "top1": -0.075, "mrr": -0.012, "latency": 13.9, "note": "Char ngram + reranker: keyword MRR +85%, typo 100%, but latency +13.9s, Top1 -7.5% due to over-ranking"},
-    "v2_to_v4": {"hit": 0.0, "top1": 0.017, "mrr": 0.039, "latency": 13.0, "note": "Net: keyword MRR +85%, typo fixed, latency cost"}
+    "v2_to_v3": {
+      "hit": -0.008,
+      "top1": 0.092,
+      "mrr": 0.051,
+      "latency": -0.9,
+      "note": "Dense replaces TF-IDF: +9.2% Top1, -34% latency"
+    },
+    "v3_to_v4": {
+      "hit": 0.008,
+      "top1": -0.075,
+      "mrr": -0.012,
+      "latency": 13.9,
+      "note": "Char ngram + reranker: keyword MRR +85%, typo 100%, but latency +13.9s, Top1 -7.5% due to over-ranking"
+    },
+    "v2_to_v4": {
+      "hit": 0.0,
+      "top1": 0.017,
+      "mrr": 0.039,
+      "latency": 13.0,
+      "note": "Net: keyword MRR +85%, typo fixed, latency cost"
+    }
   }
 }

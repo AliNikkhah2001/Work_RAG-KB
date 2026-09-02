@@ -226,6 +226,9 @@ class PipelineOrchestrator:
                 continue
             if path.name.startswith("~$"):
                 continue  # Microsoft Office temporary lock files
+            # Skip test-question datasets — they are evaluation data, not KB content
+            if any(seg.startswith("TestQuestion") for seg in path.parts):
+                continue
             if path.suffix.lower() in self._SUPPORTED_EXTENSIONS:
                 files.append(str(path.resolve()))
         files.sort()

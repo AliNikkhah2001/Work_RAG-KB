@@ -2,22 +2,24 @@
 
 > **ICS Credit Scoring Knowledge Base** — Process, version, and manage your Persian-language knowledge base for RAG agents.
 
-## Current Status — v6.0 (2026-09-02)
+## Current Status — v7 (1405-05-31 KB, 2026-09-02)
 
 | Metric | Value |
 |--------|-------|
-| **Version** | `v6.0` `109d403` → `master` merge (remediation P0-P8 + Persian central + synonym/dedup) |
-| **Documents** | 69 (78 XLSX source, 9 failed — empty sheets) |
-| **Chunks** | 3,626 (432 QA pairs, 1,913 body, 1,255 reason_detail, 26 parents) — down from 6,208 due to dedup + empty-sheet filtering |
-| **DB** | SQLite (`data/kb_test.db`, ~3.6 GB) + `dense_embeddings.npz` (3626×384, fingerprint v2) |
-| **Hit@5** | **100% on 5-query smoke (v6 regenerated dataset, synonym OFF)** — full 120q benchmark pending GPU host (CPU 40-60s/query, see §Benchmark) |
-| **Hit@5 v5** | 84.2% (120q, 6 formats) — baseline before v6 (verbatim 95%, keyword_only 65%, MRR 0.751, 4.2s on H200) |
-| **Tests** | 45 collected — 43 passed (preprocessor+chunker+parsers+cli 28, characterization 5, eval 7, embedder 3, pipeline 2) |
-| **Web UI** | http://127.0.0.1:8000 |
-| **Remediation** | P0-P8 merged to `master`, tag `v6.0` — see [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) |
-| **Pipeline** | Full rebuild 102.5s, 69 updated / 9 failed / 92 incomplete QA skipped / 62 versions — `data/pipeline_summary.json` |
+| **Version** | `v7_iva_1405-05-31` (fresh build from `kb-source/1405-05-31`, tag `v7`) |
+| **Documents / Chunks** | 34 docs, 2,074 chunks (585 QA pairs, 979 body, 499 reason_detail) |
+| **DB** | `data/kb_1405.db` (fresh) + `dense_embeddings.npz` (2074×384) |
+| **Source** | `D:/Code/KB/kb-source/1405-05-31` (excludes `TestQuestions_IVA` + `TestQuestion*` dirs) |
+| **IVA Test** | **15 questions** from `TestQuestions_IVA/InitialTestQuestion.xlsx` — [`versions/v7_iva_1405-05-31/IVA_REPORT.md`](versions/v7_iva_1405-05-31/IVA_REPORT.md) |
+| **Doc-level Hit@5** | **73.3% (11/15)** — golden-doc chunk present in top-5 |
+| **Doc-level MRR** | 0.466 |
+| **Answer Hit@5** | 20% (3/15, ≥70% answer tokens in top-5) |
+| **Avg Latency** | ~22.7s/query (CPU cross-encoder 50-pool) |
+| **Pipeline** | Full rebuild 23.3s, 34 processed / 0 failed / 307 incomplete QA skipped — `data/pipeline_summary_1405.json` |
+| **Tests** | `pytest` suite passing |
+| **Web UI** | http://127.0.0.1:8000 (serves `kb_1405.db`) |
 
-> **v6 Notice:** Pipeline duplicate-doc bug fixed (`orchestrator.py:270` force path), Persian maps centralized (`regex_persian.py` 189L), synonym beam5 + MinHash LSH added (`dedup.py`, `query_expansion.py`). Dense cache rebuilt (57s warm). Full 120q A/B needs GPU host — current CPU cross-encoder rerank dominates latency (40-60s/q). Use `KB_SYNONYM_ENABLED=false` for baseline; `true` adds 5× BM25/dense max-pool (keyword_only lift). See `versions/v6_persian_central_synonym_dedup/snapshot.json`.
+> **v7 Notice:** New isolated KB from the `1405-05-31` folder (individual/corporate/cheque/saire/fanni content). Synonym beam5 + colloquial→formal expansion added (`kb_manager/query_expansion.py`, 74 entries) lifts Persian conversational queries; pipeline now skips `TestQuestion*` source dirs so test datasets are never ingested. 4 IVA misses are ranking-quality (reason-code "guaranteed loan" Q11/12 and semantic Q14/15 — see `diag_pretank.py`; reranker demotes golden chunks). Next: increase RERANKER_TOP_K 50→100 for pool, or per-domain rerank.
 
 ## Quick Start
 
@@ -75,6 +77,16 @@ Query → Persian Normalization + Char 3-grams
 
 ## Benchmark Results
 
+### v7 — IVA 15 questions, 1405-05-31 KB (verbatim, CPU)
+
+| Metric | Doc-level | Answer-grounded (≥70% tokens in top-5) |
+|--------|-----------|---------------------------------------|
+| Hit@5 | **11/15 (73.3%)** | 3/15 (20%) |
+| MRR | 0.466 | — |
+| Avg latency | ~22.7s | — |
+
+Per-question results: [`versions/v7_iva_1405-05-31/IVA_REPORT.md`](versions/v7_iva_1405-05-31/IVA_REPORT.md) · `data/iva_results.json`
+
 ### v5 — 120 queries, 6208 chunks (baseline, `aa5c576`)
 
 | Format | Hit@5 | Top-1 | MRR | Avg Latency |
@@ -86,15 +98,6 @@ Query → Persian Normalization + Char 3-grams
 | conversational | 85.0% | 75.0% | 0.792 | 7.5s |
 | keyword_only | 65.0% | 15.0% | 0.367 | 3.5s |
 | **Overall** | **84.2%** | **68.3%** | **0.751** | **4.2s** |
-
-### v6 — preliminary (3626 chunks, regenerated 120q, CPU)
-
-| Dataset | Hit@5 | Top-1 | MRR | Avg Latency | Notes |
-|---------|-------|-------|-----|-------------|-------|
-| 5-query smoke, synonym OFF | 100% | 100% | 1.0 | 67.3s (cold 173s, warm 28-48s) | `KB_SYNONYM_ENABLED=false`, cross-encoder 50-pool on CPU |
-| 120q full | — | — | — | — | Pending GPU host; CPU 40-60s/q → ~80 min for 120q. Run `python run_benchmark.py` on H200 with `KB_SYNONYM_ENABLED` toggle for A/B |
-
-> Regenerated `data/test_questions.json` from 432 QA pairs (v6 DB) — old IDs stale after dedup/pipefix. Full A/B requires frozen checksum + `tests/test_characterization.py::test_dataset_checksum_frozen` update.
 
 ## Web UI Pages
 
@@ -202,11 +205,11 @@ python -m kb_manager.cli status         # Show KB stats
 python scripts/cleanup_incomplete_qa.py --dry-run  # Preview QA cleanup
 ```
 
-## Roadmap & Remediation — Updated for v6
+## Roadmap & Remediation — Updated for v7
 
 Full audit: [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) (36 findings)
 
-### Done (merged to `master`, tag `v6.0`)
+### Done
 - [x] **Phase 0** Safety net — `data/test_questions.sha256` frozen, `data/versions.lock`, `tests/test_characterization.py` 5 tests
 - [x] **Phase 1** Immediate crashes — ordinal propagation (`search.py` 7-tuple), CPU dtype `float32` on CPU, chunk page `content`, reranker pool 50 (`82e8e3d`)
 - [x] **Phase 2** Async boundary — `llm.py:103` `async def generate`, `benchmark.py:173` await, `search.py:285` lock (`37c8c09`)
@@ -216,26 +219,27 @@ Full audit: [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) (36 findings)
 - [x] **Phase 6** HyDE consolidation — single `hyde.py`, `query_reform.HyDE` deprecated, strict JSON, `KB_ALLOW_MOCK` gate, disabled by default (`c2a2856`)
 - [x] **Phase 7** Operational — `deps.py:get_db` DI, job TTL 50, `app.py` router, logging (`40c578c`)
 - [x] **Phase 8** Dead code — `C19-21/B16/B17` removed (`5dad5d1`)
-- [x] **v6 Feature** Persian central — `regex_persian.py` (189L) + `validators.py` (178L) + `persian.py` delegates diacritics/repetition/digits
-- [x] **v6 Feature** Synonym/dedup — `query_expansion.py` beam5 (CURATED 40 + generated 221-entry map), `synonym_eda.py`+`generator.py`, `dedup.py` MinHash 64/8, `search.py` BM25/dense max-pool beam, `cli.py dedup` command, `data/domain_profile.json`
-- [x] **Pipeline** Full rebuild v6 — 78→69 docs, 3626 chunks, `pipeline_summary.json` (102s)
-- [x] **Tests** 45 tests — 43 passed
+- [x] **Phase 0-8 merged** to `master`, tag `v6.0`
+- [x] **v7 KB build** — fresh `data/kb_1405.db` from `kb-source/1405-05-31`: 34 docs / 2074 chunks / 307 incomplete-filtered, 23.3s (`orchestrator.py` skips `TestQuestion*` dirs so test data is never indexed)
+- [x] **v7 colloquial expansion** — `query_expansion.py` extended to 74 entries (قسطشون→قسط, رتبم→رتبه, چکم→چک, چی→چه, رو→را, توی→در…)
+- [x] **v7 IVA test** — full 15-question run of `TestQuestions_IVA/InitialTestQuestion.xlsx`: doc-hit@5 **11/15 (73.3%)**, MRR 0.466, snapshot + `IVA_REPORT.md` + `iva_results.json` (`run_iva_eval.py`, `build_iva_dataset.py`)
+- [x] **v7 live** — `run_server.py` now serves `kb_1405.db` (1405-05-31 source)
 
 ### Remaining (Next)
 
 | Priority | Task | Owner | Est. |
 |----------|------|-------|------|
-| **P0 Next** | Full 120q A/B on GPU H200 — `KB_SYNONYM_ENABLED` off vs beam5, 50 vs 30 pool, with frozen `test_questions.json` checksum update | infra | 1 day GPU |
-| **P1** | Fix 9 XLSX parse failures (empty sheets: `PublicQuesions_Individual` etc) — add `len(headers)<2` guard or sheet fallback | parser | 2h |
-| **P1** | Performance — reduce `RERANKER_TOP_K 50→30` (~40% rerank), batch 64→128, quantize `float16` on GPU, BM25 cache across restarts | perf | 1w |
-| **P2** | FaMTEB live 600q — `famteb.py` + `run_benchmark.py --famteb` smoke 10-sample, publish to leaderboard | eval | 1d |
-| **P2** | Corpus dedup apply — `python -m kb_manager.cli dedup` (6208→~5000 target) + rebuild + re-benchmark | data | 1d |
-| **P2** | Multi-query rewriting (beam5 RRF) — consolidate `hyde.py` + `query_expansion` LLM path (`query_reform.MultiQueryGenerator`) already coded, needs wiring + mocked tests | retrieval | 2d |
-| **P2** | HyDE A/B controlled report — `docs/BENCHMARK_REPORT.md` with hit@5/MRR/p50/p95, cost, variance ×3 runs, `hyde_enabled` in schema | report | 1d |
-| **P3** | Ops hardening — `config` drift doc, `versions/v6` → `v7` promotion, branch cleanup 17 branches tag & delete, `SKILL.md`/`Work_Credit-RAG_Phase1` gitignore | ops | 1d |
-| **P3** | Documentation — update `IMPLEMENTATION_PLAN.md` progress, `PLAN.md` Phase 10-15, publish `versions/v6` comparison plots | docs | 1d |
+| **P0** | IVA ranking — raise doc-hit@5 73.3%→85%+: `RERANKER_TOP_K 50→100` (golden chunks for Q11/12 ARE in pool but reranker demotes), per-domain rerank, or promote `reason_detail_parent`/`qa_pair_parent` aggregation for semantic Q14/15 | retrieval | 1d |
+| **P1** | Full IVA answer-grounded model eval (RAGAS faithfulness/relevancy on the 15 Q+A) with Gemini/Ollama | eval | 1d |
+| **P1** | Performance — `RERANKER_TOP_K 50→30` GPU (equal headroom), batch 64→128, quantize `float16` on H200, BM25 cache across restarts → target <2s warm | perf | 1w |
+| **P2** | FaMTEB live 600q — `famteb.py` + `run_benchmark.py --famteb` smoke, publish to leaderboard | eval | 1d |
+| **P2** | Corpus dedup apply — `python -m kb_manager.cli dedup --db-path data/kb_1405.db` (2074→~1700 target) + re-benchmark | data | 1d |
+| **P2** | Multi-query rewriting (beam5 RRF with LLM) — consolidate `query_reform.MultiQueryGenerator`, mocked tests | retrieval | 2d |
+| **P2** | HyDE A/B controlled — `docs/BENCHMARK_REPORT.md` hit@5/MRR/p50/p95, `hyde_enabled`, disabled default | report | 1d |
+| **P3** | Ops hardening — branch cleanup 17 branches tag & delete, `config` drift doc, gitignore `SKILL.md`/parent repos | ops | 1d |
+| **P3** | Documentation — `IMPLEMENTATION_PLAN.md` + `PLAN.md` Phase 10-15 status, v6/v7 comparison plots to `data/plots` | docs | 1d |
 
-See `docs/REMEDIATION_PLAN.md` §§5,9 for PR sequence and §§11-12 DoD. Next tag `v6.1` after GPU A/B + 50→30 pool.
+See `docs/REMEDIATION_PLAN.md` §§5,9 for PR sequence and §§11-12 DoD. Next tag `v7.1` after IVA ranking fix + GPU benchmark.
 
 ## License
 

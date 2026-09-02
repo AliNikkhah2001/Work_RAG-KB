@@ -1,0 +1,17 @@
+{
+  "version": "v6",
+  "created_at": "2026-09-02T11:03:30.614133+00:00",
+  "git_commit": "c51f5dc",
+  "source_db": "kb_test.db",
+  "notes": "v6.0 Persian central, synonym beam5, dedup, 69 docs 3626 chunks, 10q 100% Hit@5",
+  "counts": {
+    "documents": 69,
+    "chunks_total": 3626,
+    "qa_chunks": 432,
+    "body_chunks": 3194,
+    "distinct_questions": 432,
+    "duplicate_instances": 0,
+    "questions_with_gt1_copies": 0,
+    "questions_with_gt5_copies": 0
+  }
+}
