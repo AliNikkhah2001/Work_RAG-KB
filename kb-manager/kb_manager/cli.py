@@ -79,7 +79,7 @@ def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: 
             )
 
             orchestrator = PipelineOrchestrator(
-                db=db,
+                database=db,
                 preprocessor=preprocessor,
                 chunker=chunker,
                 embedder=embedder,
