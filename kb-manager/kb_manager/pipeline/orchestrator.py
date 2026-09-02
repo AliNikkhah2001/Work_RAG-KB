@@ -269,14 +269,17 @@ class PipelineOrchestrator:
         # --- Existing doc lookup ---
         existing = await self._find_document_by_path(file_path, session)
 
-        if existing is not None and not force:
-            if existing.content_hash == content_hash:
+        if existing is not None:
+            if not force and existing.content_hash == content_hash:
                 logger.debug("Skipping unchanged file: %s", file_path)
                 result["skipped"] = 1
                 return result
             doc = existing
             doc.version += 1
             doc.content_hash = content_hash
+            doc.source_hash = content_hash
+            doc.title = parsed.title
+            doc.doc_metadata = parsed.metadata
             doc.updated_at = datetime.now(UTC)
             is_new = False
         else:

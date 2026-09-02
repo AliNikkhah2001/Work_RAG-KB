@@ -1,0 +1,15 @@
+{
+  "schema": "kb-snapshot/v1",
+  "exported_at": "2026-09-02T09:43:48.278366+00:00",
+  "counts": {
+    "documents": 69,
+    "chunks_total": 3626,
+    "qa_chunks": 432,
+    "body_chunks": 3194,
+    "distinct_questions": 432,
+    "duplicate_instances": 0,
+    "questions_with_gt1_copies": 0,
+    "questions_with_gt5_copies": 0
+  },
+  "note": "full documents/chunks omitted for size, see data/kb_test.db"
+}

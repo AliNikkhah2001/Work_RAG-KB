@@ -57,54 +57,47 @@ def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: 
         await db.create_tables()
 
         try:
-            async with db.session() as session:
-                from kb_manager.chunker import get_chunker
-                from kb_manager.embedder import get_embedder
-                from kb_manager.parsers import get_parser
-                from kb_manager.preprocessor import PreprocessingPipeline
+            from kb_manager.chunker import get_chunker
+            from kb_manager.embedder import get_embedder
+            from kb_manager.preprocessor import PreprocessingPipeline
 
-                parser = get_parser
-                preprocessor = PreprocessingPipeline()
-                chunker = get_chunker(
-                    config.chunking.strategy,
-                    max_tokens=config.chunking.max_tokens,
-                    min_tokens=config.chunking.min_tokens,
-                    overlap_tokens=config.chunking.overlap_tokens,
-                    parent_scope=config.chunking.parent_scope,
-                    parent_max_tokens=config.chunking.parent_max_tokens,
-                    dedup_questions=config.chunking.dedup_questions,
-                )
-                embedder = get_embedder(
-                    "sentence-transformer",
-                    model_name=model or config.embedding.model_name,
-                    dimensions=config.embedding.dimensions,
-                    batch_size=config.embedding.batch_size,
-                )
+            preprocessor = PreprocessingPipeline()
+            chunker = get_chunker(
+                config.chunking.strategy,
+                max_tokens=config.chunking.max_tokens,
+                min_tokens=config.chunking.min_tokens,
+                overlap_tokens=config.chunking.overlap_tokens,
+                parent_scope=config.chunking.parent_scope,
+                parent_max_tokens=config.chunking.parent_max_tokens,
+                dedup_questions=config.chunking.dedup_questions,
+            )
+            embedder = get_embedder(
+                "sentence-transformer",
+                model_name=model or config.embedding.model_name,
+                dimensions=config.embedding.dimensions,
+                batch_size=config.embedding.batch_size,
+            )
 
-                orchestrator = PipelineOrchestrator(
-                    db=db,
-                    preprocessor=preprocessor,
-                    chunker=chunker,
-                    embedder=embedder,
-                )
+            orchestrator = PipelineOrchestrator(
+                db=db,
+                preprocessor=preprocessor,
+                chunker=chunker,
+                embedder=embedder,
+            )
 
-                if full:
-                    result = await orchestrator.run_full_rebuild(
-                        source_dir=config.source_dir, session=session
-                    )
-                else:
-                    result = await orchestrator.run_incremental(
-                        source_dir=config.source_dir, session=session
-                    )
+            if full:
+                result = await orchestrator.run_full_rebuild(config.source_dir)
+            else:
+                result = await orchestrator.run_incremental(config.source_dir)
 
-                console.print(f"\n[bold green]Pipeline completed![/]")
-                console.print(
-                    f"  Documents processed: {result.documents_ok}/{result.documents_total}"
-                )
-                console.print(f"  Chunks created: {result.chunks_total}")
-                console.print(f"  Failed: {result.documents_failed}")
-                if result.chunks_skipped_incomplete > 0:
-                    console.print(f"  QA rows skipped (incomplete): {result.chunks_skipped_incomplete}")
+            console.print(f"\n[bold green]Pipeline completed![/]")
+            console.print(
+                f"  Documents processed: {result.documents_ok}/{result.documents_total}"
+            )
+            console.print(f"  Chunks created: {result.chunks_total}")
+            console.print(f"  Failed: {result.documents_failed}")
+            if result.chunks_skipped_incomplete > 0:
+                console.print(f"  QA rows skipped (incomplete): {result.chunks_skipped_incomplete}")
         finally:
             await db.close()
 
