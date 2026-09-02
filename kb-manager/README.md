@@ -21,6 +21,32 @@
 
 > **v7 Notice:** New isolated KB from the `1405-05-31` folder (individual/corporate/cheque/saire/fanni content). Synonym beam5 + colloquial→formal expansion added (`kb_manager/query_expansion.py`, 74 entries) lifts Persian conversational queries; pipeline now skips `TestQuestion*` source dirs so test datasets are never ingested. 4 IVA misses are ranking-quality (reason-code "guaranteed loan" Q11/12 and semantic Q14/15 — see `diag_pretank.py`; reranker demotes golden chunks). Next: increase RERANKER_TOP_K 50→100 for pool, or per-domain rerank.
 
+## Version History & Differences
+
+| Version | When | KB corpus | Pipeline / Retrieval | Key changes | Benchmark |
+|---------|------|-----------|----------------------|-------------|-----------|
+| **v1** | Aug 2026 | ~160 files (31Tir1405 zip) | Baseline ingest + BM25 | Initial KB architecture, file taxonomy, schemas | — |
+| **v2** | Aug 2026 | 355 docs / 6,208 chunks | BM25 + TF-IDF (RRF k=60) | First hybrid retrieval; QA cleanup start | Hit@5 **90%**, MRR 0.736, 2.8s |
+| **v3** | Aug 2026 | 355 docs / 6,208 chunks | BM25 + Dense MiniLM-L12 + RRF | Added dense semantic leg + contextual embeddings | Hit@5 **89.2%**, MRR 0.787, 1.9s |
+| **v4** | Aug 2026 | 355 docs / 6,208 chunks | + char 3-grams + cross-encoder reranker | Char n-grams (typo fix), mmarco reranker, structured Persian chunking | Hit@5 **90%**, MRR 0.775, **15.8s** (rerank cost) |
+| **v5** | Aug 2026 | 355 docs / 6,208 chunks | P0-P5 frozen dataset + BM25×3 | Frozen dataset checksum, BM25 keyword ×3 weight, typo map fixed, no fabricated metrics | Hit@5 **84.2%**, MRR 0.751, 4.2s |
+| **v6** | Sep 2026 | 69 docs / 3,626 chunks | P0-P8 remediation + Persian central + synonym beam5 | `regex_persian.py` central maps, `dedup.py` MinHash LSH, `query_expansion.py` beam5, fingerprint/invalidation, async fixes, duplicate-doc pipefix | 10q smoke **100%** Hit@5 |
+| **v7** ⭐ current | Sep 2026 | 34 docs / 2,074 chunks | 1405-05-31 KB + colloquial beam5 | **Fresh KB** from `kb-source/1405-05-31`; `TestQuestion*` dirs excluded from ingest; colloquial→formal synonyms (قسطشون→قسط, رتبم→رتبه, ...); IVA 15-question eval harness | **Doc-level Hit@5 73.3%** (11/15), MRR 0.466, ~22.7s |
+
+### What changed in v7 (vs v6)
+
+1. **Brand-new isolated corpus**: ingest switched from the old `kb-source/clean_files` (78 files) to the `kb-source/1405-05-31/` tree — `(done)حقوقی`, `(done)حقیقی`, `سایر`, `فنی`. Result: 34 documents, 2,074 chunks (585 QA, 979 body, 499 reason-detail), rebuilt in 23.3s.
+2. **Test datasets excluded from indexing** (`orchestrator._scan_files`): any path segment starting with `TestQuestion` is skipped — so `TestQuestions_IVA/` is never ingested.
+3. **Colloquial → formal query expansion** (74-entry map): added user-facing Persian forms (چی/چه, رو/را, توی/در, قسطشون/قسط, رتبم/رتبه, چکم/چک…) to close the gap on real conversational questions.
+4. **Real user-question benchmark**: `TestQuestions_IVA/InitialTestQuestion.xlsx` (15 questions) with a doc-level ground-truth (golden document that holds the answer). Reported doc-level Hit@5 = 73.3% (11/15), MRR 0.466.
+5. **Web fixes shipped in v7**: pipeline jobs no longer stuck `running` (finalize now re-fetches inside the active session + stale jobs marked `interrupted` at startup); snapshot plot images fixed (`{name:path}` route → 404 was a path-segment mismatch); Comparison tab rewritten data-driven (v2→v7, not hard-coded v4); `/versions` rollback persists (missing flush).
+
+### Known v7 gaps (next fixes)
+
+- **4 IVA misses** (Q11/12 reason-code "guaranteed loan", Q14 rank-vs-score, Q15 negative-contract details): golden chunks ARE in the RRF pool for Q11/12 but the cross-encoder demotes them → try `RERANKER_TOP_K 50→100` or per-domain reranking.
+- Latency ~22.7s/query is CPU-bound (cross-encoder 50-pool); on GPU (H200) expect the v5-era ~4s baseline. See Remediation Phase 9.
+- Only `verbatim` format benchmarked for IVA; expanding to 6 formats + answer-grounded RAGAS eval is the next milestone.
+
 ## Quick Start
 
 ```bash

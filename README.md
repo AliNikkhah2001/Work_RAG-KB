@@ -2,7 +2,7 @@
 
 Persian knowledge-base lifecycle, hybrid retrieval, and KB web UI for the Work Credit RAG platform.
 
-> Status: **implemented and operational.** The retrieval pipeline and Web UI run from `kb-manager/` (see [kb-manager/README.md](kb-manager/README.md) for current benchmark numbers and quick start). The top-level documents ([`KB_ARCHITECTURE.md`](KB_ARCHITECTURE.md), [`retrieval-evaluation-research.md`](retrieval-evaluation-research.md)) hold the architecture plan and IR evaluation theory.
+> Status: **implemented and operational.** The retrieval pipeline and Web UI run from `kb-manager/` (see [kb-manager/README.md](kb-manager/README.md) for current benchmark numbers and quick start). Current release **v7** (1405-05-31 KB, 34 docs / 2,074 chunks, IVA 15-question doc-level Hit@5 73.3%) — see [kb-manager/README.md](kb-manager/README.md#version-history--differences) for the full version history and per-version differences. The top-level documents ([`KB_ARCHITECTURE.md`](KB_ARCHITECTURE.md), [`retrieval-evaluation-research.md`](retrieval-evaluation-research.md)) hold the architecture plan and IR evaluation theory.
 
 ## 1. Summary
 
