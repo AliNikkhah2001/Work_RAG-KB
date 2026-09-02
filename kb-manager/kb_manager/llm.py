@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import asyncio
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -21,7 +21,6 @@ class LLMResponse:
 
 def _run_sync(coro):
     """Run coroutine from sync context without breaking a running loop (F2 fix)."""
-    import asyncio
     import concurrent.futures
 
     try:

@@ -21,6 +21,10 @@ from kb_manager.dense import DenseSemanticIndex, load_or_build
 from kb_manager.hyde import HyDEGenerator
 from kb_manager.reranker import CrossEncoderReranker, get_reranker
 
+# query expansion (Phase 11: synonym + multi-query beam5)
+_SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+_SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
+
 if TYPE_CHECKING:
     pass
 
@@ -37,26 +41,15 @@ _HYDE_LLM_MODEL = os.getenv("KB_HYDE_LLM", "gpt-4o-mini")
 _HYDE_LLM_API_KEY = os.getenv("KB_HYDE_API_KEY", os.getenv("OPENAI_API_KEY", ""))
 _HYDE_LLM_BASE_URL = os.getenv("KB_HYDE_BASE_URL", os.getenv("OPENAI_BASE_URL", ""))
 
-# Persian character normalization map
+# Persian char map — now delegates to regex_persian central source
+from kb_manager.preprocessor.regex_persian import ARABIC_TO_PERSIAN_MAP as _BASE_MAP
+
 _PERSIAN_CHAR_MAP = {
-    # Arabic yeh -> Persian yeh
-    "\u064a": "\u06cc",  # ي -> ی
-    "\u0649": "\u06cc",  # ى -> ی
-    # Arabic kaf -> Persian kaf
-    "\u0643": "\u06a9",  # ك -> ک
-    # Arabic teh marbuta -> Persian heh
-    "\u0629": "\u0647",  # ة -> ه
-    # Alef variants -> basic alef
-    "\u0671": "\u0627",  # ٱ -> ا
-    "\u0623": "\u0627",  # أ -> ا
-    "\u0625": "\u0627",  # إ -> ا
-    "\u0622": "\u0622",  # آ -> آ (keep)
-    # ZWNJ handling - replace with space for tokenization
-    "\u200c": " ",  # ZWNJ -> space
-    # Arabic-Indic digits -> ASCII
+    **_BASE_MAP,
+    "\u0622": "\u0622",  # آ keep (search preserves آ vs normalizer)
+    "\u200c": " ",  # ZWNJ -> space for tokenization
     "\u0660": "0", "\u0661": "1", "\u0662": "2", "\u0663": "3", "\u0664": "4",
     "\u0665": "5", "\u0666": "6", "\u0667": "7", "\u0668": "8", "\u0669": "9",
-    # Extended Arabic-Indic digits
     "\u06f0": "0", "\u06f1": "1", "\u06f2": "2", "\u06f3": "3", "\u06f4": "4",
     "\u06f5": "5", "\u06f6": "6", "\u06f7": "7", "\u06f8": "8", "\u06f9": "9",
 }
@@ -79,13 +72,25 @@ _STOPWORDS = frozenset(
 )
 
 
+def _expand_query_for_bm25(query: str) -> list[str]:
+    """Return beam queries for keyword_only robustness (synonym+soundex)."""
+    if not _SYNONYM_ENABLED:
+        return [query]
+    try:
+        from kb_manager.query_expansion import generate_multi_queries
+
+        return generate_multi_queries(query, beam=_SYNONYM_BEAM)
+    except Exception:
+        return [query]
+
+
 def _tokenize(text: str) -> list[str]:
     """Tokenize text into lowercase words + Persian char 3-grams, removing stopwords."""
-    # Apply Persian character normalization (F34: map intentionally separate from preprocessor/persian.py which preserves digits for display; search normalizes digits for BM25)
-    text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
+    from kb_manager.preprocessor.regex_persian import DIACRITICS_RE, TOKEN_RE
 
-    # Extract word tokens (Persian, Arabic, Latin, digits) — F12 fix: no \u200c/\u200D (ZWNJ already mapped to space)
-    word_tokens = re.findall(r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\d]+", text)
+    text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
+    text = DIACRITICS_RE.sub("", text)  # parsitext: strip harakat before tokenize
+    word_tokens = TOKEN_RE.findall(text)
     word_tokens = [t for t in word_tokens if t not in _STOPWORDS and len(t) > 1]
 
     # Generate Persian character 3-grams for typo/orthographic robustness
@@ -382,13 +387,28 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         bm25_content, bm25_kw = bm25_pair, None  # type: ignore[assignment]
 
     # --- Step 2: BM25 (weighted content + 3*keywords, no length penalty) ---
-    bm25_raw_content = bm25_content.search(normalized, top_k=top_k * 3)
-    bm25_raw_kw = bm25_kw.search(normalized, top_k=top_k * 3) if bm25_kw is not None else []
+    # multi-query beam: run BM25 for each expanded query
+    beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
+    bm25_raw_content_all: list[tuple[str, float]] = []
+    bm25_raw_kw_all: list[tuple[str, float]] = []
+    for bq in beam_queries:
+        bm25_raw_content_all.extend(bm25_content.search(bq, top_k=top_k * 3))
+        if bm25_kw is not None:
+            bm25_raw_kw_all.extend(bm25_kw.search(bq, top_k=top_k * 3))
+    # aggregate max score per doc across beams
     bm25_scores_combined: dict[str, float] = {}
-    for cid, s in bm25_raw_content:
-        bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + s
-    for cid, s in bm25_raw_kw:
-        bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + 3.0 * s
+    for cid, s in bm25_raw_content_all:
+        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), s)
+    for cid, s in bm25_raw_kw_all:
+        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), 3.0 * s) if cid not in bm25_scores_combined else bm25_scores_combined[cid] + 3.0 * s
+    # if single beam, keep original sum behavior; else max already
+    if len(beam_queries) == 1:
+        # recompute exact sum for single-query case (preserve original)
+        bm25_scores_combined = {}
+        for cid, s in bm25_content.search(normalized, top_k=top_k * 3):
+            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + s
+        for cid, s in (bm25_kw.search(normalized, top_k=top_k * 3) if bm25_kw else []):
+            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + 3.0 * s
     bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     bm25_id_map = {cd[0]: cd for cd in chunk_data}
     bm25_results = []
@@ -410,8 +430,17 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
             ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
-    # --- Step 3: Dense semantic (embedding cosine) ---
-    dense_raw = dense.search(normalized, top_k=top_k * 3)
+    # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
+    dense_raw_base = dense.search(normalized, top_k=top_k * 3)
+    if _SYNONYM_ENABLED and len(beam_queries) > 1:
+        dense_pool: dict[str, float] = dict(dense_raw_base)
+        for bq in beam_queries[1:]:
+            for cid, sc in dense.search(bq, top_k=top_k * 3):
+                if cid not in dense_pool or sc > dense_pool[cid]:
+                    dense_pool[cid] = sc
+        dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+    else:
+        dense_raw = dense_raw_base
     dense_scores = dict(dense_raw)
     dense_results = []
     for chunk_id, score in dense_raw:

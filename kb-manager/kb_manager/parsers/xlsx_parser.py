@@ -19,6 +19,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from kb_manager.parsers.base import BaseParser, ParsedDocument
+from kb_manager.preprocessor.regex_persian import has_mojibake as _has_mojibake_central
 
 logger = logging.getLogger(__name__)
 
@@ -34,35 +35,17 @@ def _is_arabic_script(ch: str) -> bool:
 
 
 def _verify_string_integrity(value: str) -> list[str]:
-    """Detect real mojibake in a cell string.
-
-    Flags:
-    - U+FFFD replacement characters (the reader already saw bad bytes).
-    - Control characters other than ``\\n`` / ``\\r`` / ``\\t``.
-    - Literal ``?`` sitting between two Arabic-script letters, which is
-      the classic signature of text that was decoded with a wrong codepage.
-
-    Deliberately ignores embedded newlines/tabs, which are valid in cells.
-
-    Args:
-        value: Cell string to inspect.
-
-    Returns:
-        List of human-readable problem descriptions (empty if clean).
-    """
+    """Detect mojibake — delegates to regex_persian central + extra checks."""
     problems: list[str] = []
     if "\ufffd" in value:
         problems.append("contains U+FFFD replacement character")
-    for i, ch in enumerate(value):
+    if _has_mojibake_central(value):
+        problems.append("'?' adjacent to Arabic-script letter (mojibake signature)")
+    for ch in value:
         code = ord(ch)
         if code < 32 and ch not in "\n\r\t":
             problems.append(f"contains control char U+{code:04X}")
-        elif ch == "?" and 0 < i < len(value) - 1:
-            prev_arabic = _is_arabic_script(value[i - 1])
-            next_arabic = _is_arabic_script(value[i + 1])
-            if prev_arabic or next_arabic:
-                problems.append("'?' adjacent to Arabic-script letter (mojibake signature)")
-    # De-duplicate while preserving order
+            break
     return list(dict.fromkeys(problems))
 
 
@@ -122,9 +105,9 @@ def _detect_schema(headers: list[str]) -> str | None:
     normalized = {_normalize_col(h) for h in headers if h}
 
     schemas = [
-        ("reason_codes", SCHEMA_A_COLUMNS),
-        ("crm_qa", SCHEMA_B_COLUMNS),
-        ("articles", SCHEMA_C_COLUMNS),
+        ("reason_codes", {_normalize_col(c) for c in SCHEMA_A_COLUMNS}),
+        ("crm_qa", {_normalize_col(c) for c in SCHEMA_B_COLUMNS}),
+        ("articles", {_normalize_col(c) for c in SCHEMA_C_COLUMNS}),
     ]
     for name, required in schemas:
         overlap = len(normalized & required)

@@ -75,7 +75,7 @@ def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: 
                     dedup_questions=config.chunking.dedup_questions,
                 )
                 embedder = get_embedder(
-                    "sentence_transformer",
+                    "sentence-transformer",
                     model_name=model or config.embedding.model_name,
                     dimensions=config.embedding.dimensions,
                     batch_size=config.embedding.batch_size,
@@ -146,65 +146,36 @@ def status() -> None:
 @click.option("--top-k", "-k", default=5, help="Number of results")
 def search(query: str, top_k: int) -> None:
     """Search the knowledge base."""
-    config = load_config()
+    from kb_manager.web.routes.search import search_knowledge_base_sync
 
-    async def _run() -> None:
-        from kb_manager.models.database import Database
+    console.print(f"[bold]Searching for:[/] {query}")
+    steps = search_knowledge_base_sync(query, top_k)
 
-        db = Database(config.db)
-        await db.create_tables()
+    if not steps.final_results:
+        console.print("[yellow]No results found.[/]")
+        return
 
-        try:
-            from kb_manager.embedder import get_embedder
+    table = Table(title=f"Search Results for: {query} ({steps.elapsed_ms:.1f}ms)")
+    table.add_column("#", style="dim")
+    table.add_column("Score", style="green")
+    table.add_column("Document", style="cyan")
+    table.add_column("Heading")
+    table.add_column("Content", max_width=60)
 
-            embedder = get_embedder(
-                "sentence_transformer",
-                model_name=config.embedding.model_name,
-                dimensions=config.embedding.dimensions,
-            )
-            query_embedding = embedder.embed_query(query)
-
-            async with db.session() as session:
-                from sqlalchemy import text
-
-                sql = text("""
-                    SELECT c.id, c.content, c.heading_path, d.title,
-                           1 - (c.embedding <=> :embedding) AS similarity
-                    FROM chunks c
-                    JOIN documents d ON c.document_id = d.id
-                    WHERE c.embedding IS NOT NULL
-                    ORDER BY c.embedding <=> :embedding
-                    LIMIT :limit
-                """)
-                result = await session.execute(
-                    sql, {"embedding": str(query_embedding), "limit": top_k}
-                )
-                rows = result.fetchall()
-
-                if not rows:
-                    console.print("[yellow]No results found.[/]")
-                    return
-
-                table = Table(title=f"Search Results for: {query}")
-                table.add_column("#", style="dim")
-                table.add_column("Score", style="green")
-                table.add_column("Document", style="cyan")
-                table.add_column("Heading")
-                table.add_column("Content", max_width=60)
-
-                for i, row in enumerate(rows, 1):
-                    table.add_row(
-                        str(i),
-                        f"{float(row[4]):.3f}",
-                        row[3],
-                        row[2][:50] if row[2] else "",
-                        row[1][:100],
-                    )
-                console.print(table)
-        finally:
-            await db.close()
-
-    asyncio.run(_run())
+    for i, r in enumerate(steps.final_results, 1):
+        score = r.rerank_score if r.rerank_score else r.hybrid_score
+        # Handle encoding issues on Windows by replacing non-ASCII
+        content = r.content_preview[:100].encode('ascii', 'replace').decode('ascii')
+        heading = (r.heading_path[:50] if r.heading_path else "").encode('ascii', 'replace').decode('ascii')
+        doc_title = r.doc_title.encode('ascii', 'replace').decode('ascii')
+        table.add_row(
+            str(i),
+            f"{score:.3f}",
+            doc_title,
+            heading,
+            content,
+        )
+    console.print(table)
 
 
 @main.command()
@@ -223,8 +194,13 @@ def serve() -> None:
     )
 
 
+def _safe_print(text: str) -> str:
+    """Return text safe for Windows console output."""
+    return text.encode("ascii", "replace").decode("ascii")
+
+
 @main.command()
-@click.option("--file", "-f", type=click.Path(exists=True), help="File to inspect")
+@click.argument("file", type=click.Path(exists=True))
 def inspect(file: str) -> None:
     """Inspect a file's structure and content."""
     from kb_manager.parsers import get_parser
@@ -233,32 +209,34 @@ def inspect(file: str) -> None:
     parser = get_parser(str(path))
 
     if parser is None:
-        console.print(f"[red]No parser found for: {path.name}[/]")
+        console.print(f"[red]No parser found for: {_safe_print(path.name)}[/]")
         return
 
     try:
         doc = parser.parse(str(path))
-        console.print(f"[bold]File:[/] {path.name}")
-        console.print(f"[bold]Title:[/] {doc.title}")
-        console.print(f"[bold]Type:[/] {doc.file_type}")
+        console.print(f"[bold]File:[/] {_safe_print(path.name)}")
+        console.print(f"[bold]Title:[/] {_safe_print(doc.title)}")
+        console.print(f"[bold]Type:[/] {_safe_print(doc.file_type)}")
         console.print(f"[bold]Content length:[/] {len(doc.content)} chars")
 
         if doc.sheets:
             console.print(f"\n[bold]Sheets ({len(doc.sheets)}):[/]")
             for sheet in doc.sheets:
                 console.print(
-                    f"  - {sheet['name']}: {len(sheet.get('headers', []))} cols, {len(sheet.get('rows', []))} rows"
+                    f"  - {_safe_print(sheet['name'])}: {len(sheet.get('headers', []))} cols, {len(sheet.get('rows', []))} rows"
                 )
                 if sheet.get("headers"):
-                    console.print(f"    Headers: {sheet['headers'][:5]}")
+                    headers_preview = [_safe_print(h) for h in sheet['headers'][:5]]
+                    console.print(f"    Headers: {headers_preview}")
 
         if doc.sections:
             console.print(f"\n[bold]Sections ({len(doc.sections)}):[/]")
             for sec in doc.sections[:5]:
-                console.print(f"  - {sec.get('heading', 'N/A')}: {len(sec.get('text', ''))} chars")
+                heading = _safe_print(sec.get('heading', 'N/A'))
+                console.print(f"  - {heading}: {len(sec.get('text', ''))} chars")
 
         console.print(f"\n[bold]Preview (first 500 chars):[/]")
-        console.print(doc.content[:500])
+        console.print(_safe_print(doc.content[:500]))
 
     except Exception as e:
         console.print(f"[red]Error parsing file: {e}[/]")
@@ -379,6 +357,49 @@ def status_chunks(db_path: str) -> None:
     table.add_row("Chunks with parent", str(with_parent))
 
     console.print(table)
+    conn.close()
+
+
+@main.command("dedup")
+@click.option("--db-path", "-d", default="data/kb_test.db", help="SQLite DB path")
+@click.option("--threshold", "-t", default=0.85, help="Jaccard threshold for LSH")
+@click.option("--dry-run", is_flag=True, help="Only report, don't delete")
+def dedup(db_path: str, threshold: float, dry_run: bool) -> None:
+    """Run corpus dedup (question + MinHash LSH) 6208->5000."""
+    import json
+    import sqlite3
+
+    from kb_manager.dedup import full_dedup_pipeline
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("SELECT id, content, chunk_type, metadata FROM chunks")
+    rows = cur.fetchall()
+    chunks = [
+        {"id": r["id"], "content": r["content"], "chunk_type": r["chunk_type"], "metadata": json.loads(r["metadata"]) if r["metadata"] else {}}
+        for r in rows
+    ]
+    result = full_dedup_pipeline(chunks)
+    console.print(f"[bold]Original:[/] {result['original']}")
+    console.print(f"[bold]After question dedup:[/] {result['after_question_dedup']} (removed {result['question_removed']})")
+    console.print(f"[bold]After LSH (t={threshold}):[/] {result['after_lsh']} (removed {result['lsh_removed']})")
+    console.print(f"[bold]Reduction:[/] {result['reduction_pct']}%")
+    if result["duplicate_pairs"]:
+        console.print("[dim]Sample duplicate pairs (idx_a, idx_b, jaccard):[/]")
+        for a, b, j in result["duplicate_pairs"][:5]:
+            console.print(f"  {a} <-> {b}  j={j:.2f}")
+
+    if not dry_run and result["final"] < result["original"]:
+        # delete removed ids
+        kept_ids = {c["id"] for c in result["kept"]}
+        to_delete = [c["id"] for c in chunks if c["id"] not in kept_ids]
+        console.print(f"[yellow]Deleting {len(to_delete)} duplicate chunks...[/]")
+        cur.executemany("DELETE FROM chunks WHERE id = ?", [(i,) for i in to_delete])
+        conn.commit()
+        console.print("[green]Done.[/]")
+    elif dry_run:
+        console.print("[dim]Dry-run: no changes written.[/]")
     conn.close()
 
 

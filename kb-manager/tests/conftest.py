@@ -68,10 +68,16 @@ def sample_xlsx(tmp_path: Path) -> Path:
     wb = Workbook()
     ws = wb.active
     ws.title = "ReasonCodes"
-    ws.append(["reason_code", "description", "category"])
-    ws.append(["RC001", "خطای سرور", "سیستمی"])
-    ws.append(["RC002", "خطای احراز هویت", "امنیتی"])
-    ws.append(["RC003", "خطای شبکه", "شبکه"])
+    ws.append([
+        "reason_code", "description", "category", "model_name", "model_id",
+        "brief_explanation", "detailed_explanation", "reason_text",
+        "improvement_suggestions", "bin_score", "bin_impact",
+        "feature_score", "feature_impact", "bin_details", "keywords",
+        "feature_name", "data_source"
+    ])
+    ws.append(["RC001", "خطای سرور", "سیستمی", "M1", "ID1", "brief1", "detail1", "reason1", "improve1", "0.8", "high", "0.7", "med", "bin1", "kw1", "feat1", "src1"])
+    ws.append(["RC002", "خطای احراز هویت", "امنیتی", "M2", "ID2", "brief2", "detail2", "reason2", "improve2", "0.9", "high", "0.8", "med", "bin2", "kw2", "feat2", "src2"])
+    ws.append(["RC003", "خطای شبکه", "شبکه", "M3", "ID3", "brief3", "detail3", "reason3", "improve3", "0.7", "med", "0.6", "low", "bin3", "kw3", "feat3", "src3"])
 
     path = tmp_path / "sample_reasons.xlsx"
     wb.save(str(path))
