@@ -40,7 +40,7 @@
 </div>
 
 <div class="card">
-    <h3>Archived Files</h3>
+    <h3>Download Manifest &amp; Data</h3>
     <ul>
         {% for f in files %}
         <li><a href="/benchmarks/snapshots/{{ label }}/file/{{ f }}">{{ f }}</a></li>
@@ -52,13 +52,16 @@
 </div>
 
 {% if plots %}
-<div class="charts-grid">
-    {% for plot in plots %}
-    <div class="chart-card">
-        <h3>{{ plot }}</h3>
-        <img src="/benchmarks/snapshots/{{ label }}/file/plots/{{ plot }}" alt="{{ plot }}" style="width:100%; border-radius:8px;">
+<div class="card">
+    <h3>Archived Plot Images</h3>
+    <div class="charts-grid">
+        {% for plot in plots %}
+        <div class="chart-card">
+            <h3>{{ plot }}</h3>
+            <img src="/benchmarks/snapshots/{{ label }}/file/plots/{{ plot }}" alt="{{ plot }}" style="width:100%; border-radius:8px;">
+        </div>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 {% endif %}
 {% endblock %}

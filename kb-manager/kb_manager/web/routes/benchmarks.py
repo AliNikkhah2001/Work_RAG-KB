@@ -400,7 +400,7 @@ async def snapshot_detail(request: Request, label: str):
     )
 
 
-@router.get("/snapshots/{label}/file/{name}")
+@router.get("/snapshots/{label}/file/{name:path}")
 async def snapshot_file(label: str, name: str):
     """Download a file archived inside a snapshot."""
     from kb_manager.versioning.snapshot import VERSIONS_ROOT

@@ -17,6 +17,22 @@ async def lifespan(app: FastAPI):
     log = logging.getLogger(__name__)
 
     await db.create_tables()
+    # Mark stale jobs from previous process runs as interrupted
+    try:
+        import datetime as _dt
+
+        from sqlalchemy import update
+
+        from kb_manager.models.database import IngestionJob
+
+        async with db.session() as s:
+            await s.execute(
+                update(IngestionJob)
+                .where(IngestionJob.status.in_(["running", "pending"]))
+                .values(status="interrupted", completed_at=_dt.datetime.now(_dt.UTC))
+            )
+    except Exception:
+        pass
     # Ensure indexes exist on existing tables (create_all only creates missing tables)
     try:
         async with db.async_engine.begin() as conn:

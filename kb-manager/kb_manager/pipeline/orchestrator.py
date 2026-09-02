@@ -491,16 +491,21 @@ class PipelineOrchestrator:
         status: str = "completed",
     ) -> None:
         """Update the ingestion job with final stats."""
-        job.status = status
-        job.documents_total = summary.documents_processed
-        job.documents_ok = summary.documents_created + summary.documents_updated
-        job.documents_failed = summary.documents_failed
-        job.chunks_total = summary.chunks_created
-        job.completed_at = datetime.now(UTC)
+        # Re-fetch within the active session (job may be detached from a prior
+        # session created by _create_job) so the UPDATE actually persists.
+        db_job = await session.get(IngestionJob, job.id)
+        if db_job is None:
+            return
+        db_job.status = status
+        db_job.documents_total = summary.documents_processed
+        db_job.documents_ok = summary.documents_created + summary.documents_updated
+        db_job.documents_failed = summary.documents_failed
+        db_job.chunks_total = summary.chunks_created
+        db_job.completed_at = datetime.now(UTC)
 
         if summary.errors:
             import json
 
-            job.error_log = json.dumps(summary.errors, ensure_ascii=False)
+            db_job.error_log = json.dumps(summary.errors, ensure_ascii=False)
 
         await session.flush()

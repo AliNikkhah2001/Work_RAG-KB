@@ -3,47 +3,35 @@
 
 {% block header %}
 <h1>Version Comparison</h1>
-<p class="subtitle">Interactive comparison of retrieval pipeline versions</p>
+<p class="subtitle">Interactive comparison of retrieval pipeline versions (data-driven from benchmark_comparison.json)</p>
 {% endblock %}
 
 {% block content %}
-<!-- Summary Stats (server-side fallback + JS dynamic) -->
+<!-- Summary Stats -->
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-value" id="stat-hit-rate">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.1f"|format(comparison_data.versions.v4.overall.hit_at_5*100) }}%{% elif latest_results and latest_results.overall %}{{ "%.1f"|format(latest_results.overall.hit_rate*100) }}%{% else %}90.0%{% endif %}</div>
+        <div class="stat-value" id="stat-hit-rate">-</div>
         <div class="stat-label">Hit@5</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" id="stat-top1">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.1f"|format(comparison_data.versions.v4.overall.top1*100) }}%{% elif latest_results and latest_results.overall %}{{ "%.1f"|format(latest_results.overall.top1_hit_rate*100) }}%{% else %}65.0%{% endif %}</div>
+        <div class="stat-value" id="stat-top1">-</div>
         <div class="stat-label">Top-1</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" id="stat-mrr">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.3f"|format(comparison_data.versions.v4.overall.mrr) }}{% elif latest_results and latest_results.overall %}{{ "%.3f"|format(latest_results.overall.mrr) }}{% else %}0.775{% endif %}</div>
+        <div class="stat-value" id="stat-mrr">-</div>
         <div class="stat-label">MRR</div>
     </div>
     <div class="stat-card">
-        <div class="stat-value" id="stat-latency">{% if comparison_data and comparison_data.versions and comparison_data.versions.v4 %}{{ "%.1f"|format(comparison_data.versions.v4.overall.latency_s) }}s{% elif latest_results and latest_results.overall %}{{ "%.1f"|format(latest_results.overall.avg_latency_ms/1000) }}s{% else %}15.8s{% endif %}</div>
+        <div class="stat-value" id="stat-latency">-</div>
         <div class="stat-label">Latency (s)</div>
     </div>
 </div>
 
-<!-- Version Selector -->
+<!-- Version Selector (driven by comparison_data.versions) -->
 <div class="card">
     <h3>Pipeline Version</h3>
-    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem;">
-        <label class="btn btn-primary version-btn" data-version="v2">
-            <input type="radio" name="version" value="v2">
-            v2 (BM25 + TF-IDF)
-        </label>
-        <label class="btn btn-primary version-btn" data-version="v3">
-            <input type="radio" name="version" value="v3">
-            v3 (BM25 + Dense)
-        </label>
-        <label class="btn btn-primary version-btn active" data-version="v4">
-            <input type="radio" name="version" value="v4" checked>
-            v4 (BM25+ngram + Dense + Reranker)
-        </label>
-    </div>
+    <div id="version-btns" style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1rem;"></div>
+    <p id="version-desc" style="opacity:0.85; font-size:0.85rem;"></p>
 </div>
 
 <!-- Charts Grid -->
@@ -73,56 +61,13 @@
         <canvas id="radarChart" height="400"></canvas>
     </div>
     <div class="chart-card">
-        <h3>Keyword-only Improvement</h3>
+        <h3>Keyword-only MRR</h3>
         <canvas id="keywordChart" height="300"></canvas>
     </div>
     <div class="chart-card">
-        <h3>Latency Breakdown</h3>
-        <canvas id="latencyBreakdownChart" height="300"></canvas>
+        <h3>Overall Hit@5 Progression</h3>
+        <canvas id="overallChart" height="300"></canvas>
     </div>
-</div>
-
-<!-- Further Improvements -->
-<div class="card" style="border-left: 4px solid #f59e0b;">
-    <h3>🚀 Further Improvements — Roadmap Beyond v4</h3>
-    <p style="opacity:0.85; margin-bottom:1rem;">Based on weak-spot analysis (W1 short queries, W2 latency, W3 conversational, W5 evaluation). Checkboxes sync with <code>README: Implementation Roadmap</code>.</p>
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;">
-        <div style="background:#fef3c7; padding:1rem; border-radius:8px;">
-            <h4 style="margin:0 0 0.5rem 0;">🔴 W1: Keyword-only (33% Hit)</h4>
-            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
-                <li><b>HyDE</b> — pseudo-doc via Gemma (black-box API) <code>feat/hyde-wiring</code> → +10-15% recall</li>
-                <li>Entity-boost DSL <code>must(original)+should(entities)</code></li>
-                <li>Query expansion (synonyms) + weighted RRF</li>
-                <li><i>Already fixed:</i> char 3-gram MRR 0.18→0.333 (+85%)</li>
-            </ul>
-        </div>
-        <div style="background:#dbeafe; padding:1rem; border-radius:8px;">
-            <h4 style="margin:0 0 0.5rem 0;">🟡 W2: Latency 15.8s</h4>
-            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
-                <li>Quantize reranker INT8 (optimum) 50→30 top_k</li>
-                <li>Async rerank only on keyword/reworded</li>
-                <li>Cache reranker results</li>
-                <li>Target 15.8s→~6s while keeping Hit≥90%</li>
-            </ul>
-        </div>
-        <div style="background:#dcfce7; padding:1rem; border-radius:8px;">
-            <h4 style="margin:0 0 0.5rem 0;">🟢 W3: Conversational Drift</h4>
-            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
-                <li><b>Multi-query</b> beam 5 → RRF L=5 (+3-6% MRR)</li>
-                <li>IterCQR retrieval-guided reward (+10-30% MRR) — deferred (1w)</li>
-                <li>Use <code>detect_query_type()</code> to trigger only conversational</li>
-            </ul>
-        </div>
-        <div style="background:#fce7f3; padding:1rem; border-radius:8px;">
-            <h4 style="margin:0 0 0.5rem 0;">🔵 W5: Evaluation Gaps</h4>
-            <ul style="margin:0; padding-left:1.2rem; font-size:0.9rem;">
-                <li><b>FaMTEB</b> — run <code>--famteb</code> on 600q (synper_qa, BEIR-Fa, MIRACL)</li>
-                <li>Synthetic Gemma 30B: <code>feat/synthetic-gemma-remote</code> on 2×GPU</li>
-                <li>Add Recall@100 / MAP@100, fix column mapping</li>
-            </ul>
-        </div>
-    </div>
-    <p style="margin-top:1rem; font-size:0.85rem; opacity:0.7;">Branches remain dedicated <code>feat/*</code> not merged to <code>master</code> until green. Hit-priority kept (missing answer worse than rank). See <a href="https://github.com/AliNikkhah2001/Work_RAG-KB/blob/master/PERSIAN_RESOURCES.md">PERSIAN_RESOURCES.md</a> & <a href="https://github.com/AliNikkhah2001/Work_RAG-KB/blob/master/docs/reports/W1_W5_comprehensive_report.md">W1/W5 Report</a>.</p>
 </div>
 
 <!-- Static Plots Gallery -->
@@ -141,252 +86,176 @@
 {% endif %}
 
 <script>
-// Version data (embedded from server)
-const versionData = {
-    'v2': {
-        'hit_at_5': 0.900,
-        'top1': 0.633,
-        'mrr': 0.736,
-        'latency': 2.8,
-        'keyword_mrr': 0.180,
-        'typo_top1': 0.90,
-    },
-    'v3': {
-        'hit_at_5': 0.892,
-        'top1': 0.725,
-        'mrr': 0.787,
-        'latency': 1.9,
-        'keyword_mrr': 0.180,
-        'typo_top1': 0.90,
-    },
-    'v4': {
-        'hit_at_5': 0.900,
-        'top1': 0.650,
-        'mrr': 0.775,
-        'latency': 15.8,
-        'keyword_mrr': 0.333,
-        'typo_top1': 1.00,
-    }
-};
-
-// Per-format data (v2 per-format approximated from v2 overall, v3/v4 from benchmarks)
-const formatData = {
-    'v2': {
-        'verbatim':     {'hit': 1.00, 'top1': 0.85, 'mrr': 0.900, 'lat': 2800},
-        'paraphrase':   {'hit': 0.95, 'top1': 0.70, 'mrr': 0.800, 'lat': 2800},
-        'typo':         {'hit': 0.90, 'top1': 0.60, 'mrr': 0.750, 'lat': 2800},
-        'conversational': {'hit': 0.85, 'top1': 0.55, 'mrr': 0.700, 'lat': 2800},
-        'reworded':     {'hit': 0.80, 'top1': 0.50, 'mrr': 0.650, 'lat': 2800},
-        'keyword_only': {'hit': 0.45, 'top1': 0.10, 'mrr': 0.180, 'lat': 2800},
-    },
-    'v3': {
-        'verbatim':     {'hit': 1.00, 'top1': 0.90, 'mrr': 0.942, 'lat': 9820},
-        'paraphrase':   {'hit': 1.00, 'top1': 0.95, 'mrr': 0.975, 'lat': 279},
-        'typo':         {'hit': 1.00, 'top1': 0.90, 'mrr': 0.942, 'lat': 257},
-        'conversational': {'hit': 1.00, 'top1': 0.85, 'mrr': 0.917, 'lat': 277},
-        'reworded':     {'hit': 0.95, 'top1': 0.65, 'mrr': 0.760, 'lat': 265},
-        'keyword_only': {'hit': 0.45, 'top1': 0.10, 'mrr': 0.180, 'lat': 243},
-    },
-    'v4': {
-        'verbatim':     {'hit': 1.00, 'top1': 0.75, 'mrr': 0.875, 'lat': 50359},
-        'paraphrase':   {'hit': 1.00, 'top1': 0.50, 'mrr': 0.750, 'lat': 7000},
-        'typo':         {'hit': 1.00, 'top1': 1.00, 'mrr': 1.000, 'lat': 7500},
-        'conversational': {'hit': 1.00, 'top1': 0.67, 'mrr': 0.833, 'lat': 7000},
-        'reworded':     {'hit': 1.00, 'top1': 0.67, 'mrr': 0.833, 'lat': 8000},
-        'keyword_only': {'hit': 0.33, 'top1': 0.33, 'mrr': 0.333, 'lat': 6200},
-    }
-};
-
+const comparisonData = {{ comparison_data | tojson }};
+const latestResults = {{ latest_results | tojson if latest_results else 'null' }};
 const formats = ['verbatim', 'paraphrase', 'typo', 'conversational', 'reworded', 'keyword_only'];
 const formatLabels = ['Verbatim', 'Paraphrase', 'Typo', 'Conversational', 'Reworded', 'Keyword-only'];
-const versionColors = ['#3b82f6', '#10b981', '#f59e0b'];
-const formatColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#a855f7'];
 
-let currentVersion = 'v4';
+let currentVersion = null;
 let charts = {};
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Version button handlers
-    document.querySelectorAll('.version-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const version = this.dataset.version;
-            selectVersion(version);
-        });
-    });
+function versionKeys() {
+    return comparisonData && comparisonData.versions ? Object.keys(comparisonData.versions) : [];
+}
 
-    // Initialize charts with guard
-    try { initCharts(); } catch(e){ console.warn('initCharts failed', e); }
-    try { updateStats('v4'); selectVersion('v4'); } catch(e){ console.warn('updateStats failed', e); }
-});
+function pickVersion(v) {
+    return comparisonData.versions[v] || null;
+}
 
-function selectVersion(version) {
-    currentVersion = version;
+function formatList(v) {
+    const d = pickVersion(v);
+    if (!d || !d.per_format) return formats.slice(0, 0);
+    return formats.filter(f => d.per_format[f]);
+}
+
+function selectVersion(v) {
+    currentVersion = v;
+    const data = pickVersion(v);
+    if (!data) return;
     document.querySelectorAll('.version-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.version === version);
+        const active = btn.dataset.version === v;
+        btn.classList.toggle('active', active);
         const input = btn.querySelector('input');
-        if (input) input.checked = btn.dataset.version === version;
+        if (input) input.checked = active;
     });
-    updateCharts(version);
-    updateStats(version);
+    document.getElementById('version-desc').textContent = data.pipeline || '';
+    const o = data.overall || {};
+    document.getElementById('stat-hit-rate').textContent = (o.hit_at_5 != null ? (o.hit_at_5 * 100) : o.hit_rate * 100).toFixed(1) + '%';
+    document.getElementById('stat-top1').textContent = ((o.top1 != null ? o.top1 : o.top1_hit_rate) * 100).toFixed(1) + '%';
+    document.getElementById('stat-mrr').textContent = (o.mrr != null ? o.mrr : o.mrr).toFixed(3);
+    document.getElementById('stat-latency').textContent = (o.latency_s != null ? o.latency_s : (o.avg_latency_ms || 0) / 1000).toFixed(1) + 's';
+    renderCharts(v);
 }
 
-function initCharts() {
-    if(typeof Chart==='undefined'){ console.warn('Chart.js not loaded'); return; }
-    function safeChart(id, cfg){
-        const el=document.getElementById(id);
-        if(!el){ console.warn('canvas missing '+id); return {data:{datasets:[]}, update:function(){}}; }
-        try{ return new Chart(el, cfg);}catch(e){ console.warn('Chart failed '+id, e); return {data:{datasets:[]}, update:function(){}}; }
-    }
-    // Hit Rate Chart
-    charts.hitRate = safeChart('hitRateChart', {
-        type: 'bar',
-        data: { labels: formatLabels, datasets: [] },
-        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
-    });
-
-    charts.top1 = safeChart('top1Chart', {
-        type: 'bar',
-        data: { labels: formatLabels, datasets: [] },
-        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } }
-    });
-
-    charts.mrr = safeChart('mrrChart', {
-        type: 'bar',
-        data: { labels: formatLabels, datasets: [] },
-        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 1 } } }
-    });
-
-    charts.latency = safeChart('latencyChart', {
-        type: 'bar',
-        data: { labels: formatLabels, datasets: [] },
-        options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
-    });
-
-    // Radar chart
-    charts.radar = safeChart('radarChart', {
-        type: 'radar',
-        data: { labels: ['Hit@5', 'Top-1', 'MRR', 'Typo Robustness', 'Keyword Handling', 'Latency (inv)'], datasets: [] },
-        options: { responsive: true, scales: { r: { beginAtZero: true, max: 1 } }, plugins: { legend: { position: 'top' } } }
-    );
-
-    // Keyword chart
-    charts.keyword = safeChart('keywordChart', {
-        type: 'bar',
-        data: { labels: ['v2', 'v3', 'v4'], datasets: [] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 0.5 } } }
-    );
-
-    // Latency breakdown
-    charts.latencyBreakdown = safeChart('latencyBreakdownChart', {
-        type: 'bar',
-        data: { labels: ['BM25+ngram', 'Dense Encode', 'Dense Matmul', 'Cross-encoder'], datasets: [] },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { type: 'log', beginAtZero: true } } }
-    );
-
-    // Try to fetch live benchmark data and merge
-    fetch('/benchmarks/result').then(r => r.ok ? r.json() : null).then(data => {
-        if (data && data.by_format) {
-            // Merge live v4 data into formatData['v4']
-            for (const fmt of Object.keys(data.by_format)) {
-                if (formatData['v4'][fmt]) {
-                    formatData['v4'][fmt].hit = data.by_format[fmt].hit_rate;
-                    formatData['v4'][fmt].top1 = data.by_format[fmt].top1_hit_rate;
-                    formatData['v4'][fmt].mrr = data.by_format[fmt].mrr;
-                    formatData['v4'][fmt].lat = data.by_format[fmt].avg_latency_ms;
-                }
-            }
-            // Re-render if currently on v4
-            if (currentVersion === 'v4') updateCharts('v4');
-        }
-    }).catch(()=>{});
-
-    // Initial render
-    updateCharts('v4');
+function safeChart(id, cfg) {
+    const el = document.getElementById(id);
+    if (!el || typeof Chart === 'undefined') return { data: { datasets: [] }, update() {}, destroy() {} };
+    try { return new Chart(el, cfg); }
+    catch (e) { console.warn('Chart failed ' + id, e); return { data: { datasets: [] }, update() {}, destroy() {} }; }
 }
 
-function updateCharts(version) {
-    if(typeof Chart==='undefined') return;
-    const v3Data = formatData['v3'];
-    const v4Data = formatData['v4'];
-    const isV4 = version === 'v4';
-    function safeUpdate(chart, datasets, labels){
-        if(!chart || !chart.data) return;
-        chart.data.datasets = datasets;
-        if(labels) chart.data.labels = labels;
-        try{ chart.update(); }catch(e){ console.warn('chart update failed', e); }
-    }
+function renderCharts(v) {
+    const data = pickVersion(v);
+    if (!data) return;
+    const keys = versionKeys();
+    const fmtAll = formatList(v);
+    const idx = Math.max(0, keys.indexOf(v));
 
-    // Hit Rate
-    safeUpdate(charts.hitRate, [{
-        label: `Hit@5 (${version})`,
-        data: formats.map(f => (formatData[version][f].hit * 100).toFixed(1)),
-        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }]);
+    // Hit@5
+    charts.hitRate.data.labels = fmtAll.map(f => formatLabels[formats.indexOf(f)]);
+    charts.hitRate.data.datasets = [{
+        label: `Hit@5 (${v})`,
+        data: fmtAll.map(f => (data.per_format[f].hit * 100).toFixed(1)),
+        backgroundColor: palette[idx % palette.length],
+    }];
+    charts.hitRate.update();
 
     // Top-1
-    safeUpdate(charts.top1, [{
-        label: `Top-1 (${version})`,
-        data: formats.map(f => (formatData[version][f].top1 * 100).toFixed(1)),
-        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }]);
+    charts.top1.data.labels = fmtAll.map(f => formatLabels[formats.indexOf(f)]);
+    charts.top1.data.datasets = [{
+        label: `Top-1 (${v})`,
+        data: fmtAll.map(f => (data.per_format[f].top1 * 100).toFixed(1)),
+        backgroundColor: palette[idx % palette.length],
+    }];
+    charts.top1.update();
 
     // MRR
-    safeUpdate(charts.mrr, [{
-        label: `MRR (${version})`,
-        data: formats.map(f => formatData[version][f].mrr.toFixed(3)),
-        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }]);
+    charts.mrr.data.labels = fmtAll.map(f => formatLabels[formats.indexOf(f)]);
+    charts.mrr.data.datasets = [{
+        label: `MRR (${v})`,
+        data: fmtAll.map(f => data.per_format[f].mrr),
+        backgroundColor: palette[idx % palette.length],
+    }];
+    charts.mrr.update();
 
     // Latency
-    safeUpdate(charts.latency, [{
-        label: `Latency (${version})`,
-        data: formats.map(f => formatData[version][f].lat.toFixed(0)),
-        backgroundColor: versionColors[{"v2":0,"v3":1,"v4":2}[version]],
-    }]);
+    charts.latency.data.labels = fmtAll.map(f => formatLabels[formats.indexOf(f)]);
+    charts.latency.data.datasets = [{
+        label: `Latency ms (${v})`,
+        data: fmtAll.map(f => data.per_format[f].lat_ms || 0),
+        backgroundColor: palette[idx % palette.length],
+    }];
+    charts.latency.update();
 
-    // Radar chart
-    const v2_lat = 1 - Math.min(1, 2.8 / 20);
-    const v3_lat = 1 - Math.min(1, 1.9 / 20);
-    const v4_lat = 1 - Math.min(1, 15.8 / 20);
+    // Radar: one polygon per version (normalized latency 1 - min(1, lat/60))
+    const radarLabels = ['Hit@5', 'Top-1', 'MRR', 'Latency (inv)'];
+    const datasets = keys.filter(k => {
+        const d = pickVersion(k);
+        return d && d.overall && (d.overall.hit_at_5 != null || d.overall.hit_rate != null);
+    }).map(k => {
+        const d = pickVersion(k);
+        const o = d.overall;
+        const hit = o.hit_at_5 != null ? o.hit_at_5 : o.hit_rate;
+        const top1 = o.top1 != null ? o.top1 : o.top1_hit_rate;
+        const lat = o.latency_s != null ? o.latency_s : (o.avg_latency_ms || 0) / 1000;
+        const latInv = 1 - Math.min(1, lat / 60);
+        return {
+            label: k,
+            data: [hit, top1, o.mrr, latInv],
+            borderColor: palette[keys.indexOf(k) % palette.length],
+            backgroundColor: palette[keys.indexOf(k) % palette.length] + '22',
+        };
+    });
+    charts.radar.data.labels = radarLabels;
+    charts.radar.data.datasets = datasets;
+    charts.radar.update();
 
-    const v2_vals = [0.900, 0.633, 0.736, 0.90, 0.180, 1 - 2.8/20];
-    const v3_vals = [0.892, 0.725, 0.787, 0.90, 0.180, 1 - 1.9/20];
-    const v4_vals = [0.900, 0.650, 0.775, 1.00, 0.333, 1 - 15.8/20];
-
-    const radarLabels = ['Hit@5', 'Top-1', 'MRR', 'Typo Robustness', 'Keyword Handling', 'Latency (inv)'];
-    safeUpdate(charts.radar, [
-        { label: 'v2', data: v2_vals, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)' },
-        { label: 'v3', data: v3_vals, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)' },
-        { label: 'v4', data: v4_vals, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)' },
-    ], radarLabels);
-
-    // Keyword chart
-    safeUpdate(charts.keyword, [{
+    // Keyword-only MRR progression
+    const kw = keys.filter(k => pickVersion(k).per_format && pickVersion(k).per_format.keyword_only);
+    charts.keyword.data.labels = kw;
+    charts.keyword.data.datasets = [{
         label: 'Keyword-only MRR',
-        data: [0.180, 0.180, 0.333],
-        backgroundColor: versionColors,
-    }]);
+        data: kw.map(k => pickVersion(k).per_format.keyword_only.mrr),
+        backgroundColor: kw.map(k => palette[keys.indexOf(k) % palette.length]),
+    }];
+    charts.keyword.update();
 
-    // Latency breakdown
-    safeUpdate(charts.latencyBreakdown, [
-        { label: 'v3', data: [10, 70, 5, 1800], backgroundColor: '#3b82f6' },
-        { label: 'v4', data: [10, 70, 5, 1500], backgroundColor: '#f59e0b' },
-    ], ['BM25+ngram', 'Dense Encode', 'Dense Matmul', 'Cross-encoder']);
+    // Overall Hit@5 progression
+    const oh = keys.filter(k => (pickVersion(k).overall.hit_at_5 != null || pickVersion(k).overall.hit_rate != null));
+    charts.overall.data.labels = oh;
+    charts.overall.data.datasets = [{
+        label: 'Overall Hit@5',
+        data: oh.map(k => {
+            const o = pickVersion(k).overall;
+            return ((o.hit_at_5 != null ? o.hit_at_5 : o.hit_rate) * 100).toFixed(1);
+        }),
+        backgroundColor: oh.map(k => palette[keys.indexOf(k) % palette.length]),
+    }];
+    charts.overall.update();
 }
 
-function updateStats(version) {
-    const data = {
-        v2: { hit: 90.0, top1: 63.3, mrr: 0.736, lat: 2.8 },
-        v3: { hit: 89.2, top1: 72.5, mrr: 0.787, lat: 1.9 },
-        v4: { hit: 90.0, top1: 65.0, mrr: 0.775, lat: 15.8 },
-    }[version];
+document.addEventListener('DOMContentLoaded', function () {
+    const keys = versionKeys();
+    const btnContainer = document.getElementById('version-btns');
+    keys.forEach(k => {
+        const data = pickVersion(k);
+        const label = `${k} — ${(data.pipeline || '').split(' (')[0]}`;
+        const btn = document.createElement('label');
+        btn.className = 'btn btn-primary version-btn';
+        btn.dataset.version = k;
+        btn.innerHTML = `<input type="radio" name="version" value="${k}">${label}`;
+        btn.addEventListener('click', () => selectVersion(k));
+        btnContainer.appendChild(btn);
+    });
 
-    document.getElementById('stat-hit-rate').textContent = data.hit.toFixed(1) + '%';
-    document.getElementById('stat-top1').textContent = data.top1.toFixed(1) + '%';
-    document.getElementById('stat-mrr').textContent = data.mrr.toFixed(3);
-    document.getElementById('stat-latency').textContent = data.lat.toFixed(1) + 's';
-}
+    // Init charts
+    charts.hitRate = safeChart('hitRateChart', { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } } });
+    charts.top1 = safeChart('top1Chart', { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 100 } } } });
+    charts.mrr = safeChart('mrrChart', { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, max: 1 } } } });
+    charts.latency = safeChart('latencyChart', { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } } });
+    charts.radar = safeChart('radarChart', { type: 'radar', data: { labels: [], datasets: [] }, options: { responsive: true, scales: { r: { beginAtZero: true, max: 1 } }, plugins: { legend: { position: 'top' } } } });
+    charts.keyword = safeChart('keywordChart', { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 0.5 } } } });
+    charts.overall = safeChart('overallChart', { type: 'bar', data: { labels: [], datasets: [] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } } });
+
+    // Default to the newest version with per-format data
+    let defaultV = null;
+    for (let i = keys.length - 1; i >= 0; i--) {
+        if (pickVersion(keys[i]).per_format) { defaultV = keys[i]; break; }
+    }
+    if (!defaultV && keys.length) defaultV = keys[keys.length - 1];
+    if (defaultV) selectVersion(defaultV);
+});
 </script>
 
 <style>

@@ -269,6 +269,31 @@
           "lat_ms": 65276
         }
       }
+    },
+    "v7": {
+      "pipeline": "fresh KB kb-source/1405-05-31 (34 docs 2074 chunks), colloquial synonym beam5, 15 IVA questions verbatim",
+      "corpus": {
+        "docs": 34,
+        "chunks": 2074,
+        "qa": 585,
+        "distinct_q": 585,
+        "dup": 0
+      },
+      "overall": {
+        "hit_at_5": 0.733,
+        "top1": 0.4,
+        "mrr": 0.466,
+        "latency_s": 22.7,
+        "note": "doc-level (golden-doc chunk in top-5) on 15 IVA questions"
+      },
+      "per_format": {
+        "verbatim": {
+          "hit": 0.733,
+          "top1": 0.4,
+          "mrr": 0.466,
+          "lat_ms": 22706
+        }
+      }
     }
   },
   "deltas": {
