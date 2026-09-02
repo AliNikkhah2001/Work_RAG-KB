@@ -101,6 +101,23 @@ for route in cleanup.router.routes:
             app.router.routes.append(new_route)
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "kb-manager"}
+
+@app.get("/ready")
+async def ready():
+    """Ready if DB has chunks and index could be built."""
+    try:
+        from sqlalchemy import func, select
+        from kb_manager.models.database import Chunk
+        from kb_manager.web.deps import db
+        async with db.session() as session:
+            cnt = (await session.execute(select(func.count(Chunk.id)))).scalar() or 0
+        return {"status": "ready" if cnt > 0 else "not_ready", "chunks": cnt}
+    except Exception as e:
+        return {"status": "not_ready", "error": str(e)}
+
 @app.get("/")
 async def dashboard(request: Request):
     """Main dashboard."""
