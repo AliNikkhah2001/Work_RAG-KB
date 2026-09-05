@@ -77,6 +77,8 @@ class EmbeddingConfig:
     batch_size: int = 64
     device: str = "cpu"
     normalize: bool = True
+    # for reranker, device is separate but we expose via same env for simplicity
+    reranker_device: str = "cpu"
 
 
 @dataclass(frozen=True)
@@ -215,6 +217,8 @@ def load_config() -> AppConfig:
             ),
             dimensions=int(os.getenv("KB_EMBED_DIM", "384")),
             batch_size=int(os.getenv("KB_EMBED_BATCH", "64")),
+            device=os.getenv("KB_EMBED_DEVICE", os.getenv("KB_DEVICE", "cpu")),
+            reranker_device=os.getenv("KB_RERANKER_DEVICE", os.getenv("KB_EMBED_DEVICE", os.getenv("KB_DEVICE", "cpu"))),
         ),
         chunking=ChunkingConfig(
             strategy=os.getenv("KB_CHUNK_STRATEGY", "semantic"),

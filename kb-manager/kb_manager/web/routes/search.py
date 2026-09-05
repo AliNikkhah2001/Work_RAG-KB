@@ -38,6 +38,15 @@ _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 _RERANKER_TOP_K = 50  # Number of candidates to rerank
 
+def _get_device_config():
+    """Get device from config (env KB_EMBED_DEVICE / KB_RERANKER_DEVICE)."""
+    try:
+        from kb_manager.config import load_config
+        cfg = load_config()
+        return cfg.embedding.device, cfg.embedding.reranker_device
+    except:
+        return "cpu", "cpu"
+
 # HyDE configuration (disabled by default; set KB_HYDE_ENABLED=true to enable)
 _HYDE_ENABLED = os.getenv("KB_HYDE_ENABLED", "false").lower() == "true"
 _HYDE_LLM_MODEL = os.getenv("KB_HYDE_LLM", "gpt-4o-mini")
@@ -269,6 +278,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
 
     dense_texts = [cd[4] for cd in chunk_data]
     dense_ids = [cd[0] for cd in chunk_data]
+    _embed_device, _rerank_device = _get_device_config()
     dense = load_or_build(
         _DENSE_CACHE_PATH,
         dense_ids,
@@ -277,9 +287,10 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
         headings=dense_headings,
         chunk_types=dense_chunk_types,
         model_name=_DENSE_MODEL,
+        device=_embed_device,
     )
 
-    reranker = get_reranker(model_name=_RERANKER_MODEL)
+    reranker = get_reranker(model_name=_RERANKER_MODEL, device=_rerank_device)
 
     # HyDE: optional LLM-based hypothetical document generation
     hyde = None

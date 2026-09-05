@@ -39,11 +39,13 @@ class DenseSemanticIndex:
         batch_size: int = 64,
         embed_fn: Any | None = None,
         use_context: bool = True,
+        device: str | None = None,
     ) -> None:
         self._model_name = model_name
         self._batch_size = batch_size
         self._embed_fn = embed_fn
         self._use_context = use_context
+        self._device = device
         self._ids: list[str] = []
         self._matrix: np.ndarray | None = None  # (n, dim), L2-normalised rows
         self._model = None
@@ -90,7 +92,10 @@ class DenseSemanticIndex:
                 "sentence-transformers is required for dense search.  "
                 "Install it with: pip install sentence-transformers"
             ) from exc
-        self._model = SentenceTransformer(self._model_name)
+        if self._device:
+            self._model = SentenceTransformer(self._model_name, device=self._device)
+        else:
+            self._model = SentenceTransformer(self._model_name)
         return self._model
 
     def _encode(self, texts: list[str]) -> np.ndarray:
@@ -250,6 +255,7 @@ def load_or_build(
     batch_size: int = 64,
     embed_fn: Any | None = None,
     use_context: bool = True,
+    device: str | None = None,
 ) -> DenseSemanticIndex:
     """Return a dense index from cache if valid, else build and persist.
 
@@ -259,7 +265,7 @@ def load_or_build(
     """
     fp = DenseSemanticIndex.fingerprint(texts, titles, headings, chunk_types, model_name, use_context)
     index = DenseSemanticIndex(
-        model_name=model_name, batch_size=batch_size, embed_fn=embed_fn, use_context=use_context
+        model_name=model_name, batch_size=batch_size, embed_fn=embed_fn, use_context=use_context, device=device
     )
     if embed_fn is not None:
         index.build(ids, texts, titles, headings, chunk_types)
