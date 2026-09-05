@@ -80,6 +80,7 @@ from kb_manager.web.routes import (
     monitoring,
     pipeline,
     search,
+    transparency,
     versions,
 )  # noqa: E402
 
@@ -91,6 +92,7 @@ app.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
 app.include_router(search.router, prefix="/search", tags=["search"])
 app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
 app.include_router(cleanup.router, prefix="/cleanup", tags=["cleanup"])
+app.include_router(transparency.router, prefix="/transparency", tags=["transparency"])
 
 
 @app.get("/")

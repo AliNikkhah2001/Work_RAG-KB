@@ -6,8 +6,10 @@
 {% endblock %}
 
 {% block content %}
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet"/>
 <div class="toolbar">
     <a href="/documents" class="btn btn-secondary">Back</a>
+    <a href="/transparency/{{ document.id }}" class="btn btn-primary">Inspect → Transparency (raw table &amp; chunks)</a>
 </div>
 
 <div class="detail-grid">

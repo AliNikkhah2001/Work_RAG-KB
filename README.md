@@ -103,12 +103,13 @@ flowchart TD
 | Path | Page |
 |---|---|
 | `/` | Dashboard |
-| `/documents` | Documents |
+| `/documents` | Documents (with **Inspect → Transparency** per row) |
 | `/chunks` | Chunks |
 | `/pipeline` | Pipeline (run ingestion) |
 | `/search` | Search page |
+| `/transparency` | **Transparency — Excel → Chunks (NEW)** — raw table + schema debug + Persian RTL (Vazirmatn) + live `.xlsx` upload + `GET /transparency/api/raw/{id}` JSON |
 | `/benchmarks` | Benchmarks |
-| `/benchmarks/comparison` | Version comparison |
+| `/benchmarks/comparison` | Version comparison (v2→v7 data-driven) |
 | `/versions` | Versions |
 | `/cleanup/qa` | QA cleanup |
 | `/monitoring` | Monitoring |

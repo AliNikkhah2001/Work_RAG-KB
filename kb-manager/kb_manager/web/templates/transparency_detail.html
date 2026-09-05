@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Transparency — {{ document.title }}{% endblock %}
+{% block header %}
+<a href="/transparency" class="btn btn-secondary" style="margin-bottom:.6rem">← Back to Transparency</a>
+<h1 class="persian" dir="auto" style="font-family:'Vazirmatn','Tahoma',sans-serif">{{ document.title }}</h1>
+<p class="mono ltr" style="color:var(--text-secondary);word-break:break-all">{{ document.source_path }}</p>
+{% endblock %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+<style>
+  .persian { font-family:'Vazirmatn','Tahoma','Segoe UI',sans-serif; }
+  .persian-cell { font-family:'Vazirmatn','Tahoma',sans-serif; direction: rtl; text-align:right; white-space:pre-wrap; word-break:break-word; }
+  .mono { font-family:'Consolas','Cascadia Code',monospace; font-size:.82rem; }
+  .ltr { direction:ltr; text-align:left; }
+  .pill { display:inline-block; padding:.15rem .5rem; border-radius:999px; font-size:.72rem; border:1px solid var(--border-color); background:var(--bg-primary); }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:1rem; }
+  @media(max-width:900px){ .grid2{ grid-template-columns:1fr; } }
+  .sheet-tab { display:inline-block; padding:.4rem .8rem; border:1px solid var(--border-color); border-bottom:none; border-radius:6px 6px 0 0; background:var(--bg-primary); margin-right:.3rem; text-decoration:none; color:var(--text-secondary); }
+  .sheet-tab.active { background:var(--bg-card); color:var(--text-primary); border-color:var(--accent); font-weight:600; }
+  .raw-table th { position:sticky; top:0; z-index:1; }
+  .raw-table td, .raw-table th { min-width:120px; max-width:340px; }
+  .chunk-box { border:1px solid var(--border-color); border-radius:8px; padding:.9rem; background:var(--bg-primary); margin-bottom:.8rem; white-space:pre-wrap; }
+  .chunk-box.parent { border-color: var(--accent); background: rgba(59,130,246,.07); }
+</style>
+
+{% if parse_info.error %}
+<div class="card" style="border-color:var(--danger); background: rgba(239,68,68,.08)">
+  <h3 style="color:var(--danger)">Parse error / file missing</h3>
+  <p class="mono">{{ parse_info.error }}</p>
+  <p style="color:var(--text-secondary)">Showing DB chunks only (source file not on disk). The chunk contents below are still UTF-8 — verify Persian there.</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Document summary</h3>
+  <div class="detail-list">
+    <div class="detail-item"><span class="detail-label">Title</span><span class="detail-value persian" dir="auto">{{ document.title }}</span></div>
+    <div class="detail-item"><span class="detail-label">Chunks in DB</span><span class="detail-value">{{ document.chunk_count }} — <a href="/documents/{{ document.id }}">view doc page</a> · <a href="/transparency/api/raw/{{ document.id }}" target="_blank">raw JSON (UTF-8)</a></span></div>
+    <div class="detail-item"><span class="detail-label">Domain / Cat</span><span class="detail-value"><span class="pill">{{ document.domain }}</span> <span class="pill">{{ document.category }}</span> <span class="pill">{{ document.status }}</span></span></div>
+    <div class="detail-item"><span class="detail-label">Parser</span><span class="detail-value mono">{{ parse_info.parser or '—' }} · {{ parse_info.suffix or '' }} · {{ parse_info.size_bytes }} bytes · {{ parse_info.sheets|length }} sheet(s)</span></div>
+    {% if parse_info.integrity_warnings and parse_info.integrity_warnings|length>0 %}
+    <div class="detail-item"><span class="detail-label" style="color:var(--warning)">Integrity</span><span class="detail-value mono" style="color:var(--warning)">{{ parse_info.integrity_warnings|join("; ") }}</span></div>
+    {% endif %}
+  </div>
+</div>
+
+{% if sheets and sheets|length>0 %}
+<div class="card">
+  <h3>Step 1 — Sheets on disk</h3>
+  <div style="margin-bottom:.6rem">
+    {% for sh in sheets %}
+      <a class="sheet-tab {% if sh.name==active_sheet_name %}active{% endif %}" href="?sheet={{ sh.name }}&rows={{ rows_limit }}">{{ sh.name }} ({{ sh.rows|length }} rows){% if sh.schema %} · <span class="pill">{{ sh.schema }}</span>{% endif %}</a>
+    {% endfor %}
+  </div>
+
+  {% if active_sheet %}
+  <!-- Header normalization + schema debug -->
+  <h4 style="margin:.8rem 0 .4rem">Step 2 — Headers as stored (row 1) → normalized → schema detection</h4>
+  <p style="color:var(--text-secondary);font-size:.85rem">Normalizer: <code>re.sub(r"[\s_\-]+","", lower)</code>. Schema chosen = first with <code>overlap ≥ 60%</code>. Your file's headers below show exactly which columns the parser sees.</p>
+
+  <div class="table-container" style="margin:.6rem 0 1rem">
+    <table class="data-table mono ltr" style="font-size:.82rem">
+      <thead><tr><th>#</th><th>Original header (as in Excel)</th><th>Persian label</th><th>Normalized</th><th>Claims (which schemas want it)</th></tr></thead>
+      <tbody>
+        {% for h in active_sheet._header_detail %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="persian" dir="auto" style="font-size:.92rem">{{ h.original }}</td>
+          <td class="persian" dir="rtl">{{ h.fa or '—' }}</td>
+          <td>{{ h.normalized }}</td>
+          <td>{% for c in h.claims %}<span class="pill">{{ c }}</span> {% endfor %}{% if not h.claims %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid2">
+    {% for cand in active_sheet._schema_debug.candidates %}
+    <div style="border:1px solid {% if cand.would_match %}var(--success){% else %}var(--border-color){% endif %}; border-radius:8px; padding:.6rem; background:var(--bg-primary)">
+      <b>{{ cand.schema }}</b> {% if cand.would_match %}<span class="pill" style="color:var(--success);border-color:rgba(34,197,94,.4)">MATCH</span>{% else %}<span class="pill">no match</span>{% endif %}
+      <div class="mono ltr" style="font-size:.78rem; margin-top:.3rem">
+        overlap {{ cand.overlap }}/{{ cand.required_count }} (need ≥{{ cand.threshold }})<br>
+        matched: <span style="color:var(--success)">{{ cand.matched|join(", ") or "—" }}</span><br>
+        missing: <span style="color:var(--text-muted)">{{ cand.missing|join(", ") }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <p style="margin-top:.5rem">Chosen schema for this sheet: <b>{{ active_sheet.schema or "— (generic / body)" }}</b> {% if active_sheet._schema_debug %}· normalized headers: <code class="mono">{{ active_sheet._schema_debug.normalized|join(", ") }}</code>{% endif %}</p>
+
+  <!-- Raw table -->
+  <h4 style="margin:1.2rem 0 .4rem">Step 3 — Raw table (exact cell values, UTF-8, Persian RTL)</h4>
+  <p style="color:var(--text-secondary);font-size:.85rem">First {{ rows_limit }} data rows (row 1 is headers above). Each cell is <code>_format_cell</code>: <code>None→""</code>, float <code>g</code>-format, else <code>str(cell).strip()</code>. Empty rows dropped. This is the ground truth before chunking.</p>
+  <div style="margin:.4rem 0; display:flex; gap:.5rem; align-items:center">
+    <span style="color:var(--text-secondary);font-size:.85rem">Rows shown:</span>
+    <a class="btn btn-secondary btn-sm" href="?sheet={{ active_sheet_name }}&rows=20">20</a>
+    <a class="btn btn-secondary btn-sm" href="?sheet={{ active_sheet_name }}&rows=50">50</a>
+    <a class="btn btn-secondary btn-sm" href="?sheet={{ active_sheet_name }}&rows=100">100</a>
+    <span style="color:var(--text-muted);font-size:.8rem">full sheet has {{ active_sheet.rows|length }} rows</span>
+  </div>
+  <div class="table-container" style="max-height:520px; overflow:auto; border:1px solid var(--border-color); border-radius:8px">
+    <table class="data-table raw-table">
+      <thead><tr>
+        <th style="min-width:50px">#</th>
+        {% for h in active_sheet.headers %}<th class="persian" dir="auto" title="col {{ loop.index }}: {{ h }}">{{ h }}</th>{% endfor %}
+      </tr></thead>
+      <tbody>
+        {% for row in active_sheet.rows[:rows_limit] %}
+        <tr>
+          <td class="mono ltr">{{ loop.index }}</td>
+          {% for cell in row %}
+          <td class="persian-cell" dir="auto" title="{{ cell }}">{{ cell }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if active_sheet.rows|length > rows_limit %}<p style="color:var(--text-muted);font-size:.8rem;margin-top:.4rem">… {{ active_sheet.rows|length - rows_limit }} more rows not shown — increase rows or use JSON.</p>{% endif %}
+
+  {% endif %}
+</div>
+
+<!-- Combined text preview -->
+<div class="card">
+  <h3>Step 4 — Parser text (how the sheet is flattened for the preprocessor)</h3>
+  <p style="color:var(--text-secondary);font-size:.85rem"><code>_sheet_to_text</code>: <code>header: value | header: value</code> per row, newlines collapsed to spaces, prefixed with <code>=== Sheet: name ===</code> + <code>[Schema: ...]</code>.</p>
+  <div class="content-preview"><pre class="persian" dir="auto" style="white-space:pre-wrap; word-break:break-word; font-family:'Vazirmatn','Consolas',monospace; font-size:.84rem">{{ parse_info.combined_preview or "—" }}</pre></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3>Step 5 — Chunks derived (what is indexed &amp; searched) — {{ chunks|length }} chunks</h3>
+  <p style="color:var(--text-secondary);font-size:.85rem">
+    For <code>qa_pair / reason_detail</code>: <b>one row = one chunk</b> (never split). Content is rebuilt with Persian labels via <code>_format_qa_content</code>:
+    <code>سوال / پاسخ کوتاه / پاسخ کامل / کلیدواژه‌ها</code>. Parents aggregate children per sheet.
+    <br>For <code>article / body</code>: semantic splitter on headings / articles / sections / sheet headers / pipe rows / double-newlines.
+  </p>
+  {% for c in chunks %}
+    <div class="chunk-box {% if c.doc_metadata and c.doc_metadata.is_parent %}parent{% endif %}">
+      <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-bottom:.4rem">
+        <span class="pill">#{{ c.ordinal }}</span>
+        <span class="pill">{{ c.chunk_type }}</span>
+        {% if c.heading_path %}<span class="pill">{{ c.heading_path }}</span>{% endif %}
+        <span class="pill">{{ c.token_count }} tokens</span>
+        {% if c.doc_metadata and c.doc_metadata.sheet_name %}<span class="pill">sheet: {{ c.doc_metadata.sheet_name }}</span>{% endif %}
+        {% if c.doc_metadata and c.doc_metadata.is_parent %}<span class="pill" style="border-color:var(--accent);color:var(--accent)">PARENT ({{ c.doc_metadata.child_count }} children)</span>{% endif %}
+        <a class="btn btn-secondary btn-sm" href="/chunks" style="margin-left:auto">in chunks list</a>
+      </div>
+      <div class="persian" dir="auto" style="white-space:pre-wrap; word-break:break-word; line-height:1.9; font-size:.93rem">{{ c.content }}</div>
+      {% if c.keywords and c.keywords|length>0 %}<div style="margin-top:.5rem">{% for kw in c.keywords %}<span class="keyword-tag persian" dir="auto">{{ kw }}</span> {% endfor %}</div>{% endif %}
+      {% if c.doc_metadata and c.doc_metadata.fields %}
+        <details style="margin-top:.5rem"><summary class="mono ltr" style="cursor:pointer; color:var(--text-secondary)">fields used (exact column→value map for this chunk)</summary>
+          <div class="mono ltr" style="margin-top:.4rem; background:var(--bg-card); padding:.5rem; border-radius:6px; border:1px solid var(--border-color)">
+            {% for k,v in c.doc_metadata.fields.items() %}<div><b>{{ k }}</b> ({{ field_fa.get(k,"") }}) = <span class="persian" dir="auto">{{ v }}</span></div>{% endfor %}
+          </div>
+        </details>
+      {% endif %}
+    </div>
+  {% endfor %}
+  {% if not chunks %}<p style="color:var(--text-muted);text-align:center;padding:1rem">No chunks in DB for this document.</p>{% endif %}
+</div>
+
+<div class="card" style="border-color:var(--accent)">
+  <h3>Verify Persian end-to-end</h3>
+  <ol style="margin-left:1.2rem; line-height:1.9; color:var(--text-secondary)">
+    <li>Raw table above should show Persian exactly as in Excel. If it shows <code>?</code> or <code>�</code>, the file itself was saved with a broken encoding — re-save as UTF-8 in Excel.</li>
+    <li>Chunks below are what the retriever searches. Search uses the same text — copy a cell value from the raw table, paste into <a href="/search">Search</a>, and the chunk should appear top-1.</li>
+    <li>JSON at <code>/transparency/api/raw/{{ document.id }}</code> lets you <code>curl</code> and hex-dump to prove bytes are correct.</li>
+  </ol>
+</div>
+{% endblock %}

@@ -54,6 +54,7 @@
                 <td>{{ doc.chunk_count }}</td>
                 <td>{{ doc.version }}</td>
                 <td>
+                    <a href="/transparency/{{ doc.id }}" class="btn btn-primary btn-sm">Inspect</a>
                     <form method="post" action="/documents/{{ doc.id }}/delete" style="display:inline">
                         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')">Delete</button>
                     </form>

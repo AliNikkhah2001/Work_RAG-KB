@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Transparency - KB Manager{% endblock %}
+{% block header %}
+<h1>Pipeline Transparency — Excel → Chunks</h1>
+<p style="color:var(--text-secondary);margin-top:.4rem">UTF-8 / Persian-safe. Inspect exactly which columns are read, how they are normalised, which schema is detected, and how rows become chunks.</p>
+{% endblock %}
+{% block content %}
+
+<style>
+  .persian { font-family: 'Vazirmatn','Tahoma','Segoe UI',sans-serif; direction: rtl; text-align: right; }
+  .mono { font-family: 'Consolas','Cascadia Code',monospace; font-size:.82rem; }
+  .ltr { direction: ltr; text-align: left; }
+  .pill { display:inline-block; padding:.15rem .5rem; border-radius:999px; font-size:.72rem; border:1px solid var(--border-color); background:var(--bg-primary); }
+  .pill-ok { color:var(--success); border-color: rgba(34,197,94,.4); }
+  .pill-warn { color:var(--warning); border-color: rgba(245,158,11,.4); }
+  .schema-box { border:1px solid var(--border-color); border-radius:8px; padding:.8rem; background: var(--bg-primary); margin-bottom:.7rem; }
+  .step-num { display:inline-flex; width:28px; height:28px; border-radius:50%; background:var(--accent); color:#fff; align-items:center; justify-content:center; font-weight:700; font-size:.85rem; margin-right:.5rem; }
+</style>
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+
+<div class="card">
+  <h3>Live parse — upload an .xlsx to see the raw table → parsed sheets → schema → rows (no indexing)</h3>
+  <form action="/transparency/parse-upload" method="post" enctype="multipart/form-data" style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+    <input type="file" name="file" accept=".xlsx" required class="form-control" style="max-width:360px">
+    <button type="submit" class="btn btn-primary">Parse &amp; preview</button>
+    <span style="color:var(--text-muted);font-size:.85rem">Persian text stays UTF-8; you see the exact cell values.</span>
+  </form>
+</div>
+
+<div class="card">
+  <h3>How Excel tables become chunks — 5 steps</h3>
+  <div style="display:grid;gap:.6rem">
+    <div><span class="step-num">1</span><b>Read sheets</b> — openpyxl / calamine reads every sheet, first row = headers. Empty trailing columns trimmed; <code>~$</code> lock files skipped. <span class="persian" dir="rtl">(سطر اول = عنوان ستون‌ها)</span></div>
+    <div><span class="step-num">2</span><b>Normalize + detect schema</b> — <code>_normalize_col = re.sub(r"[\s_\-]+" ,"", lower)</code>. Then overlap ≥60% against three schemas:
+      <div style="margin:.4rem 0 .2rem 2.2rem;display:flex;gap:.5rem;flex-wrap:wrap">
+        <span class="pill">reason_codes (14 cols)</span><span class="pill">crm_qa (5 cols: question / answer / briefanswer / keyword / model)</span><span class="pill">articles (10 cols)</span>
+      </div>
+    </div>
+    <div><span class="step-num">3</span><b>Rows → fields</b> — for each data row, <code>_format_cell</code> (None→"" , float g-format, else stripped str). Empty rows dropped. Integrity check: U+FFFD / mojibake <code>?+Arabic</code> warned.
+      <br><span style="margin-left:2.2rem;color:var(--text-secondary)">Q&A also filters: row needs <code>question</code> AND (<code>answer</code> or <code>briefanswer</code>) else counted as <i>skipped_incomplete</i>; then dedup by normalized question (Arabic ي→ی, ك→ک, ZWNJ→space).</span>
+    </div>
+    <div><span class="step-num">4</span><b>Preprocess</b> — clean → Persian normalise (<code>preprocessor/pipeline.py</code>).</div>
+    <div><span class="step-num">5</span><b>Chunk</b> — <code>SemanticChunker._chunk_excel_rows</code>: <b>one row = one chunk</b> (never split), content formatted with Persian labels (<span class="persian">سوال / پاسخ کامل / پاسخ کوتاه / کلیدواژه‌ها</span>), parents per sheet.</div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Column dictionaries (what the parser looks for)</h3>
+  <div style="display:grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap:1rem">
+    {% for sname, cols in schema_defs.items() %}
+    <div class="schema-box">
+      <b>{{ sname }}</b> — {{ cols|length }} expected columns
+      <div class="mono ltr" style="margin-top:.4rem; word-break: break-word">{{ cols|sort|join(", ") }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <p style="margin-top:.6rem;color:var(--text-secondary);font-size:.85rem">Threshold: <code>overlap ≥ 60% of required</code>. Example: crm_qa has 5 cols → need ≥3 matches. So a sheet with <code>question, answer, keyword</code> still matches crm_qa.</p>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:.8rem; flex-wrap:wrap">
+    <h3 style="margin:0">Indexed documents — click Inspect to see the raw table &amp; its chunks</h3>
+    <form method="get" action="/transparency" style="display:flex;gap:.5rem">
+      <input name="q" value="{{ q }}" placeholder="filter title / path" class="form-control" style="min-width:220px">
+      <button class="btn btn-secondary">Filter</button>
+    </form>
+  </div>
+  <div class="table-container" style="margin-top:1rem">
+    <table class="data-table">
+      <thead><tr><th>Title</th><th>Source</th><th>Chunks</th><th>Domain</th><th></th></tr></thead>
+      <tbody>
+      {% for d in documents %}
+        <tr>
+          <td class="persian" dir="auto" style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ d.title }}">{{ d.title }}</td>
+          <td class="mono ltr" style="max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ d.source_path }}">{{ d.source_path }}</td>
+          <td>{{ d.chunk_count }}</td>
+          <td><span class="pill">{{ d.domain }}</span></td>
+          <td>
+            <a class="btn btn-primary btn-sm" href="/transparency/{{ d.id }}">Inspect →</a>
+            <a class="btn btn-secondary btn-sm" href="/documents/{{ d.id }}">Doc</a>
+            <a class="btn btn-secondary btn-sm" href="/transparency/api/raw/{{ d.id }}" target="_blank">JSON</a>
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not documents %}<tr><td colspan="5" style="color:var(--text-muted);text-align:center;padding:1.2rem">No documents</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+  <div class="pagination" style="margin-top:1rem">
+    {% if page>1 %}<a class="btn btn-secondary" href="?q={{ q }}&page={{ page-1 }}">Prev</a>{% endif %}
+    <span class="page-info">Page {{ page }} / {{ total_pages }} — {{ total }} docs</span>
+    {% if page<total_pages %}<a class="btn btn-secondary" href="?q={{ q }}&page={{ page+1 }}">Next</a>{% endif %}
+  </div>
+</div>
+
+<div class="card" style="border-color: var(--accent);">
+  <h3>Persian readability guarantee</h3>
+  <ul style="margin-left:1.2rem; color:var(--text-secondary); line-height:1.8">
+    <li>Template declares <code>&lt;meta charset="UTF-8"&gt;</code> (see <code>base.html:char 4</code>) and loads <b>Vazirmatn</b> — the same font your KB Excel uses.</li>
+    <li>Every table cell with Persian is rendered with <code>class="persian" dir="rtl"</code> so shaping / ZWNJ (U+200C) is visible. If you still see <code>?</code> or <code>�</code>, the parser's <code>integrity_warnings</code> will list the exact sheet/column/cell.</li>
+    <li>Raw JSON at <code>/transparency/api/raw/{id}</code> is served as <code>application/json; charset=utf-8</code> — open it in a new tab to confirm bytes are intact.</li>
+  </ul>
+  <p class="persian" dir="rtl" style="margin-top:.7rem; background:var(--bg-primary); padding:.6rem .8rem; border-radius:6px; border:1px solid var(--border-color)">
+    نمونه متن فارسی برای تست نمایش: سوال: چرا رتبه اعتباری من کاهش یافت؟ — پاسخ: به دلیل تاخیر در پرداخت تسهیلات، امتیاز شما ۱۲ واحد کاهش یافته است. کلیدواژه‌ها: رتبه اعتباری، تاخیر، تسهیلات
+  </p>
+</div>
+{% endblock %}

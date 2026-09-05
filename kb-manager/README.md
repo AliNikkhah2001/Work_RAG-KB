@@ -130,12 +130,13 @@ Per-question results: [`versions/v7_iva_1405-05-31/IVA_REPORT.md`](versions/v7_i
 | Page | URL | Description |
 |------|-----|-------------|
 | Dashboard | `/` | Document/chunk counts, domain/category breakdown |
-| Documents | `/documents` | Browse, filter, manage documents |
+| Documents | `/documents` | Browse, filter, manage documents — each row has **Inspect → Transparency** |
 | Chunks | `/chunks` | View/edit chunks, search content |
 | Pipeline | `/pipeline` | Trigger rebuild/incremental, job history |
 | Search | `/search` | Interactive search with step-by-step transparency |
+| **Transparency** | `/transparency` | **Excel → Chunks pipeline introspection (NEW)** — raw table (exact `_format_cell` bytes), header normalization & schema `overlap ≥60%` debug, parser text, and DB chunks per sheet. Persian-safe (Vazirmatn, `dir=rtl/auto`, UTF-8). Live `POST /transparency/parse-upload` parses any `.xlsx` without indexing. `GET /transparency/api/raw/{doc_id}` returns JSON `charset=utf-8` for byte-level proof. |
 | Benchmarks | `/benchmarks` | Run retrieval benchmarks, view plots, create snapshots |
-| Comparison | `/benchmarks/comparison` | Version comparison charts (v2→v3→v4) |
+| Comparison | `/benchmarks/comparison` | Version comparison charts (v2→v7, data-driven) |
 | Versions | `/versions` | Document version history and rollback |
 | Cleanup QA | `/cleanup/qa` | Filter incomplete QA chunks |
 | Monitoring | `/monitoring` | Staleness reports, retrieval metrics |
@@ -231,7 +232,34 @@ python -m kb_manager.cli status         # Show KB stats
 python scripts/cleanup_incomplete_qa.py --dry-run  # Preview QA cleanup
 ```
 
-## Roadmap & Remediation — Updated for v7
+## Transparency — How Excel Tables Become Chunks (and how to verify Persian)
+
+`GET /transparency` and `GET /transparency/{doc_id}` show the pipeline step-by-step with **exact bytes** so you can prove Persian is not mojibake:
+
+1. **Read sheets** (`parsers/xlsx_parser.py:240,266`) via `openpyxl`/`calamine` — first row = headers, trailing empties trimmed, `~$` skipped.
+2. **Normalize + schema** (`xlsx_parser.py:87,92`): `re.sub(r"[\s_\-]+","", lower)` then first schema with `overlap ≥60%` wins (`reason_codes` 14, `crm_qa` 5, `articles` 10). UI shows per-sheet `normalized`, `matched/missing`, `threshold` table.
+3. **Rows → fields** (`xlsx_parser.py:311,346`): `_format_cell` (`None→""`, float `g`-format, else `str.strip()`), empty rows dropped, `U+FFFD`/`?+Arabic` integrity warnings. QA rows need `question` + (`answer`|`briefanswer`) else `skipped_incomplete`; dedup via `chunker/semantic.py:110` (`ي→ی, ك→ک, ZWNJ→space`).
+4. **Preprocess** (`preprocessor/pipeline.py:354`) clean → Persian normalise → keywords.
+5. **Chunk** (`chunker/semantic.py:183` `_chunk_excel_rows`): **one row = one chunk** (never split) with Persian labels `سوال/پاسخ کوتاه/پاسخ کامل/کلیدواژه‌ها`; parents per `parent_scope=sheet`.
+
+Rendering is Persian-clean: `base.html:4` `<meta charset="UTF-8">`, Vazirmatn CDN + `class="persian" dir="rtl/auto"` on every cell/chunk (`static/style.css:629`), `content-preview pre` line-height 1.9. If a cell shows `?`/`�`, the `integrity_warnings` badge names the exact `sheet/column`.
+
+## Troubleshooting — PowerShell blocked (0x800704ec)
+
+**Error:** `error 2147943660 (0x800704ec) when launching %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`
+**Meaning:** AppLocker / Software Restriction Policy blocks `powershell.exe` on this machine (`This program is blocked by group policy`). All tools that spawn PowerShell 5.1 (including this agent's `bash` tool) will show `spawn UNKNOWN`.
+
+**Fix:**
+- Use **CMD**, not PowerShell: double-click `restart_server.bat` / `push_and_merge.bat` in `kb-manager/` (they use `cmd.exe`/`netstat`/`taskkill`/`python`), or run `cmd` → `cd D:\Code\KB\kb-manager` → `netstat -ano | findstr :8000` → `taskkill /F /PID <pid>` → `python start_server_detached.py`.
+- To unblock: `gpedit.msc` → Computer/User Configuration → Windows Settings → Security Settings → Software Restriction Policies / AppLocker → allow `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` (requires admin).
+
+**Push without PowerShell:** use `push_and_merge.bat` (CMD) — see below.
+
+## QA-Aware Retrieval Experiment (Isolated, no prod change)
+
+Planned under `components/retrieval_experiments/` (see `docs/QA_RETRIEVAL_EXPERIMENT.md` after Phase 1) — four signals `question_sim` + `answer_sim` + `keyword_overlap` + `category_match`; modes **A** prod BM25+semantic, **B** QA-only, **C** hybrid RRF/weighted. Evaluation on `TestQuestions_IVA` (15 Q) + `data/test_questions.json` reports `Recall@1/5, MRR, NDCG, groundedness, hallucination, latency` + `failure_analysis.md` (missed/wrong/hallucinated/guardrail FP). Merge only if `Recall@5 ↑` and `hallucination ¬↑` and `p95` acceptable.
+
+## Roadmap & Remediation — Updated for v7 + Transparency
 
 Full audit: [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) (36 findings)
 

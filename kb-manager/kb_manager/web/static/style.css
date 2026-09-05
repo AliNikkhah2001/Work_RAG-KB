@@ -626,6 +626,14 @@ textarea.form-control {
     font-size: 0.875rem;
 }
 
+/* Persian / transparency helpers */
+.persian, [dir="rtl"], td[dir="rtl"] {
+    font-family: 'Vazirmatn','Tahoma','Segoe UI',sans-serif;
+}
+.content-preview pre, .chunk-box, .persian-cell {
+    line-height: 1.9;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .sidebar {

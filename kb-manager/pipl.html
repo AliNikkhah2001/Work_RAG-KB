@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline - KB Manager</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/lib/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="console.warn('CDN Chart.js failed, using local stub')"></script>
+    <script>if(typeof Chart==='undefined'){window.Chart=function(){return{update:function(){},data:{datasets:[]}}};window.Chart.register=function(){};console.warn('Chart.js not loaded, using stub - charts disabled');}</script>
+</head>
+<body>
+    <div class="app-layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>KB Manager</h2>
+                <p class="subtitle">Knowledge Base Management System</p>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link ">Dashboard</a></li>
+                <li><a href="/documents" class="nav-link ">Documents</a></li>
+                <li><a href="/chunks" class="nav-link ">Chunks</a></li>
+                <li><a href="/pipeline" class="nav-link active">Pipeline</a></li>
+                <li><a href="/versions" class="nav-link ">Versions</a></li>
+                <li><a href="/monitoring" class="nav-link ">Monitoring</a></li>
+                <li><a href="/cleanup/qa" class="nav-link ">Cleanup QA</a></li>
+                <li><a href="/search" class="nav-link ">Search</a></li>
+                <li><a href="/benchmarks" class="nav-link ">Benchmarks</a></li>
+                <li><a href="/benchmarks/comparison" class="nav-link ">Comparison</a></li>
+            </ul>
+        </nav>
+        <main class="main-content">
+            <header class="content-header">
+                
+<h1>Pipeline Management</h1>
+
+            </header>
+            <div class="content-body">
+                
+<div class="toolbar">
+    <div class="pipeline-actions">
+        <form method="post" action="/pipeline/run" style="display:inline">
+            <label>Source Directory:</label>
+            <input type="text" name="source_dir" value="D:/Code/KB/kb-source/1405-05-31" style="width:400px; margin:0 8px;">
+            <select name="parent_scope">
+                <option value="sheet" selected>Parent: per sheet</option>
+                <option value="document" >Parent: per document</option>
+            </select>
+            <input type="hidden" name="job_type" value="full_rebuild">
+            <button type="submit" class="btn btn-warning">Full Rebuild</button>
+        </form>
+        <form method="post" action="/pipeline/run" style="display:inline">
+            <input type="hidden" name="source_dir" value="D:/Code/KB/kb-source/1405-05-31">
+            <input type="hidden" name="job_type" value="incremental">
+            <button type="submit" class="btn btn-primary">Incremental</button>
+        </form>
+        <span class="muted">Chunking: semantic, max 512 tok, parent scope sheet</span>
+    </div>
+</div>
+
+
+
+<div class="card">
+    <h3>Job History</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Completed</th>
+                    <th>Documents</th>
+                    <th>Chunks</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td><a href="/pipeline/status/f508e964-58dd-491d-8a03-6f5659855c45">f508e964...</a></td>
+                    <td>full_rebuild</td>
+                    <td><span class="badge badge-interrupted">interrupted</span></td>
+                    <td>2026-09-02 11:34:22.629036</td>
+                    <td>2026-09-02 13:54:58.440171</td>
+                    <td>0 / 0</td>
+                    <td>0</td>
+                </tr>
+                
+            </tbody>
+        </table>
+    </div>
+</div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>
