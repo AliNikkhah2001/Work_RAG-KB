@@ -2,8 +2,12 @@
 <html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}KB Manager{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <script src="/static/lib/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="console.warn('CDN Chart.js failed, using local stub')"></script>
@@ -25,7 +29,7 @@
                 <li><a href="/monitoring" class="nav-link {% if '/monitoring' in request.url.path %}active{% endif %}">Monitoring</a></li>
                 <li><a href="/cleanup/qa" class="nav-link {% if '/cleanup' in request.url.path %}active{% endif %}">Cleanup QA</a></li>
                 <li><a href="/search" class="nav-link {% if '/search' in request.url.path %}active{% endif %}">Search</a></li>
-                <li><a href="/transparency" class="nav-link {% if '/transparency' in request.url.path %}active{% endif %}">Transparency</a></li>
+                <li><a href="/transparency" class="nav-link {% if '/transparency' in request.url.path %}active{% endif %}">Transparency / شفافیت</a></li>
                 <li><a href="/benchmarks" class="nav-link {% if '/benchmarks' in request.url.path %}active{% endif %}">Benchmarks</a></li>
                 <li><a href="/benchmarks/comparison" class="nav-link {% if '/benchmarks/comparison' in request.url.path %}active{% endif %}">Comparison</a></li>
             </ul>

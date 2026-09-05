@@ -346,18 +346,43 @@ class PipelineOrchestrator:
                 await session.delete(old)
             await session.flush()
 
-        # F6 fix: SQLite has no vector column; dense index is rebuilt at search from .npz cache.
-        # Do not claim embeddings are persisted. Dense rebuild is lazy via search._build_index.
-        result["embedded"] = 0
+        # --- Embed chunks if pgvector is available (HNSW) ---
+        # For pgvector, store embeddings directly in DB for HNSW search; for sqlite, keep file cache only
+        embeddings: list[list[float]] | None = None
+        is_pgvector = getattr(getattr(self._db, "_config", None), "is_pgvector", False) or getattr(
+            getattr(self._db, "_config", None), "mode", ""
+        ) == "pgvector"
+        if self._embedder is not None and is_pgvector and chunks:
+            try:
+                texts = [c.content for c in chunks]
+                embeddings = self._embedder.embed_texts(texts)
+                result["embedded"] = len(embeddings)
+                logger.info("Embedded %d chunks for %s (pgvector)", len(embeddings), file_path)
+            except Exception as e:
+                logger.warning("Embedding failed for %s: %s (falling back to no DB vectors)", file_path, e)
+                embeddings = None
+                result["embedded"] = 0
+        else:
+            # F6 fix: SQLite has no vector column; dense index is rebuilt at search from .npz cache.
+            # Do not claim embeddings are persisted. Dense rebuild is lazy via search._build_index.
+            result["embedded"] = 0
 
         # --- Store chunks (F28 fix: O(1) parent key map, no ordinal/type scan) ---
         parents = [c for c in chunks if c.metadata.get("is_parent")]
         children = [c for c in chunks if not c.metadata.get("is_parent")]
         parent_id_map: dict[str, str] = {}
 
+        # Build embedding map for pgvector (chunk object id -> vector)
+        embedding_map: dict[int, list[float]] = {}
+        if embeddings is not None:
+            for idx, ch in enumerate(chunks):
+                if idx < len(embeddings):
+                    embedding_map[id(ch)] = embeddings[idx]
+
         # Store parents first and capture their DB ids
         parent_db_chunks: list[DBChunk] = []
         for pc in parents:
+            emb = embedding_map.get(id(pc))
             db_chunk = DBChunk(
                 document_id=doc.id,
                 ordinal=pc.ordinal,
@@ -366,6 +391,7 @@ class PipelineOrchestrator:
                 heading_path=pc.heading_path,
                 keywords=pc.keywords,
                 token_count=pc.token_count,
+                embedding=emb,  # pgvector HNSW
                 embedding_model=self._embedder.model_name if self._embedder else None,
                 doc_metadata=pc.metadata,
             )
@@ -381,6 +407,7 @@ class PipelineOrchestrator:
         for cc in children:
             key = cc.metadata.get("parent_key", cc.metadata.get("sheet_name", ""))
             parent_id = parent_id_map.get(key)
+            emb = embedding_map.get(id(cc))
             db_chunk = DBChunk(
                 document_id=doc.id,
                 parent_id=parent_id,
@@ -390,6 +417,7 @@ class PipelineOrchestrator:
                 heading_path=cc.heading_path,
                 keywords=cc.keywords,
                 token_count=cc.token_count,
+                embedding=emb,  # pgvector HNSW
                 embedding_model=self._embedder.model_name if self._embedder else None,
                 doc_metadata=cc.metadata,
             )

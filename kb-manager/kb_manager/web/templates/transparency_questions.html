@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Questions – Batch / دسته‌ای{% endblock %}
+{% block header %}<h1>Questions – Batch / همه پرسش‌ها <span style="font-size:0.85rem;color:var(--text-muted)">({{ total }} total)</span></h1>{% endblock %}
+{% block content %}
+<div class="toolbar" style="flex-wrap:wrap">
+  <form method="get" class="filter-form">
+    <select name="group_by" class="filter-select">
+      <option value="section" {% if group_by=='section' %}selected{% endif %}>By Section (heading/parent)</option>
+      <option value="sheet" {% if group_by=='sheet' %}selected{% endif %}>By Sheet</option>
+      <option value="document" {% if group_by=='document' %}selected{% endif %}>By Document</option>
+      <option value="type" {% if group_by=='type' %}selected{% endif %}>By Type</option>
+    </select>
+    <input type="text" name="q" value="{{ q }}" placeholder="filter Persian/English…" class="form-control" style="width:220px">
+    <select name="limit" class="filter-select">
+      <option value="2000" {% if limit==2000 %}selected{% endif %}>2000</option>
+      <option value="500" {% if limit==500 %}selected{% endif %}>500</option>
+      <option value="100" {% if limit==100 %}selected{% endif %}>100</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Apply</button>
+  </form>
+  <div style="display:flex;gap:0.5rem">
+    <a href="/transparency/questions/json?group_by={{ group_by }}&limit={{ limit }}&q={{ q }}" target="_blank" class="btn btn-secondary">JSON API</a>
+    <a href="/transparency/questions/retrieval-check?limit=50" target="_blank" class="btn btn-secondary">Retrieval check (50)</a>
+    <a href="/transparency" class="btn btn-secondary">Schemas</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3>How to use for testing <span class="step-badge">UTF-8 JSON</span></h3>
+  <p style="color:var(--text-secondary);font-size:0.9rem">This page exposes <b>every question</b> stored in the KB as <code>qa_pair</code> chunks. Use <code>GET /transparency/questions/json?group_by=section</code> for RAG/guardrails benchmarks: each item has <code>question</code> + <code>expected_chunk_ids=[chunk_id]</code>. Grouped by <code>section (= heading_path / parent_key / sheet_name)</code> so you can run per-section hit-rate. Keyword heuristic is tunable via <code>POST /search/api {"keyword_boost": 0..10}</code> (env <code>KB_KEYWORD_BOOST=3.0</code>, see <a href="/search/config">/search/config</a>).</p>
+  <p style="margin-top:0.5rem;font-size:0.82rem;color:var(--text-muted)">Hierarchy: <code>document → sheet → parent_key → heading_path → chunk_type</code>. Sections here are <code>heading_path</code> (e.g. <code>Sheet: چت‌بات-سوال و جواب</code>) – matches chunking <code>parent_scope=sheet</code>.</p>
+</div>
+
+{% for section, items in grouped.items() %}
+<div class="card">
+  <h3><span dir="auto" lang="fa" style="font-family:'Vazirmatn',sans-serif">{{ section or 'general' }}</span> <span style="font-size:0.85rem;color:var(--text-muted)">({{ items|length }} questions)</span></h3>
+  <div class="table-container">
+    <table class="data-table fa-table">
+      <thead><tr><th>#</th><th>Question (Persian)</th><th>Answer preview</th><th>Keywords</th><th>Doc</th><th>Chunk</th></tr></thead>
+      <tbody>
+        {% for it in items[:20] %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td class="fa-cell" dir="auto" lang="fa">{{ it.question }}</td>
+          <td class="fa-cell" dir="auto" lang="fa">{{ it.answer[:90] }}{% if it.answer|length>90 %}…{% endif %}</td>
+          <td>{% for kw in it.keywords %}<span class="keyword-tag" dir="auto">{{ kw }}</span> {% endfor %}</td>
+          <td><a href="/transparency/{{ it.doc_id }}" style="font-size:0.8rem">{{ it.doc_title[:18] }}</a></td>
+          <td><code style="font-size:0.72rem">{{ it.chunk_id[:8] }}</code> <span class="schema-badge schema-{{ it.chunk_type }}">{{ it.chunk_type }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if items|length>20 %}<p style="font-size:0.8rem;color:var(--text-muted)">Showing 20 of {{ items|length }} in this section. <a href="/transparency/questions/json?group_by={{ group_by }}&q={{ section }}" target="_blank">View all JSON</a></p>{% endif %}
+</div>
+{% endfor %}
+
+{% if not grouped %}
+<div class="card"><p style="color:var(--text-muted)">No questions matched filter <code>{{ q }}</code>.</p></div>
+{% endif %}
+
+<div class="card">
+  <h3>Benchmarks per section</h3>
+  <p style="color:var(--text-secondary);font-size:0.88rem">To get hit-rate per section, run the retrieval check (uses current <code>keyword_boost</code>):</p>
+  <pre style="background:var(--bg-primary);padding:0.8rem;border-radius:6px;overflow-x:auto;font-size:0.82rem">curl http://127.0.0.1:8001/transparency/questions/retrieval-check?limit=100 | jq .hit_rate
+curl -X POST http://127.0.0.1:8001/search/api -H "Content-Type: application/json" -d '{"query":"چک برگشتی","keyword_boost":5}' | jq .keyword_boost_used
+
+# Batch for guardrails/RAG: fetch all questions
+curl http://127.0.0.1:8001/transparency/questions/json?group_by=section > /tmp/questions.json
+# then for each question {query: q.question, expected: [q.chunk_id]} run search and compute hit@5 per section</pre>
+  <p style="margin-top:0.6rem;font-size:0.82rem;color:var(--text-muted)">For full benchmark plots per section, see <a href="/benchmarks">Benchmarks</a> – the JSON <code>/transparency/questions/json</code> can be fed to <code>run_benchmark.py</code> or turned into a temporary dataset and posted to <code>/benchmarks/run</code>. Future: <code>/benchmarks/by-section</code> will auto-group <code>benchmark_results.json</code> by section.</p>
+</div>
+{% endblock %}

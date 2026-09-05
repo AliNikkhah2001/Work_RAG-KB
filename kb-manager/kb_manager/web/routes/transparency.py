@@ -101,6 +101,59 @@ def _detect_schema_debug(headers: list[str]) -> tuple[str | None, dict[str, Any]
     return chosen, debug
 
 
+# --- Batch questions helpers (for tunable keyword + section benchmarks) ---
+def _extract_question_from_chunk(chunk) -> str | None:
+    meta = getattr(chunk, "doc_metadata", {}) or {}
+    fields = meta.get("fields", {}) or {}
+    for key in ("question", "Question", "پرسش", "سوال", "متن سوال", "متن_سوال"):
+        if key in fields and fields[key]:
+            return fields[key].strip()[:600]
+        lk = key.strip().lower()
+        if lk in fields and fields[lk]:
+            return fields[lk].strip()[:600]
+        for k2, v2 in fields.items():
+            if k2.lower().replace(" ", "") == lk.replace(" ", "") and v2:
+                return str(v2).strip()[:600]
+    content = getattr(chunk, "content", "") or ""
+    for marker in ("متن سوال:", "متن سوال :", "سوال:", "پرسش:", "Question:", "question:"):
+        if marker in content:
+            try:
+                after = content.split(marker, 1)[1].split("\n")[0].split("|")[0].strip()
+                if " | " in after:
+                    after = after.split(" | ")[0].strip()
+                if after:
+                    return after[:600]
+            except:
+                pass
+    for line in content.split("\n"):
+        line=line.strip()
+        if ("?" in line or "؟" in line) and 10 < len(line) < 300:
+            if "|" in line:
+                for seg in line.split("|"):
+                    if "?" in seg or "؟" in seg:
+                        return seg.strip()[:600]
+            return line[:600]
+    return None
+
+def _chunk_section(chunk) -> str:
+    meta = getattr(chunk, "doc_metadata", {}) or {}
+    for key in ("heading_path", "parent_key", "sheet_name"):
+        if key == "heading_path" and getattr(chunk, "heading_path", None):
+            return getattr(chunk, "heading_path")
+        if meta.get(key):
+            return meta.get(key)
+    content = getattr(chunk, "content", "") or ""
+    for marker in ("=== Sheet:", "== Sheet:", "Sheet:"):
+        if marker in content:
+            try:
+                part = content.split(marker)[1].split("===")[0].split("==")[0].split("\n")[0].strip().split("|")[0].strip()
+                if part:
+                    return f"Sheet: {part}"
+            except:
+                pass
+    return getattr(chunk, "heading_path", None) or meta.get("sheet_name") or "general"
+
+
 def _parse_file_for_display(source_path: str) -> dict[str, Any]:
     """Parse file via XlsxParser (or fallback) and return display dict."""
     p = Path(source_path)
@@ -230,6 +283,153 @@ async def transparency_api_raw(doc_id: str):
         "parse": parse_info,
         "chunks": [{"ordinal": c.ordinal, "type": c.chunk_type, "heading": c.heading_path, "tokens": c.token_count, "content": c.content, "metadata": c.doc_metadata} for c in chunks],
     })
+
+
+@router.get("/questions", response_class=HTMLResponse)
+async def transparency_questions(request: Request, group_by: str = "section", limit: int = 2000, q: str = ""):
+    async with db.session() as session:
+        result = await session.execute(select(Chunk).where(Chunk.chunk_type.in_(["qa_pair", "body"])).order_by(Chunk.ordinal))
+        all_chunks = result.scalars().all()
+        doc_ids = list({c.document_id for c in all_chunks})
+        docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+        doc_map = {d.id: d for d in docs_result.scalars().all()}
+        questions = []
+        for c in all_chunks:
+            question = _extract_question_from_chunk(c)
+            if not question:
+                continue
+            if q and q not in question and q not in c.content:
+                continue
+            meta = c.doc_metadata or {}
+            fields = meta.get("fields", {})
+            answer = fields.get("answer") or fields.get("Answer") or fields.get("پاسخ") or ""
+            if not answer:
+                for marker in ("پاسخ کامل:", "پاسخ:", "Answer:"):
+                    if marker in c.content:
+                        try:
+                            answer = c.content.split(marker, 1)[1].split("\n")[0].strip()[:300]
+                            break
+                        except:
+                            pass
+            doc = doc_map.get(c.document_id)
+            section = _chunk_section(c)
+            questions.append({"chunk_id": c.id, "doc_id": c.document_id, "doc_title": doc.title if doc else "", "heading_path": c.heading_path, "parent_key": meta.get("parent_key"), "sheet_name": meta.get("sheet_name"), "chunk_type": c.chunk_type, "question": question, "answer": answer, "keywords": c.keywords or [], "token_count": c.token_count, "content_preview": c.content[:280], "section": section})
+            if len(questions) >= limit:
+                break
+        grouped: dict[str, list[dict]] = {}
+        for qu in questions:
+            if group_by == "sheet":
+                key = qu["sheet_name"] or qu["section"] or "general"
+            elif group_by == "document":
+                key = qu["doc_title"] or "unknown"
+            elif group_by == "type":
+                key = qu["chunk_type"]
+            else:
+                key = qu["section"] or qu["heading_path"] or "general"
+            grouped.setdefault(key, []).append(qu)
+        grouped_sorted = dict(sorted(grouped.items(), key=lambda kv: len(kv[1]), reverse=True))
+        total = len(questions)
+        return templates.TemplateResponse(request, "transparency_questions.html", {"total": total, "grouped": grouped_sorted, "questions": questions, "group_by": group_by, "limit": limit, "q": q})
+
+
+@router.get("/questions/json")
+async def transparency_questions_json(group_by: str = "section", limit: int = 5000, q: str = ""):
+    async with db.session() as session:
+        result = await session.execute(select(Chunk).where(Chunk.chunk_type.in_(["qa_pair", "body"])))
+        all_chunks = result.scalars().all()
+        doc_ids = list({c.document_id for c in all_chunks})
+        docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+        doc_map = {d.id: d for d in docs_result.scalars().all()}
+        questions = []
+        for c in all_chunks:
+            question = _extract_question_from_chunk(c)
+            if not question:
+                continue
+            if q and q not in question:
+                continue
+            meta = c.doc_metadata or {}
+            fields = meta.get("fields", {})
+            answer = fields.get("answer") or fields.get("Answer") or fields.get("پاسخ") or ""
+            doc = doc_map.get(c.document_id)
+            questions.append({"chunk_id": c.id, "doc_id": c.document_id, "doc_title": doc.title if doc else "", "heading_path": c.heading_path, "parent_key": meta.get("parent_key"), "sheet_name": meta.get("sheet_name"), "chunk_type": c.chunk_type, "question": question, "answer": answer, "keywords": c.keywords or [], "section": _chunk_section(c), "content_preview": c.content[:400]})
+            if len(questions) >= limit:
+                break
+        grouped = {}
+        for qu in questions:
+            if group_by == "sheet":
+                key = qu["sheet_name"] or qu["section"] or "general"
+            elif group_by == "document":
+                key = qu["doc_title"] or "unknown"
+            elif group_by == "type":
+                key = qu["chunk_type"]
+            else:
+                key = qu["section"] or "general"
+            grouped.setdefault(key, []).append(qu)
+        return JSONResponse({"total": len(questions), "group_by": group_by, "grouped_counts": {k: len(v) for k, v in grouped.items()}, "questions": questions, "grouped": grouped, "note": "Use question as query, expected_chunk_ids=[chunk_id] for retrieval testing. Tunable keyword_boost via POST /search/api {keyword_boost: 0..10}"}, headers={"Content-Type": "application/json; charset=utf-8"})
+
+
+@router.get("/questions/retrieval-check")
+async def retrieval_check(limit: int = 50, keyword_boost: float | None = None):
+    from kb_manager.web.routes.search import search_knowledge_base_sync
+    async with db.session() as session:
+        result = await session.execute(select(Chunk).where(Chunk.chunk_type == "qa_pair").limit(limit))
+        chunks = result.scalars().all()
+        checks = []
+        hits = 0
+        for c in chunks:
+            question = _extract_question_from_chunk(c)
+            if not question:
+                continue
+            try:
+                steps = search_knowledge_base_sync(question, top_k=5, keyword_boost=keyword_boost)
+                retrieved_ids = [r.chunk_id for r in steps.final_results]
+                hit = c.id in retrieved_ids
+                rank = retrieved_ids.index(c.id) + 1 if hit else -1
+                if hit:
+                    hits += 1
+                checks.append({"question": question[:120], "chunk_id": c.id[:8], "hit": hit, "rank": rank, "retrieved": retrieved_ids[:3]})
+            except Exception as e:
+                checks.append({"question": question[:80], "error": str(e)[:200]})
+        return JSONResponse({"total_checked": len(checks), "hits": hits, "hit_rate": round(hits / len(checks), 4) if checks else 0, "keyword_boost": keyword_boost if keyword_boost is not None else float(os.getenv("KB_KEYWORD_BOOST", "3.0")), "checks": checks})
+
+
+@router.get("/benchmarks/by-section")
+async def benchmarks_by_section(limit: int = 200):
+    from kb_manager.web.routes.search import search_knowledge_base_sync
+    async with db.session() as session:
+        result = await session.execute(select(Chunk).where(Chunk.chunk_type == "qa_pair"))
+        chunks = result.scalars().all()
+        if limit and len(chunks) > limit:
+            chunks = chunks[:limit]
+        per_section: dict[str, list[dict]] = {}
+        total = 0
+        hits = 0
+        for c in chunks:
+            question = _extract_question_from_chunk(c)
+            if not question:
+                continue
+            section = _chunk_section(c)
+            try:
+                steps = search_knowledge_base_sync(question, top_k=5)
+                retrieved_ids = [r.chunk_id for r in steps.final_results]
+                hit = c.id in retrieved_ids
+                rank = retrieved_ids.index(c.id) + 1 if hit else -1
+                if hit:
+                    hits += 1
+                total += 1
+                per_section.setdefault(section, []).append({"hit": hit, "rank": rank})
+            except:
+                per_section.setdefault(section, []).append({"hit": False, "rank": -1})
+                total += 1
+        by_section = {}
+        for sec, arr in per_section.items():
+            n = len(arr)
+            h = sum(1 for x in arr if x["hit"])
+            ranks = [x["rank"] for x in arr if x["rank"] != -1]
+            mrr = sum(1.0 / x["rank"] for x in arr if x["rank"] != -1) / n if n else 0
+            by_section[sec] = {"queries": n, "hit_rate": round(h / n, 4) if n else 0, "mrr": round(mrr, 4), "avg_rank": round(sum(ranks) / len(ranks), 2) if ranks else 0}
+        by_section_sorted = dict(sorted(by_section.items(), key=lambda kv: (-kv[1]["hit_rate"], -kv[1]["queries"])))
+        return JSONResponse({"total_checked": total, "overall_hit_rate": round(hits / total, 4) if total else 0, "overall": {"queries": total, "hits": hits, "hit_rate": round(hits / total, 4) if total else 0}, "by_section": by_section_sorted, "note": "Grouped by heading_path/parent_key/sheet_name. Use /transparency/questions/json for full question list."}, headers={"Content-Type": "application/json; charset=utf-8"})
 
 
 @router.get("/{doc_id}", response_class=HTMLResponse)

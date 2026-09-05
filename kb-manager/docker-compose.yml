@@ -24,11 +24,16 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      # DB mode switch: sqlite (light) | pgvector (production)
+      # Set to 'sqlite' for local/test, 'pgvector' for postgres+pgvector
+      KB_DB_MODE: pgvector
       KB_DB_HOST: postgres
       KB_DB_PORT: 5432
       KB_DB_NAME: kb_manager
       KB_DB_USER: postgres
       KB_DB_PASSWORD: postgres
+      KB_WEB_HOST: 0.0.0.0
+      KB_WEB_PORT: 8000
     volumes:
       - ./data:/app/data
 

@@ -68,7 +68,11 @@ SCHEMA_A_COLUMNS = {
     "data_source",
 }
 
-SCHEMA_B_COLUMNS = {"question", "model", "briefanswer", "answer", "keyword"}
+SCHEMA_B_COLUMNS = {
+    "question", "model", "briefanswer", "answer", "keyword",
+    # Persian aliases for XLSX files with Persian headers (e.g. پرسش/پاسخ چت بات.xlsx)
+    "پرسش", "پاسخ", "متن سوال", "متن پاسخ", "سوال", "متن_سوال", "متن_پاسخ",
+}
 
 SCHEMA_C_COLUMNS = {
     "documentname",
@@ -103,6 +107,12 @@ def _detect_schema(headers: list[str]) -> str | None:
         Schema identifier string or None for generic format.
     """
     normalized = {_normalize_col(h) for h in headers if h}
+    # Persian Q&A files with only پرسش/پاسخ (2 cols) should still be crm_qa
+    persian_qa_markers = {"پرسش", "پاسخ", "سوال", "متنسوال", "متنپاسخ"}
+    if len(normalized & persian_qa_markers) >= 2 or ({"پرسش"} & normalized and {"پاسخ"} & normalized):
+        return "crm_qa"
+    if {"سوال"} & normalized and {"پاسخ"} & normalized:
+        return "crm_qa"
 
     schemas = [
         ("reason_codes", {_normalize_col(c) for c in SCHEMA_A_COLUMNS}),

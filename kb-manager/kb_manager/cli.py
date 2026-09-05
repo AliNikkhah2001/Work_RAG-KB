@@ -79,7 +79,7 @@ def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: 
             )
 
             orchestrator = PipelineOrchestrator(
-                db=db,
+                database=db,
                 preprocessor=preprocessor,
                 chunker=chunker,
                 embedder=embedder,
@@ -92,9 +92,9 @@ def ingest(source_dir: str | None, full: bool, model: str | None, parent_scope: 
 
             console.print(f"\n[bold green]Pipeline completed![/]")
             console.print(
-                f"  Documents processed: {result.documents_ok}/{result.documents_total}"
+                f"  Documents processed: {result.documents_created + result.documents_updated}/{result.documents_processed}"
             )
-            console.print(f"  Chunks created: {result.chunks_total}")
+            console.print(f"  Chunks created: {result.chunks_created}")
             console.print(f"  Failed: {result.documents_failed}")
             if result.chunks_skipped_incomplete > 0:
                 console.print(f"  QA rows skipped (incomplete): {result.chunks_skipped_incomplete}")

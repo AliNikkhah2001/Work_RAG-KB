@@ -97,6 +97,47 @@ app.include_router(transparency.router, prefix="/transparency", tags=["transpare
 app.include_router(zip_browser.router, prefix="/transparency", tags=["transparency-zip"])
 
 
+@app.get("/health")
+async def health():
+    """Health check — reports DB mode and connectivity."""
+    from kb_manager.config import load_config
+
+    cfg = load_config()
+    db_ok = False
+    doc_count = chunk_count = None
+    error = None
+    try:
+        from sqlalchemy import func, select, text
+
+        from kb_manager.models.database import Chunk, Document
+
+        async with db.session() as session:
+            # lightweight ping
+            await session.execute(text("SELECT 1"))
+            doc_count = (await session.execute(select(func.count(Document.id)))).scalar()
+            chunk_count = (await session.execute(select(func.count(Chunk.id)))).scalar()
+        db_ok = True
+    except Exception as exc:
+        error = str(exc)[:500]
+
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "db_mode": cfg.db.mode,
+        "db_driver": cfg.db.driver,
+        "db_url": cfg.db.async_url.split("@")[-1] if "@" in cfg.db.async_url else cfg.db.async_url,
+        "db_ok": db_ok,
+        "doc_count": doc_count,
+        "chunk_count": chunk_count,
+        "error": error,
+    }
+
+
+@app.get("/api/health")
+async def api_health():
+    """Alias for /health."""
+    return await health()
+
+
 @app.get("/")
 async def dashboard(request: Request):
     """Main dashboard."""

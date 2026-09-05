@@ -25,6 +25,9 @@ from kb_manager.reranker import CrossEncoderReranker, get_reranker
 _SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
 _SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
 
+# keyword heuristic boost – tunable via env, also per-request override
+_KEYWORD_BOOST_DEFAULT = float(os.getenv("KB_KEYWORD_BOOST", "3.0"))
+
 if TYPE_CHECKING:
     pass
 
@@ -369,15 +372,26 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         return _index_cache
 
 
-async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
+async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: float | None = None) -> SearchSteps:
     """Run full search pipeline with step tracking.
 
     Pipeline: BM25 + Dense + [HyDE] → RRF → Cross-encoder reranker
     HyDE is optional: only runs when KB_HYDE_ENABLED=true and API key is set.
+    keyword_boost: tunable weight for keyword BM25 field (default env KB_KEYWORD_BOOST=3.0)
     """
     start = time.monotonic()
     normalized = query.strip()
     tokens = _tokenize(normalized)
+    # resolve keyword boost: explicit arg > env default > 3.0
+    if keyword_boost is None:
+        # allow per-request override via function attribute for legacy callers
+        keyword_boost = getattr(search_knowledge_base, "_keyword_boost_override", _KEYWORD_BOOST_DEFAULT)
+    # clamp
+    try:
+        keyword_boost = float(keyword_boost)
+    except:
+        keyword_boost = _KEYWORD_BOOST_DEFAULT
+    keyword_boost = max(0.0, min(10.0, keyword_boost))
 
     chunk_data, bm25_pair, dense, reranker, hyde = await _get_index()
     # F10 fix: handle both old single BM25 and new tuple pair for migration
@@ -386,8 +400,23 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     else:
         bm25_content, bm25_kw = bm25_pair, None  # type: ignore[assignment]
 
-    # --- Step 2: BM25 (weighted content + 3*keywords, no length penalty) ---
-    # multi-query beam: run BM25 for each expanded query
+    # Check if pgvector is available and has embeddings (for hybrid pgvector search)
+    use_pgvector = False
+    try:
+        from kb_manager.config import load_config
+        cfg = load_config()
+        if cfg.db.is_pgvector:
+            # quick check: does chunks table have embedding column and at least one non-null?
+            from kb_manager.web.deps import db as _db
+            from sqlalchemy import text as _text
+            async with _db.session() as _s:
+                cnt = (await _s.execute(_text("SELECT count(*) FROM chunks WHERE embedding IS NOT NULL"))).scalar()
+                if cnt and cnt > 100:  # enough to use pgvector
+                    use_pgvector = True
+    except:
+        use_pgvector = False
+
+    # --- Step 2: BM25 (weighted content + keywords, tunable boost) ---
     beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
     bm25_raw_content_all: list[tuple[str, float]] = []
     bm25_raw_kw_all: list[tuple[str, float]] = []
@@ -400,7 +429,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     for cid, s in bm25_raw_content_all:
         bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), s)
     for cid, s in bm25_raw_kw_all:
-        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), 3.0 * s) if cid not in bm25_scores_combined else bm25_scores_combined[cid] + 3.0 * s
+        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), keyword_boost * s) if cid not in bm25_scores_combined else bm25_scores_combined[cid] + keyword_boost * s
     # if single beam, keep original sum behavior; else max already
     if len(beam_queries) == 1:
         # recompute exact sum for single-query case (preserve original)
@@ -408,7 +437,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         for cid, s in bm25_content.search(normalized, top_k=top_k * 3):
             bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + s
         for cid, s in (bm25_kw.search(normalized, top_k=top_k * 3) if bm25_kw else []):
-            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + 3.0 * s
+            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + keyword_boost * s
     bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     bm25_id_map = {cd[0]: cd for cd in chunk_data}
     bm25_results = []
@@ -431,10 +460,45 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         ))
 
     # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
-    dense_raw_base = dense.search(normalized, top_k=top_k * 3)
+    # Try pgvector first if available (HNSW), fallback to file dense
+    dense_raw_base = None
+    if use_pgvector:
+        try:
+            from kb_manager.web.deps import db as _db2
+            from sqlalchemy import text as _text2
+            # embed query via same model as dense
+            q_vec = dense.model.encode([normalized], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+            if q_vec is not None:
+                q_str = "[" + ",".join(f"{float(x):.6f}" for x in q_vec) + "]"
+                async with _db2.session() as _s2:
+                    # pgvector cosine: 1 - (embedding <=> query)  (since <=> is cosine distance)
+                    # Use ORDER BY embedding <=> query for nearest
+                    rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
+                    dense_raw_base = [(r[0], float(r[1])) for r in rows]
+        except Exception as _e:
+            # fallback to file dense
+            dense_raw_base = None
+    if dense_raw_base is None:
+        dense_raw_base = dense.search(normalized, top_k=top_k * 3)
     if _SYNONYM_ENABLED and len(beam_queries) > 1:
         dense_pool: dict[str, float] = dict(dense_raw_base)
         for bq in beam_queries[1:]:
+            # for pgvector, also need to handle beam queries via pgvector if use_pgvector
+            if use_pgvector:
+                try:
+                    from kb_manager.web.deps import db as _db3
+                    from sqlalchemy import text as _text3
+                    q_vec2 = dense.model.encode([bq], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+                    if q_vec2 is not None:
+                        q_str2 = "[" + ",".join(f"{float(x):.6f}" for x in q_vec2) + "]"
+                        async with _db3.session() as _s3:
+                            rows2 = (await _s3.execute(_text3("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str2, "k": top_k * 3})).fetchall()
+                            for cid, sc in [(r[0], float(r[1])) for r in rows2]:
+                                if cid not in dense_pool or sc > dense_pool[cid]:
+                                    dense_pool[cid] = sc
+                            continue
+                except:
+                    pass
             for cid, sc in dense.search(bq, top_k=top_k * 3):
                 if cid not in dense_pool or sc > dense_pool[cid]:
                     dense_pool[cid] = sc
@@ -511,12 +575,26 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     for i, c in enumerate(candidates):
         c.hybrid_score = round(c.hybrid_score, 6)
 
-    # --- Step 6: Cross-encoder Reranking ---
+    # --- Step 6: Cross-encoder Reranking (with BM25 fallback for low scores) ---
     rerank_input = candidates[:_RERANKER_TOP_K]
     reranked = reranker.rerank(normalized, [c.model_dump() for c in rerank_input], top_k=top_k)
     
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
+    # Fallback: if reranker gives uniformly low scores for very short queries (<=4 tokens), use BM25
+    try:
+        max_rerank = max((r.rerank_score for r in reranked_results), default=0)
+        if max_rerank < 0.2 and len(bm25_results) > 0 and len(tokens) <= 4:
+            # Use BM25 top as final, preserve BM25 scores
+            fallback = []
+            for r in bm25_results[:top_k]:
+                # copy with rerank_score = bm25 for visibility
+                nr = r.model_copy()
+                nr.rerank_score = r.bm25_score
+                fallback.append(nr)
+            reranked_results = fallback
+    except Exception:
+        pass
 
     # --- Step 7: Final top-k ---
     final = reranked_results[:top_k]
@@ -553,9 +631,9 @@ def _run_sync(coro):
         return fut.result()
 
 
-def search_knowledge_base_sync(query: str, top_k: int = 10) -> SearchSteps:
+def search_knowledge_base_sync(query: str, top_k: int = 10, keyword_boost: float | None = None) -> SearchSteps:
     """Synchronous wrapper — safe from both sync and async callers."""
-    return _run_sync(search_knowledge_base(query, top_k))
+    return _run_sync(search_knowledge_base(query, top_k, keyword_boost=keyword_boost))
 
 @router.get("")
 async def search_page(request: Request):
@@ -577,13 +655,34 @@ async def search_api(request: Request):
 
     query = body.get("query", "").strip() if isinstance(body, dict) else ""
     top_k = min(body.get("top_k", 10), 50) if isinstance(body, dict) else 10
+    keyword_boost = body.get("keyword_boost") if isinstance(body, dict) else None
+    if keyword_boost is not None:
+        try:
+            keyword_boost = float(keyword_boost)
+        except:
+            keyword_boost = None
 
     if not query:
         return {"error": "Empty query"}
 
     try:
         # F2/F29 fix: directly await async pipeline — no to_thread/_sync_loop indirection
-        steps = await search_knowledge_base(query, top_k)
-        return steps.model_dump()
+        steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost)
+        out = steps.model_dump()
+        out["keyword_boost_used"] = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
+        return out
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+@router.get("/config")
+async def search_config():
+    """Current search config (keyword boost, synonym, etc.) for tuning UI."""
+    return {
+        "keyword_boost": _KEYWORD_BOOST_DEFAULT,
+        "keyword_boost_env": os.getenv("KB_KEYWORD_BOOST", "3.0 (default)"),
+        "synonym_enabled": _SYNONYM_ENABLED,
+        "synonym_beam": _SYNONYM_BEAM,
+        "dense_model": _DENSE_MODEL,
+        "reranker_model": _RERANKER_MODEL,
+    }

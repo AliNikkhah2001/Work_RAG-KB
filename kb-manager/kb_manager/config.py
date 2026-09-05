@@ -19,27 +19,47 @@ class DatabaseConfig:
     password: str = "postgres"
     echo: bool = False
     url_override: str = ""
+    mode: str = "sqlite"  # sqlite (light) | pgvector (postgres)
+    sqlite_path: str = "./data/kb_test.db"
     _sqlite_default: bool = False
 
     @property
     def async_url(self) -> str:
         if self.url_override:
             return self.url_override
-        return (
-            f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
-        )
+        if self.mode == "pgvector":
+            return (
+                f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+            )
+        # sqlite mode — ensure aiosqlite URL
+        path = self.sqlite_path
+        if path.startswith("sqlite"):
+            return path
+        # absolute path
+        if path.startswith("/"):
+            return f"sqlite+aiosqlite:///{path}"
+        # relative path — keep ./ prefix for consistency with previous default
+        clean = path.lstrip("./")
+        return f"sqlite+aiosqlite:///./{clean}"
 
     @property
     def sync_url(self) -> str:
-        if self.url_override:
-            return self.url_override
-        return (
-            f"postgresql+psycopg2://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+        url = self.async_url
+        if "aiosqlite" in url:
+            return url.replace("sqlite+aiosqlite", "sqlite")
+        if "asyncpg" in url:
+            return url.replace("postgresql+asyncpg", "postgresql+psycopg2")
+        return url.replace("sqlite+aiosqlite", "sqlite").replace(
+            "postgresql+asyncpg", "postgresql+psycopg2"
         )
 
     @property
     def is_sqlite(self) -> bool:
         return "sqlite" in self.async_url
+
+    @property
+    def is_pgvector(self) -> bool:
+        return not self.is_sqlite
 
     @property
     def driver(self) -> str:
@@ -113,9 +133,66 @@ class AppConfig:
     web_port: int = 8000
 
 
+def _resolve_db_mode_and_url() -> tuple[str, str, str]:
+    """Resolve KB_DB_MODE and URL.
+
+    Priority:
+      1. If KB_DB_URL explicitly set in env -> use it as url_override (mode inferred from URL).
+      2. Else if KB_DB_MODE set -> derive URL from mode.
+      3. Else default to sqlite/light (``./data/kb_test.db``).
+
+    Aliases: light/sqlite/sqlite3 -> sqlite,  pg/pgvector/postgres/postgresql -> pgvector
+    Returns: (mode, url_override, sqlite_path)
+    """
+    raw_mode = os.getenv("KB_DB_MODE", "").strip().lower()
+    # Also check legacy KB_USE_PGVECTOR flag
+    legacy_pg = os.getenv("KB_USE_PGVECTOR", "").strip().lower()
+    if legacy_pg in ("1", "true", "yes", "on") and not raw_mode:
+        raw_mode = "pgvector"
+
+    explicit_url = os.getenv("KB_DB_URL")  # None if not set
+
+    # Normalize mode
+    sqlite_aliases = {"", "light", "sqlite", "sqlite3", "test", "local"}
+    pg_aliases = {"pg", "postgres", "postgresql", "pgvector", "production", "prod"}
+
+    if explicit_url is not None and not raw_mode:
+        # Infer mode from explicit URL if user didn't set mode
+        if "sqlite" in explicit_url:
+            mode = "sqlite"
+        elif "postgres" in explicit_url or "asyncpg" in explicit_url or "psycopg2" in explicit_url:
+            mode = "pgvector"
+        else:
+            mode = "sqlite"
+        return mode, explicit_url, os.getenv("KB_SQLITE_PATH", "./data/kb_test.db")
+
+    # Mode explicitly set (or default)
+    if not raw_mode:
+        raw_mode = "sqlite"
+    if raw_mode in sqlite_aliases:
+        mode = "sqlite"
+    elif raw_mode in pg_aliases:
+        mode = "pgvector"
+    else:
+        mode = "sqlite"
+
+    # If explicit URL also set together with mode, explicit URL wins only if driver matches mode
+    if explicit_url is not None:
+        is_sqlite_url = "sqlite" in explicit_url
+        if (mode == "sqlite" and is_sqlite_url) or (mode == "pgvector" and not is_sqlite_url):
+            return mode, explicit_url, os.getenv("KB_SQLITE_PATH", "./data/kb_test.db")
+        # Mismatch: mode takes precedence, ignore explicit URL that doesn't match mode
+        # (user likely changed mode but left old KB_DB_URL in env)
+        pass
+
+    sqlite_path = os.getenv("KB_SQLITE_PATH", os.getenv("KB_DB_SQLITE_PATH", "./data/kb_test.db"))
+    # Allow KB_DB_URL to also serve as sqlite path if it looks like a path (legacy)
+    return mode, "", sqlite_path
+
+
 def load_config() -> AppConfig:
     """Load config from environment variables with sensible defaults."""
-    db_url = os.getenv("KB_DB_URL", "sqlite+aiosqlite:///./data/kb_test.db")
+    _db_mode, _db_url_override, _sqlite_path = _resolve_db_mode_and_url()
     # F27 fix: prefer kb-source submodule if it exists (check both kb-manager/kb-source and ../kb-source), fallback to data
     _kb_source_candidates = [PROJECT_ROOT / "kb-source", PROJECT_ROOT.parent / "kb-source"]
     _default_source = next((str(p) for p in _kb_source_candidates if p.exists()), str(PROJECT_ROOT / "data"))
@@ -127,7 +204,9 @@ def load_config() -> AppConfig:
             user=os.getenv("KB_DB_USER", "postgres"),
             password=os.getenv("KB_DB_PASSWORD", "postgres"),
             echo=os.getenv("KB_DB_ECHO", "false").lower() == "true",
-            url_override=os.getenv("KB_DB_URL", db_url),
+            url_override=_db_url_override,
+            mode=_db_mode,
+            sqlite_path=_sqlite_path,
         ),
         embedding=EmbeddingConfig(
             model_name=os.getenv(
