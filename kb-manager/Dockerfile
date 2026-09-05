@@ -1,22 +1,23 @@
-# Stage 1: Builder
-FROM python:3.11-slim AS builder
+# KB Manager Dockerfile
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
+# Copy requirements and install
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir -e ".[dev]"
+
+# Copy application code
 COPY . .
-RUN pip install --no-cache-dir --prefix=/install .
 
-# Stage 2: Runtime
-FROM python:3.11-slim AS runtime
-
-WORKDIR /app
-
-COPY --from=builder /install /usr/local
-COPY --from=builder /app .
-
+# Expose port
 EXPOSE 8000
 
-CMD ["uvicorn", "kb_manager.web.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the service
+CMD ["python", "run_server.py"]

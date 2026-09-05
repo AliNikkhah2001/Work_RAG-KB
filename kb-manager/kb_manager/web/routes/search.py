@@ -392,12 +392,24 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
     for i, c in enumerate(candidates):
         c.hybrid_score = round(c.hybrid_score, 6)
 
-    # --- Step 6: Cross-encoder Reranking ---
+    # --- Step 6: Cross-encoder Reranking (with BM25 fallback for short queries) ---
     rerank_input = candidates[:_RERANKER_TOP_K]
     reranked = reranker.rerank(normalized, [c.model_dump() for c in rerank_input], top_k=top_k)
     
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
+    # Fallback for very short Persian queries where cross-encoder gives uniform low scores
+    try:
+        max_rerank = max((r.rerank_score for r in reranked_results), default=0)
+        if max_rerank < 0.2 and len(bm25_results) > 0 and len(tokens) <= 4:
+            fallback = []
+            for r in bm25_results[:top_k]:
+                nr = r.model_copy()
+                nr.rerank_score = r.bm25_score
+                fallback.append(nr)
+            reranked_results = fallback
+    except Exception:
+        pass
 
     # --- Step 7: Final top-k ---
     final = reranked_results[:top_k]

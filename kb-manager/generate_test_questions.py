@@ -25,9 +25,11 @@ from pathlib import Path
 
 from kb_manager.evaluation.query_formats import apply_format
 
-DB_PATH = r"C:\Users\10225\Downloads\KB\kb-manager\data\kb_test.db"
-OUT_JSON = r"C:\Users\10225\Downloads\KB\kb-manager\data\test_questions.json"
-OUT_REPORT = r"C:\Users\10225\Downloads\KB\kb-manager\data\test_questions_report.txt"
+import os
+_BASE = Path(__file__).resolve().parent
+DB_PATH = os.getenv("KB_DB_PATH", str(_BASE / "data" / "kb_test.db"))
+OUT_JSON = os.getenv("KB_TEST_JSON", str(_BASE / "data" / "test_questions.json"))
+OUT_REPORT = os.getenv("KB_TEST_REPORT", str(_BASE / "data" / "test_questions_report.txt"))
 
 
 # ---------------------------------------------------------------------------

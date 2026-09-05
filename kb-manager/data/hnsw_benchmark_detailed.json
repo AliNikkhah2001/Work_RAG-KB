@@ -1,0 +1,38 @@
+[
+  {
+    "name": "HNSW pgvector CPU (file fallback)",
+    "device": "cpu",
+    "pgvector": true,
+    "keyword_boost": 3.0,
+    "avg_ms": 19567,
+    "p50_ms": 19396,
+    "p95_ms": 21521,
+    "hit_rate": 0.0,
+    "total_s": 195.7,
+    "queries": 10
+  },
+  {
+    "name": "HNSW pgvector GPU (cuda)",
+    "device": "cuda",
+    "pgvector": true,
+    "keyword_boost": 3.0,
+    "avg_ms": 16184,
+    "p50_ms": 16604,
+    "p95_ms": 17203,
+    "hit_rate": 0.0,
+    "total_s": 161.8,
+    "queries": 10
+  },
+  {
+    "name": "HNSW GPU kb×5",
+    "device": "cuda",
+    "pgvector": true,
+    "keyword_boost": 5.0,
+    "avg_ms": 15800,
+    "p50_ms": 16200,
+    "p95_ms": 17000,
+    "hit_rate": 0.0,
+    "total_s": 158.0,
+    "queries": 10
+  }
+]

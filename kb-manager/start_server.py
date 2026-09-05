@@ -3,8 +3,8 @@ import os
 import sys
 import logging
 
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///C:/Users/10225/Downloads/KB/kb-manager/data/kb_test.db"
-os.chdir(r"C:\Users\10225\Downloads\KB\kb-manager")
+if not os.getenv("KB_DB_URL"):
+    os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///./data/kb_test.db"
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 
