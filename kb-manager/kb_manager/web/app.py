@@ -82,6 +82,7 @@ from kb_manager.web.routes import (
     search,
     transparency,
     versions,
+    zip_browser,
 )  # noqa: E402
 
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
@@ -93,6 +94,7 @@ app.include_router(search.router, prefix="/search", tags=["search"])
 app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
 app.include_router(cleanup.router, prefix="/cleanup", tags=["cleanup"])
 app.include_router(transparency.router, prefix="/transparency", tags=["transparency"])
+app.include_router(zip_browser.router, prefix="/transparency", tags=["transparency-zip"])
 
 
 @app.get("/")

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Zip Browser — Select & Ingest{% endblock %}
+{% block header %}
+<h1>Zip Browser — Choose folders/files to ingest</h1>
+<p style="color:var(--text-secondary)">Upload a <code>.zip</code> (UTF-8 Persian filenames safe), tick folders/files, run pipeline only on selected. No PowerShell needed.</p>
+{% endblock %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet"/>
+<style>.persian{font-family:'Vazirmatn','Tahoma',sans-serif}</style>
+{% if error %}<div class="card" style="border-color:var(--danger); background:rgba(239,68,68,.08)"><p style="color:var(--danger)">{{ error }}</p></div>{% endif %}
+<div class="card">
+  <h3>1 — Upload zip</h3>
+  <form action="/transparency/zip/preview" method="post" enctype="multipart/form-data" style="display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+    <input type="file" name="file" accept=".zip" required class="form-control" style="max-width:420px">
+    <button type="submit" class="btn btn-primary">Upload &amp; Browse</button>
+    <span style="color:var(--text-muted);font-size:.85rem">Max 200MB · Persian names preserved</span>
+  </form>
+  <p style="color:var(--text-secondary);font-size:.85rem;margin-top:.6rem">Tip: also works from <a href="/transparency">Transparency → Live parse</a> for single <code>.xlsx</code> preview. Use this page for <b>bulk zip ingest with selection</b>.</p>
+</div>
+<div class="card">
+  <h3>How it works</h3>
+  <ol style="margin-left:1.2rem; line-height:1.8; color:var(--text-secondary)">
+    <li>Zip is saved to <code>data/uploads/zip_stage/&lt;id&gt;.zip</code> and listed via <code>zipfile</code> (no extraction yet).</li>
+    <li>Tick files/folders — folder tick selects all children. Only ticked files are extracted to <code>data/uploads/zip_stage/&lt;id&gt;_extracted/</code> (zip-slip safe).</li>
+    <li><code>PipelineOrchestrator</code> runs with <code>source_dir</code> = extracted dir (same as <code>/pipeline</code> but scoped). Job appears in <a href="/pipeline">Pipeline</a>.</li>
+  </ol>
+</div>
+{% endblock %}

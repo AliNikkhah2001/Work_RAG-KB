@@ -62,6 +62,9 @@ def _apply_unicode_map(text: str, table: dict[str, str]) -> str:
 _ZWNJ = "\u200c"
 
 # Persian suffixes that should be preceded by ZWNJ
+# NOTE: single-letter suffixes (ی, م, ت, ش) are intentionally excluded —
+# they are too ambiguous and corrupt stems like "نام"→"نا‌م", "رتبه"→"ر‌تبه",
+# "کمیل"→"کم‌یل". Only multi-char suffixes are safe for auto ZWNJ.
 _SUFFIXES_WITH_ZWNJ: tuple[str, ...] = (
     "ها",
     "های",
@@ -69,13 +72,8 @@ _SUFFIXES_WITH_ZWNJ: tuple[str, ...] = (
     "تر",
     "گر",
     "گری",
-    "ی",
     "ای",
     "هایی",
-    "هایی",
-    "م",
-    "ت",
-    "ش",
 )
 
 # Patterns where ZWNJ should be *removed* (e.g. inside English words)
@@ -88,22 +86,24 @@ _PERSIAN_LETTER = re.compile(r"[\u0600-\u06FF\u0750-\u077F]")
 def _fix_zwnj(text: str) -> str:
     """Insert/remove ZWNJ in common Persian patterns.
 
-    Only inserts ZWNJ *before* a suffix when it follows a Persian letter
-    at a word boundary.  This avoids corrupting the middle of words.
+    Inserts ZWNJ *before* a suffix only when suffix is at word end
+    (not followed by another Persian letter) and preceded by a Persian
+    letter.  This avoids corrupting middle of words like "رتبه" where
+    "ت" is part of the stem, not a suffix.
     """
     # Remove ZWNJ that leaked into ASCII runs
     text = _ZWNJ_IN_ENGLISH.sub(r"\1\2", text)
 
-    # Ensure ZWNJ before Persian possessive / compound suffixes,
-    # but ONLY when preceded by a Persian letter (word boundary)
-    for suffix in _SUFFIXES_WITH_ZWNJ:
-        # pattern: Persian-letter + suffix (no ZWNJ already present)
-        pattern = re.compile(
-            f"([\u0600-\u06FF\u0750-\u077F])({re.escape(suffix)})(?![\u200c])",
-        )
-        text = pattern.sub(rf"\1{_ZWNJ}\2", text)
+    # NOTE 2026-09-03: auto ZWNJ insertion before suffixes (ها/تر/...) is disabled
+    # by default — it corrupted stems like "دکتر"→"دک‌تر", "هیئت"→"هییت",
+    # "نام"→"نا‌م". Enable only with explicit allowlist and word-end check.
+    # for suffix in _SUFFIXES_WITH_ZWNJ:
+    #     pattern = re.compile(
+    #         f"([\u0600-\u06FF\u0750-\u077F])({re.escape(suffix)})(?![\u0600-\u06FF\u0750-\u077F\u200c])",
+    #     )
+    #     text = pattern.sub(rf"\1{_ZWNJ}\2", text)
 
-    # Collapse double ZWNJ
+    # Collapse double ZWNJ + trim
     text = text.replace(f"{_ZWNJ}{_ZWNJ}", _ZWNJ)
 
     return text

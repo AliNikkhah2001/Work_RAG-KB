@@ -55,8 +55,8 @@
 
   {% if active_sheet %}
   <!-- Header normalization + schema debug -->
-  <h4 style="margin:.8rem 0 .4rem">Step 2 — Headers as stored (row 1) → normalized → schema detection</h4>
-  <p style="color:var(--text-secondary);font-size:.85rem">Normalizer: <code>re.sub(r"[\s_\-]+","", lower)</code>. Schema chosen = first with <code>overlap ≥ 60%</code>. Your file's headers below show exactly which columns the parser sees.</p>
+  <h4 style="margin:.8rem 0 .4rem">Step 2 — Headers as stored (row 1) → normalized (for matching only) → schema detection</h4>
+  <p style="color:var(--text-secondary);font-size:.85rem"><code>_normalize_col</code> = <code>re.sub(r"[\s_\-]+","", lower.strip())</code> is applied <b>only to header names</b> for schema matching — <b>cell values keep all spaces</b>. Example: header <code>"Brief Answer"</code> → <code>briefanswer</code> matches <code>crm_qa</code>, but cell <code>"پاسخ کامل من"</code> stays <code>"پاسخ کامل من"</code>. Schema chosen = first with <code>overlap ≥ 60%</code>.</p>
 
   <div class="table-container" style="margin:.6rem 0 1rem">
     <table class="data-table mono ltr" style="font-size:.82rem">
