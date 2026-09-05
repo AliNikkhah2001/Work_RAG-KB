@@ -144,6 +144,32 @@
 </div>
 {% endif %}
 
+{% if hnsw_results %}
+<div class="card" style="border-color: var(--accent);">
+    <h3>HNSW pgvector – Latency CPU vs GPU (RTX 6000 Ada, 6593 chunks, 50-pool)</h3>
+    <p style="color:var(--text-secondary);font-size:0.88rem">Detailed <code>data/hnsw_benchmark_detailed.json</code> – tunable <code>KB_KEYWORD_BOOST=3.0</code> via <code>POST /search/api {"keyword_boost":5}</code></p>
+    <div class="table-container">
+        <table class="data-table">
+            <thead><tr><th>Variant</th><th>Device</th><th>Avg ms</th><th>p95 ms</th><th>Hit@5</th><th>Rerank 50</th><th>HNSW</th></tr></thead>
+            <tbody>
+                {% for r in hnsw_results %}
+                <tr>
+                    <td>{{ r.name }}</td>
+                    <td><span class="badge {% if r.device=='cuda' %}badge-success{% else %}badge-warning{% endif %}">{{ r.device }}</span></td>
+                    <td>{{ r.avg_ms }}</td>
+                    <td>{{ r.p95_ms }}</td>
+                    <td>{{ "%.1f"|format((r.hit_rate|default(0))*100) }}%</td>
+                    <td>{{ r.rerank_ms|default('-') }}</td>
+                    <td>{{ r.hnsw_ms|default('-') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p style="margin-top:0.6rem;font-size:0.82rem;color:var(--text-muted)">File-based before ~22.7s (CPU 50-pool) → HNSW CPU 23.1s → <b>HNSW GPU 18.4s 1.3×</b> (rerank 439→279ms 1.6×, HNSW 13ms). Full JSON: <code>data/hnsw_benchmark_detailed.json</code></p>
+</div>
+{% endif %}
+
 <div class="charts-grid">
     <div class="chart-card">
         <h3>Hit@5 by Query Format</h3>

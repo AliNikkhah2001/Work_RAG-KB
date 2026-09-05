@@ -187,6 +187,13 @@ async def benchmarks_page(request: Request):
     if PLOTS_DIR.exists():
         plots = sorted(p.name for p in PLOTS_DIR.glob("*.png"))
 
+    # HNSW benchmark (GPU vs CPU, pgvector vs file)
+    hnsw_results = None
+    hnsw_path = DATA_DIR / "hnsw_benchmark_detailed.json"
+    if hnsw_path.exists():
+        with contextlib.suppress(Exception):
+            hnsw_results = json.loads(hnsw_path.read_text(encoding="utf-8"))
+
     return templates.TemplateResponse(
         request,
         "benchmarks.html",
@@ -197,6 +204,7 @@ async def benchmarks_page(request: Request):
             "ir_metrics": ir_metrics,
             "plots": plots,
             "snapshots": snapshots,
+            "hnsw_results": hnsw_results,
         },
     )
 
