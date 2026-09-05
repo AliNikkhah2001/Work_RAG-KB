@@ -20,6 +20,15 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
+
+try:
+    from pgvector.sqlalchemy import Vector
+
+    _HAS_PGVECTOR = True
+    _VECTOR_TYPE = Vector(384)
+except ImportError:
+    _HAS_PGVECTOR = False
+    _VECTOR_TYPE = JSON  # fallback for sqlite/dev without pgvector
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -94,6 +103,11 @@ class Chunk(Base):
     keywords = Column(JSON, nullable=False, default=list)
     token_count = Column(Integer, nullable=False, default=0)
     embedding_model = Column(String(128), nullable=True)
+    # pgvector embedding – uses Vector(384) on postgres, JSON fallback on sqlite
+    if _HAS_PGVECTOR:
+        embedding = Column(Vector(384), nullable=True)  # type: ignore[assignment]
+    else:
+        embedding = Column(JSON, nullable=True)  # fallback
     quality_score = Column(Float, nullable=True)
     is_verified = Column(Boolean, nullable=False, default=False)
     doc_metadata = Column("metadata", JSON, nullable=False, default=dict)

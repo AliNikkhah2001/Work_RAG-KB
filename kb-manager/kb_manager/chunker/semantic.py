@@ -231,11 +231,11 @@ class SemanticChunker(BaseChunker):
                 # --- Phase 1: Filter incomplete QA rows ---
                 if doc_type == "qa_pair":
                     has_question = any(
-                        k in fields for k in ("question",)
+                        k in fields for k in ("question", "پرسش", "سوال", "متن سوال", "متن_سوال")
                     )
                     has_answer = any(
                         k in fields
-                        for k in ("answer", "briefanswer")
+                        for k in ("answer", "briefanswer", "پاسخ", "متن پاسخ", "متن_پاسخ", "پاسخ کوتاه", "پاسخ کامل")
                     )
                     # A QA row is incomplete if it is missing the question or
                     # the answer.  Such rows are skipped (never serve a user),
@@ -249,7 +249,9 @@ class SemanticChunker(BaseChunker):
 
                 # --- Phase 1b: Deduplicate QA rows by normalized question text ---
                 if doc_type == "qa_pair" and self.dedup_questions:
-                    norm_q = self._normalize_question(fields.get("question", ""))
+                    # Try English then Persian question fields
+                    q_raw = fields.get("question", "") or fields.get("پرسش", "") or fields.get("سوال", "") or fields.get("متن سوال", "") or fields.get("متن_سوال", "")
+                    norm_q = self._normalize_question(q_raw)
                     if not norm_q:
                         continue
                     if norm_q in self._seen_questions:
@@ -406,9 +408,16 @@ class SemanticChunker(BaseChunker):
         else:
             field_order = [
                 ("question", "\u0633\u0648\u0627\u0644"),
+                ("پرسش", "\u0633\u0648\u0627\u0644"),
+                ("سوال", "\u0633\u0648\u0627\u0644"),
+                ("متن سوال", "\u0633\u0648\u0627\u0644"),
+                ("متن_سوال", "\u0633\u0648\u0627\u0644"),
                 ("briefanswer", "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647"),
                 ("brief_answer", "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647"),
                 ("answer", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
+                ("پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
+                ("متن پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
+                ("متن_پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("keyword", "\u06a9\u0644\u06cc\u062f\u0648\u0627\u0698\u0647\u200c\u0647\u0627"),
                 ("keywords", "\u06a9\u0644\u06cc\u062f\u0648\u0627\u0698\u0647\u200c\u0647\u0627"),
             ]

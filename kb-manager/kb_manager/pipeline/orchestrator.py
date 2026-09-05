@@ -130,6 +130,10 @@ class PipelineOrchestrator:
         summary = PipelineSummary(job_id=job.id, job_type="full_rebuild")
         summary.documents_processed = len(files)
 
+        # F36 fix: reset dedup state at start of rebuild so queries are isolated per job
+        if self._chunker is not None and hasattr(self._chunker, "reset_dedup"):
+            self._chunker.reset_dedup()
+
         async with self._db.session() as session:
             for file_path in files:
                 try:
@@ -173,6 +177,9 @@ class PipelineOrchestrator:
         files = self._scan_files(source_dir)
         summary = PipelineSummary(job_id=job.id, job_type="incremental")
         summary.documents_processed = len(files)
+
+        if self._chunker is not None and hasattr(self._chunker, "reset_dedup"):
+            self._chunker.reset_dedup()
 
         async with self._db.session() as session:
             for file_path in files:
@@ -219,6 +226,9 @@ class PipelineOrchestrator:
                 continue
             if path.name.startswith("~$"):
                 continue  # Microsoft Office temporary lock files
+            # Skip test-question datasets — they are evaluation data, not KB content
+            if any(seg.startswith("TestQuestion") for seg in path.parts):
+                continue
             if path.suffix.lower() in self._SUPPORTED_EXTENSIONS:
                 files.append(str(path.resolve()))
         files.sort()
@@ -262,14 +272,17 @@ class PipelineOrchestrator:
         # --- Existing doc lookup ---
         existing = await self._find_document_by_path(file_path, session)
 
-        if existing is not None and not force:
-            if existing.content_hash == content_hash:
+        if existing is not None:
+            if not force and existing.content_hash == content_hash:
                 logger.debug("Skipping unchanged file: %s", file_path)
                 result["skipped"] = 1
                 return result
             doc = existing
             doc.version += 1
             doc.content_hash = content_hash
+            doc.source_hash = content_hash
+            doc.title = parsed.title
+            doc.doc_metadata = parsed.metadata
             doc.updated_at = datetime.now(UTC)
             is_new = False
         else:
@@ -333,92 +346,86 @@ class PipelineOrchestrator:
                 await session.delete(old)
             await session.flush()
 
-        # --- Embed in batches ---
-        if self._embedder is not None:
+        # --- Embed chunks if pgvector is available (HNSW) ---
+        # For pgvector, store embeddings directly in DB for HNSW search; for sqlite, keep file cache only
+        embeddings: list[list[float]] | None = None
+        is_pgvector = getattr(getattr(self._db, "_config", None), "is_pgvector", False) or getattr(
+            getattr(self._db, "_config", None), "mode", ""
+        ) == "pgvector"
+        if self._embedder is not None and is_pgvector and chunks:
             try:
                 texts = [c.content for c in chunks]
                 embeddings = self._embedder.embed_texts(texts)
                 result["embedded"] = len(embeddings)
-            except Exception:
-                logger.exception("Embedding failed for %s; storing without vectors", file_path)
+                logger.info("Embedded %d chunks for %s (pgvector)", len(embeddings), file_path)
+            except Exception as e:
+                logger.warning("Embedding failed for %s: %s (falling back to no DB vectors)", file_path, e)
+                embeddings = None
+                result["embedded"] = 0
+        else:
+            # F6 fix: SQLite has no vector column; dense index is rebuilt at search from .npz cache.
+            # Do not claim embeddings are persisted. Dense rebuild is lazy via search._build_index.
+            result["embedded"] = 0
 
-        # --- Store chunks ---
-        # First pass: store all chunks and build parent ID map
-        chunk_id_map: dict[int, str] = {}  # ordinal → db_chunk.id
-        parent_id_map: dict[str, str] = {}  # parent_key → parent_chunk.id
-        
-        all_chunks_to_store = []
-        
-        for chunk in chunks:
-            # Check if this is a parent chunk
-            is_parent = chunk.metadata.get("is_parent", False)
-            parent_key = chunk.metadata.get("parent_key", chunk.metadata.get("sheet_name", ""))
-            
-            if is_parent:
-                # Store parent first
-                db_chunk = DBChunk(
-                    document_id=doc.id,
-                    ordinal=chunk.ordinal,
-                    chunk_type=chunk.chunk_type,
-                    content=chunk.content,
-                    heading_path=chunk.heading_path,
-                    keywords=chunk.keywords,
-                    token_count=chunk.token_count,
-                    embedding_model=self._embedder.model_name if self._embedder else None,
-                    doc_metadata=chunk.metadata,
-                )
-                all_chunks_to_store.append(db_chunk)
-                parent_id_map[parent_key] = None  # placeholder, will update after flush
-            else:
-                # Store child, will set parent_id later
-                parent_id = parent_id_map.get(parent_key)
-                db_chunk = DBChunk(
-                    document_id=doc.id,
-                    parent_id=parent_id,  # will be None initially, update later
-                    ordinal=chunk.ordinal,
-                    chunk_type=chunk.chunk_type,
-                    content=chunk.content,
-                    heading_path=chunk.heading_path,
-                    keywords=chunk.keywords,
-                    token_count=chunk.token_count,
-                    embedding_model=self._embedder.model_name if self._embedder else None,
-                    doc_metadata=chunk.metadata,
-                )
-                all_chunks_to_store.append(db_chunk)
-                chunk_id_map[chunk.ordinal] = None  # placeholder
-        
-        # Store all chunks
-        for db_chunk in all_chunks_to_store:
+        # --- Store chunks (F28 fix: O(1) parent key map, no ordinal/type scan) ---
+        parents = [c for c in chunks if c.metadata.get("is_parent")]
+        children = [c for c in chunks if not c.metadata.get("is_parent")]
+        parent_id_map: dict[str, str] = {}
+
+        # Build embedding map for pgvector (chunk object id -> vector)
+        embedding_map: dict[int, list[float]] = {}
+        if embeddings is not None:
+            for idx, ch in enumerate(chunks):
+                if idx < len(embeddings):
+                    embedding_map[id(ch)] = embeddings[idx]
+
+        # Store parents first and capture their DB ids
+        parent_db_chunks: list[DBChunk] = []
+        for pc in parents:
+            emb = embedding_map.get(id(pc))
+            db_chunk = DBChunk(
+                document_id=doc.id,
+                ordinal=pc.ordinal,
+                chunk_type=pc.chunk_type,
+                content=pc.content,
+                heading_path=pc.heading_path,
+                keywords=pc.keywords,
+                token_count=pc.token_count,
+                embedding=emb,  # pgvector HNSW
+                embedding_model=self._embedder.model_name if self._embedder else None,
+                doc_metadata=pc.metadata,
+            )
+            parent_db_chunks.append(db_chunk)
             session.add(db_chunk)
-        await session.flush()
-        
-        # Second pass: update parent_id for children
-        # Build the parent_id_map with actual IDs
-        for chunk in chunks:
-            if chunk.metadata.get("is_parent", False):
-                parent_key = chunk.metadata.get("parent_key", chunk.metadata.get("sheet_name", ""))
-                # Find the DB chunk we just stored
-                cur_parent_id = None
-                for db_chunk in all_chunks_to_store:
-                    if db_chunk.ordinal == chunk.ordinal and db_chunk.chunk_type == chunk.chunk_type:
-                        cur_parent_id = db_chunk.id
-                        break
-                if cur_parent_id:
-                    parent_id_map[parent_key] = cur_parent_id
-        
-        # Update children with parent_id
-        for chunk in chunks:
-            if not chunk.metadata.get("is_parent", False):
-                parent_key = chunk.metadata.get("parent_key", chunk.metadata.get("sheet_name", ""))
-                parent_id = parent_id_map.get(parent_key)
-                if parent_id:
-                    # Find the child DB chunk and update parent_id
-                    for db_chunk in all_chunks_to_store:
-                        if (db_chunk.ordinal == chunk.ordinal and 
-                            db_chunk.chunk_type == chunk.chunk_type and
-                            not db_chunk.parent_id):
-                            db_chunk.parent_id = parent_id
-                            break
+        if parent_db_chunks:
+            await session.flush()
+            for pc, dbc in zip(parents, parent_db_chunks):
+                key = pc.metadata.get("parent_key", pc.metadata.get("sheet_name", ""))
+                parent_id_map[key] = dbc.id
+
+        # Store children with correct parent_id in one pass
+        for cc in children:
+            key = cc.metadata.get("parent_key", cc.metadata.get("sheet_name", ""))
+            parent_id = parent_id_map.get(key)
+            emb = embedding_map.get(id(cc))
+            db_chunk = DBChunk(
+                document_id=doc.id,
+                parent_id=parent_id,
+                ordinal=cc.ordinal,
+                chunk_type=cc.chunk_type,
+                content=cc.content,
+                heading_path=cc.heading_path,
+                keywords=cc.keywords,
+                token_count=cc.token_count,
+                embedding=emb,  # pgvector HNSW
+                embedding_model=self._embedder.model_name if self._embedder else None,
+                doc_metadata=cc.metadata,
+            )
+            session.add(db_chunk)
+        if children or parents:
+            await session.flush()
+        # Also store parent chunks that were already flushed are in DB; no second O(n²) scan needed
+        # For completeness, ensure parents that are also in children list? No, already handled.
 
         doc.chunk_count = len(chunks)
         result["chunks"] = len(chunks)
@@ -512,16 +519,21 @@ class PipelineOrchestrator:
         status: str = "completed",
     ) -> None:
         """Update the ingestion job with final stats."""
-        job.status = status
-        job.documents_total = summary.documents_processed
-        job.documents_ok = summary.documents_created + summary.documents_updated
-        job.documents_failed = summary.documents_failed
-        job.chunks_total = summary.chunks_created
-        job.completed_at = datetime.now(UTC)
+        # Re-fetch within the active session (job may be detached from a prior
+        # session created by _create_job) so the UPDATE actually persists.
+        db_job = await session.get(IngestionJob, job.id)
+        if db_job is None:
+            return
+        db_job.status = status
+        db_job.documents_total = summary.documents_processed
+        db_job.documents_ok = summary.documents_created + summary.documents_updated
+        db_job.documents_failed = summary.documents_failed
+        db_job.chunks_total = summary.chunks_created
+        db_job.completed_at = datetime.now(UTC)
 
         if summary.errors:
             import json
 
-            job.error_log = json.dumps(summary.errors, ensure_ascii=False)
+            db_job.error_log = json.dumps(summary.errors, ensure_ascii=False)
 
         await session.flush()
