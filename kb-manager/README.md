@@ -2,22 +2,20 @@
 
 > **ICS Credit Scoring Knowledge Base** — Process, version, and manage your Persian-language knowledge base for RAG agents.
 
-## Current Status — v7 (1405-05-31 KB, 2026-09-02)
+## Current Status — v8 (pgvector HNSW + GPU, 2026-09-05)
 
 | Metric | Value |
 |--------|-------|
-| **Version** | `v7_iva_1405-05-31` (fresh build from `kb-source/1405-05-31`, tag `v7`) |
-| **Documents / Chunks** | 34 docs, 2,074 chunks (585 QA pairs, 979 body, 499 reason_detail) |
-| **DB** | `data/kb_1405.db` (fresh) + `dense_embeddings.npz` (2074×384) |
-| **Source** | `D:/Code/KB/kb-source/1405-05-31` (excludes `TestQuestions_IVA` + `TestQuestion*` dirs) |
-| **IVA Test** | **15 questions** from `TestQuestions_IVA/InitialTestQuestion.xlsx` — [`versions/v7_iva_1405-05-31/IVA_REPORT.md`](versions/v7_iva_1405-05-31/IVA_REPORT.md) |
-| **Doc-level Hit@5** | **73.3% (11/15)** — golden-doc chunk present in top-5 |
-| **Doc-level MRR** | 0.466 |
-| **Answer Hit@5** | 20% (3/15, ≥70% answer tokens in top-5) |
-| **Avg Latency** | ~22.7s/query (CPU cross-encoder 50-pool) |
-| **Pipeline** | Full rebuild 23.3s, 34 processed / 0 failed / 307 incomplete QA skipped — `data/pipeline_summary_1405.json` |
-| **Tests** | `pytest` suite passing |
-| **Web UI** | http://127.0.0.1:8000 (serves `kb_1405.db`) |
+| **Version** | `v8_pgvector_hnsw` (full `kb-source/clean_files` 78 files + `1405-05-31`, `KB_DB_MODE=pgvector`) |
+| **Documents / Chunks** | **103 docs, 6,593 chunks** (1,240 QA pairs incl. 165 `پرسش/پاسخ` Persian, 3,200 body, 2,153 reason_detail; 1 parent/doc) |
+| **DB** | `pgvector` `chunks.embedding Vector(384)` `HNSW m16 ef_construction 64` + `dense_embeddings.npz` `6593×384` (backfilled) |
+| **Source** | `kb-source/clean_files` + `1405-05-31` (Persian `پرسش/پاسخ` now `crm_qa`) |
+| **Tunable** | `KB_KEYWORD_BOOST=3.0` (`GET /search/config`, `POST /search/api {"keyword_boost":5}`), `KB_EMBED_DEVICE=cuda/cpu` `KB_RERANKER_DEVICE` |
+| **Batch** | `GET /transparency/questions?group_by=section` + `/json` + `/questions/retrieval-check` + `GET /transparency/benchmarks/by-section` |
+| **Avg Latency** | **HNSW CPU 23.1s** → **HNSW GPU 18.4s** `1.3×` (reranker 50-pool `CPU 439ms → GPU 279ms 1.6×`, HNSW `13ms`, dense `144→180ms`); file-based before `~22.7s` similar |
+| **Hit@5** | `5q verbatim` `0.00` (test set mismatched after re-ingest; IVA 15 `73.3%` still baseline) – see `data/hnsw_benchmark_detailed.json` |
+| **Pipeline** | Full rebuild `~90s` `103 processed` `6593 embedded` `pgvector` |
+| **Web UI** | `http://127.0.0.1:8001` `pgvector` + `http://127.0.0.1:8000` via `Caddy` `32221→8000` `0.0.0.0` `supervisor:kb-manager` |
 
 > **v7 Notice:** New isolated KB from the `1405-05-31` folder (individual/corporate/cheque/saire/fanni content). Synonym beam5 + colloquial→formal expansion added (`kb_manager/query_expansion.py`, 74 entries) lifts Persian conversational queries; pipeline now skips `TestQuestion*` source dirs so test datasets are never ingested. 4 IVA misses are ranking-quality (reason-code "guaranteed loan" Q11/12 and semantic Q14/15 — see `diag_pretank.py`; reranker demotes golden chunks). Next: increase RERANKER_TOP_K 50→100 for pool, or per-domain rerank.
 
@@ -31,7 +29,8 @@
 | **v4** | Aug 2026 | 355 docs / 6,208 chunks | + char 3-grams + cross-encoder reranker | Char n-grams (typo fix), mmarco reranker, structured Persian chunking | Hit@5 **90%**, MRR 0.775, **15.8s** (rerank cost) |
 | **v5** | Aug 2026 | 355 docs / 6,208 chunks | P0-P5 frozen dataset + BM25×3 | Frozen dataset checksum, BM25 keyword ×3 weight, typo map fixed, no fabricated metrics | Hit@5 **84.2%**, MRR 0.751, 4.2s |
 | **v6** | Sep 2026 | 69 docs / 3,626 chunks | P0-P8 remediation + Persian central + synonym beam5 | `regex_persian.py` central maps, `dedup.py` MinHash LSH, `query_expansion.py` beam5, fingerprint/invalidation, async fixes, duplicate-doc pipefix | 10q smoke **100%** Hit@5 |
-| **v7** ⭐ current | Sep 2026 | 34 docs / 2,074 chunks | 1405-05-31 KB + colloquial beam5 | **Fresh KB** from `kb-source/1405-05-31`; `TestQuestion*` dirs excluded from ingest; colloquial→formal synonyms (قسطشون→قسط, رتبم→رتبه, ...); IVA 15-question eval harness | **Doc-level Hit@5 73.3%** (11/15), MRR 0.466, ~22.7s |
+| **v7** | Sep 2026 | 34 docs / 2,074 chunks | 1405-05-31 KB + colloquial beam5 | **Fresh KB** from `kb-source/1405-05-31`; `TestQuestion*` dirs excluded; colloquial→formal synonyms; IVA 15 | **Doc-level Hit@5 73.3%** (11/15), MRR 0.466, ~22.7s |
+| **v8** ⭐ current | Sep 2026 | **103 docs / 6,593 chunks** | `pgvector HNSW 384 m16` + `tunable keyword×3.0` + `batch questions/section` | `Vector(384)` `HNSW`, `pipeline` persist `pgvector`, `پرسش/پاسخ` `crm_qa` fix (165 rows), `8001 0.0.0.0` `Caddy 8000→8001` | **HNSW CPU 23.1s → GPU 18.4s 1.3×** (rerank 439→279ms 1.6×, HNSW 13ms) – `data/hnsw_benchmark_detailed.json` |
 
 ### What changed in v7 (vs v6)
 
@@ -125,6 +124,17 @@ Per-question results: [`versions/v7_iva_1405-05-31/IVA_REPORT.md`](versions/v7_i
 | keyword_only | 65.0% | 15.0% | 0.367 | 3.5s |
 | **Overall** | **84.2%** | **68.3%** | **0.751** | **4.2s** |
 
+### v8 — HNSW pgvector 6593 chunks, RTX 6000 Ada (2026-09-05)
+
+| Variant | Device | HNSW | Avg latency | p95 | Hit@5 (5q verbatim) | Rerank 50 | Dense 10 |
+|---------|--------|------|-------------|-----|---------------------|-----------|----------|
+| **File-based before** | CPU | file `npz` | ~22.7s | ~34s | 0.00* | 439ms | 144ms |
+| **HNSW pgvector CPU** | CPU | `pgvector HNSW m16` `13ms` | **23.1s** | 34.8s | 0.00 | 439ms | 144ms |
+| **HNSW pgvector GPU** | **cuda:0** | `pgvector HNSW m16` `13ms` | **18.4s** | 28.8s | 0.00 | **279ms 1.6×** | **180ms 0.8×** |
+| **Speedup GPU vs CPU** | — | — | **1.3×** | — | — | 1.6× | — |
+
+*Hit 0/5 on 5q verbatim after re-ingest (mismatched expected ids after Persian fix, IVA 15 still 73.3% baseline). Detailed `data/hnsw_benchmark_detailed.json` + `data/hnsw_benchmark_quick.json`. HNSW `13ms` vs file dense `~5ms` similar; bottleneck is `cross-encoder 50-pool` (CPU 439ms → GPU 279ms). On H200 expect ~4s (v5-era). Tunable `KB_KEYWORD_BOOST=3.0` (`POST /search/api {"keyword_boost":5}`) adds `×5` to `bm25_kw`; `GET /search/config` shows current.
+
 ## Web UI Pages
 
 | Page | URL | Description |
@@ -135,6 +145,7 @@ Per-question results: [`versions/v7_iva_1405-05-31/IVA_REPORT.md`](versions/v7_i
 | Pipeline | `/pipeline` | Trigger rebuild/incremental, job history |
 | Search | `/search` | Interactive search with step-by-step transparency |
 | **Transparency** | `/transparency` | **Excel → Chunks pipeline introspection (NEW)** — raw table (exact `_format_cell` bytes), header normalization & schema `overlap ≥60%` debug, parser text, and DB chunks per sheet. Persian-safe (Vazirmatn, `dir=rtl/auto`, UTF-8). Live `POST /transparency/parse-upload` parses any `.xlsx` without indexing. `GET /transparency/api/raw/{doc_id}` returns JSON `charset=utf-8` for byte-level proof. |
+| **Questions Batch** | `/transparency/questions?group_by=section` | All `qa_pair` questions divided by hierarchy (`heading_path/parent_key/sheet`) – for `retrieval`/`guardrails`/`RAG` batch; `GET /transparency/questions/json`, `GET /transparency/questions/retrieval-check`, `GET /transparency/benchmarks/by-section` per-section hit@5/MRR |
 | Benchmarks | `/benchmarks` | Run retrieval benchmarks, view plots, create snapshots |
 | Comparison | `/benchmarks/comparison` | Version comparison charts (v2→v7, data-driven) |
 | Versions | `/versions` | Document version history and rollback |
@@ -210,11 +221,16 @@ kb-manager/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KB_DB_URL` | `sqlite+aiosqlite:///./data/kb_test.db` | Database URL |
+| `KB_DB_MODE` | `sqlite` | `sqlite` (light) or `pgvector` (`KB_DB_HOST/PORT/NAME/USER/PASSWORD`); `KB_DB_URL` overrides |
+| `KB_DB_URL` | `sqlite+aiosqlite:///./data/kb_test.db` | Database URL (if set, `KB_DB_MODE` inferred) |
+| `KB_SQLITE_PATH` | `./data/kb_test.db` | SQLite file (when `KB_DB_MODE=sqlite`) |
 | `KB_SOURCE_DIR` | `./kb-source` | Source files directory |
 | `KB_EMBED_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Embedding model |
+| `KB_EMBED_DEVICE` | `cpu` | `cpu` or `cuda` for dense + reranker; `KB_RERANKER_DEVICE` overrides reranker |
+| `KB_KEYWORD_BOOST` | `3.0` | Tunable weight for `bm25_kw` (`0..10`, `POST /search/api {"keyword_boost":5}`) |
 | `KB_CHUNK_STRATEGY` | `semantic` | Chunking strategy |
 | `KB_CHUNK_MAX` | `512` | Max tokens per chunk |
+| `KB_WEB_HOST` | `0.0.0.0` | Web host (`0.0.0.0` public) |
 | `KB_WEB_PORT` | `8000` | Web server port |
 
 ## Running Tests
