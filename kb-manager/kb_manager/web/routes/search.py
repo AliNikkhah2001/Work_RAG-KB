@@ -18,7 +18,14 @@ from sqlalchemy import select
 
 from kb_manager.config import PROJECT_ROOT
 from kb_manager.dense import DenseSemanticIndex, load_or_build
-from kb_manager.hyde import HyDEGenerator
+try:
+    from kb_manager.hyde import HyDEGenerator
+except ImportError:
+    try:
+        from kb_manager.query_reform import HyDEGenerator
+    except ImportError:
+        HyDEGenerator = None  # type: ignore[assignment]
+
 from kb_manager.reranker import CrossEncoderReranker, get_reranker
 
 # query expansion (Phase 11: synonym + multi-query beam5)
