@@ -1,0 +1,9 @@
+{
+  "top_k": 5,
+  "metrics": {
+    "mrr@5": 0.4656,
+    "recall@5": 0.7333,
+    "precision@5": 0.7333
+  },
+  "note": "chunk-level recall approximated by doc-level hit@5"
+}

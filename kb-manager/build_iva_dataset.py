@@ -61,9 +61,15 @@ def main():
         by_doc.setdefault(ch["doc"], []).append(ch)
 
     out = []
+    # For duplicate handling (Q15): group chunks by content hash, so any doc with same answer is valid
+    from collections import defaultdict
+    content_to_docs: dict[frozenset, set[str]] = defaultdict(set)
+    for ch in rows:
+        content_to_docs[frozenset(ch["ct"])].add(ch["doc"])
+
     for i, (q, a) in enumerate(pairs):
         at = toks(a)
-        # find document with max average answer coverage (weighted by best chunk)
+        # find document(s) with max average answer coverage
         best_doc = None
         best_doc_cov = -1.0
         for doc, chunks in by_doc.items():
@@ -72,7 +78,18 @@ def main():
             )
             if best_chunk_cov > best_doc_cov:
                 best_doc_cov, best_doc = best_chunk_cov, doc
-        doc_ids = [c["id"] for c in by_doc[best_doc]]
+        # Include ALL docs that share the same content hash as best_doc's best chunk (fixes Q15 duplicate miss)
+        # Find the content hash of the best chunk in best_doc
+        best_chunk_ct = max((c["ct"] for c in by_doc[best_doc]), key=lambda ct: len(at & ct) / max(len(at),1))
+        # All docs that have a chunk with identical token set are considered valid
+        valid_docs = {doc for doc, chunks in by_doc.items() if any(c["ct"] == best_chunk_ct for c in chunks)}
+        # Also include docs with same content hash (for exact duplicates like "جزئیات قراردادهای منفی...")
+        # Fallback to single doc if no duplicate
+        if not valid_docs:
+            valid_docs = {best_doc}
+        doc_ids = []
+        for doc in valid_docs:
+            doc_ids.extend(c["id"] for c in by_doc[doc])
         out.append(
             {
                 "query": q,
@@ -81,10 +98,10 @@ def main():
                 "format": "verbatim",
                 "category": "factual",
                 "ans_cov": round(best_doc_cov, 2),
-                "expected_docs": 1,
+                "expected_docs": len(valid_docs),
             }
         )
-        print(i + 1, "doc_cov", round(best_doc_cov, 2), "n_id", len(doc_ids))
+        print(i + 1, "doc_cov", round(best_doc_cov, 2), "n_id", len(doc_ids), "valid_docs", len(valid_docs))
 
     dest = r"D:/Code/KB/kb-manager/data/test_questions_iva.json"
     with open(dest, "w", encoding="utf-8") as f:
