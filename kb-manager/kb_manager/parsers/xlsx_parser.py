@@ -116,7 +116,7 @@ def _detect_schema(headers: list[str]) -> str | None:
 
     schemas = [
         ("reason_codes", {_normalize_col(c) for c in SCHEMA_A_COLUMNS}),
-        ("crm_qa", {_normalize_col(c) for c in SCHEMA_B_COLUMNS}),
+        ("crm_qa", {_normalize_col(c) for c in {"question", "model", "briefanswer", "answer", "keyword"}}),
         ("articles", {_normalize_col(c) for c in SCHEMA_C_COLUMNS}),
     ]
     for name, required in schemas:
