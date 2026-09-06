@@ -554,3 +554,192 @@ async def ragas_result():
     if not RAGAS_RESULTS_JSON.exists():
         raise HTTPException(status_code=404, detail="No RAGAS results yet")
     return FileResponse(RAGAS_RESULTS_JSON, media_type="application/json")
+
+
+# ---------------------------------------------------------------------------
+# Massive QA + IVA benchmarks (for server UI)
+# ---------------------------------------------------------------------------
+
+MASSIVE_RESULTS_JSON = DATA_DIR / "massive_results.json"
+IVA_RESULTS_JSON = DATA_DIR / "iva_results.json"
+
+async def _run_massive(job_id: str) -> None:
+    """Run verbatim QA for every row in kb-source QA files, track progress."""
+    from kb_manager.config import load_config
+    from kb_manager.models.database import Database
+    from sqlalchemy import text
+    job = _JOBS[job_id]
+    try:
+        cfg = load_config()
+        # Use 1405-05-31 directly (not parent kb-source)
+        import os, pathlib
+        env_src = os.getenv("KB_SOURCE_DIR", "")
+        src = pathlib.Path(env_src) if env_src and pathlib.Path(env_src).exists() else pathlib.Path(cfg.source_dir)
+        if src.name == "kb-source":
+            src = src / "1405-05-31"
+        # Collect QA files
+        files = []
+        for p in src.rglob("*.xlsx"):
+            if p.name.startswith("~$") or "TestQuestion" in str(p):
+                continue
+            if any(s in p.stem for s in ["واژگان معادل", "محدودیت ها"]):
+                continue
+            try:
+                from kb_manager.parsers.xlsx_parser import XlsxParser
+                parsed = XlsxParser().parse(str(p))
+                for sh in parsed.sheets:
+                    if sh.get("schema") == "crm_qa":
+                        files.append(str(p))
+                        break
+            except Exception:
+                continue
+        # Build total count for progress
+        total = 0
+        file_rows = []
+        for f in files:
+            from kb_manager.parsers.xlsx_parser import XlsxParser
+            try:
+                sh = [s for s in XlsxParser().parse(f).sheets if s.get("schema") == "crm_qa"][0]
+                total += len(sh["rows"])
+                file_rows.append((f, sh))
+            except Exception:
+                pass
+        job["total"] = total
+        job["progress"] = 0
+        from kb_manager.web.routes.search import search_knowledge_base
+        db = Database(cfg.db)
+        # Preload document map to avoid per-query DB hits for doc lookup
+        failed = []
+        passed = 0
+        done = 0
+        for f, sh in file_rows:
+            headers = [h.lower() for h in sh["headers"]]
+            q_idx = headers.index("question") if "question" in headers else 0
+            # Find doc id for this file (slash-normalized)
+            qpath = str(pathlib.Path(f).resolve()).replace("\\", "/")
+            async with db.session() as s:
+                r = await s.execute(text("SELECT id, source_path FROM documents"))
+                doc_id = None
+                for row in r.fetchall():
+                    if row[1].replace("\\", "/").lower() == qpath.lower():
+                        doc_id = row[0]
+                        break
+                if not doc_id:
+                    # Skip file not indexed (should not happen for 1405-05-31)
+                    for _ in sh["rows"]:
+                        done += 1
+                        job["progress"] = done
+                    continue
+                r2 = await s.execute(text("SELECT id, content FROM chunks WHERE document_id = :d"), {"d": doc_id})
+                chunks = {row[0]: row[1] for row in r2.fetchall()}
+            for row in sh["rows"]:
+                q = row[q_idx].strip() if q_idx < len(row) else ""
+                if not q:
+                    done += 1
+                    job["progress"] = done
+                    continue
+                expected = None
+                for cid, content in chunks.items():
+                    if q[:30] in content:
+                        expected = cid
+                        break
+                if not expected:
+                    done += 1
+                    job["progress"] = done
+                    continue
+                steps = await search_knowledge_base(q, top_k=5)
+                retrieved = {r.chunk_id for r in steps.final_results}
+                if expected in retrieved:
+                    passed += 1
+                else:
+                    failed.append({"file": f, "question": q[:80], "expected": expected, "retrieved": [r.chunk_id for r in steps.final_results]})
+                done += 1
+                job["progress"] = done
+        await db.close()
+        job["status"] = "done"
+        job["finished_at"] = datetime.now(UTC).isoformat()
+        job["failed_samples"] = failed
+        # Save result
+        result = {"total": total, "passed": passed, "failed": len(failed), "hit_rate": passed/max(total,1), "failed_samples": failed}
+        with open(MASSIVE_RESULTS_JSON, "w", encoding="utf-8") as out:
+            import json
+            json.dump(result, out, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.exception("Massive job %s failed", job_id)
+        job["status"] = "error"
+        job["error"] = str(e)[:500]
+        job["finished_at"] = datetime.now(UTC).isoformat()
+
+
+@router.get("/massive")
+async def massive_page(request: Request):
+    latest = None
+    if MASSIVE_RESULTS_JSON.exists():
+        try:
+            import json
+            latest = json.loads(MASSIVE_RESULTS_JSON.read_text(encoding="utf-8"))
+        except Exception:
+            latest = None
+    iva_latest = None
+    if IVA_RESULTS_JSON.exists():
+        try:
+            import json
+            data = json.loads(IVA_RESULTS_JSON.read_text(encoding="utf-8"))
+            # iva_results is list of per-query, compute summary
+            hits = sum(1 for r in data if r.get("doc_hit"))
+            iva_latest = {"doc_hits": hits, "total": len(data), "mrr": sum(1.0/r["doc_rank"] for r in data if r.get("doc_rank",-1)>0)/len(data) if data else 0, "failed": [str(r["i"]) for r in data if not r.get("doc_hit")]}
+        except Exception:
+            iva_latest = None
+    # Check for running massive job
+    job = None
+    for j in _JOBS.values():
+        if j.get("dataset") == "massive-qa":
+            job = j
+            break
+    return templates.TemplateResponse(request, "massive_benchmark.html", {"result": latest, "iva_result": iva_latest, "job": job})
+
+
+@router.post("/massive/run")
+async def run_massive():
+    job_id = uuid.uuid4().hex[:12]
+    job = {"id": job_id, "status": "running", "progress": 0, "total": 1, "dataset": "massive-qa", "started_at": datetime.now(UTC).isoformat(), "finished_at": None, "error": "", "failed_samples": []}
+    _evict_old_jobs()
+    _JOBS[job_id] = job
+    _JOBS[job_id]["_task"] = asyncio.create_task(_run_massive(job_id))
+    return RedirectResponse(f"/benchmarks/massive?job={job_id}", status_code=303)
+
+
+@router.get("/massive/result")
+async def massive_result():
+    if not MASSIVE_RESULTS_JSON.exists():
+        raise HTTPException(status_code=404, detail="No massive results yet")
+    return FileResponse(MASSIVE_RESULTS_JSON, media_type="application/json")
+
+
+@router.post("/iva/run")
+async def run_iva_route():
+    # Reuse existing run_iva_eval logic as background job
+    import subprocess, sys
+    job_id = uuid.uuid4().hex[:12]
+    job = {"id": job_id, "status": "running", "progress": 0, "total": 15, "dataset": "iva-15", "started_at": datetime.now(UTC).isoformat(), "finished_at": None, "error": ""}
+    _JOBS[job_id] = job
+    async def _run():
+        try:
+            proc = await asyncio.create_subprocess_exec(sys.executable, "run_iva_eval.py", cwd=str(PROJECT_ROOT))
+            await proc.wait()
+            job["status"] = "done"
+            job["progress"] = 15
+            job["finished_at"] = datetime.now(UTC).isoformat()
+        except Exception as e:
+            job["status"] = "error"
+            job["error"] = str(e)
+            job["finished_at"] = datetime.now(UTC).isoformat()
+    _JOBS[job_id]["_task"] = asyncio.create_task(_run())
+    return RedirectResponse(f"/benchmarks/massive?job={job_id}", status_code=303)
+
+
+@router.get("/iva/result")
+async def iva_result_json():
+    if not IVA_RESULTS_JSON.exists():
+        raise HTTPException(status_code=404, detail="No IVA results yet")
+    return FileResponse(IVA_RESULTS_JSON, media_type="application/json")

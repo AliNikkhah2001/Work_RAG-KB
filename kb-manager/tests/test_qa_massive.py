@@ -18,18 +18,29 @@ from kb_manager.parsers.registry import get_parser
 
 # Collect QA files at test collection time (fast, no DB)
 def _collect_qa_files():
-    cfg = load_config()
-    source = pathlib.Path(cfg.source_dir)
+    # Use the same source as the live DB (1405-05-31) to avoid testing stale clean_files
+    import os
+    # Prefer explicit KB_SOURCE_DIR env (as used by DB), fallback to 1405-05-31
+    env_src = os.getenv("KB_SOURCE_DIR", "")
+    if env_src and pathlib.Path(env_src).exists():
+        source = pathlib.Path(env_src)
+    else:
+        cfg = load_config()
+        # Force to 1405-05-31 if cfg points to parent kb-source (which includes clean_files)
+        cand = pathlib.Path(cfg.source_dir)
+        if cand.name == "kb-source":
+            cand = cand / "1405-05-31"
+        source = cand if cand.exists() else pathlib.Path(cfg.source_dir)
     files = []
     for p in source.rglob("*.xlsx"):
         if p.name.startswith("~$") or "TestQuestion" in str(p):
             continue
-        # quick check via parser schema detection
+        # Skip preprocessing/guardrail files not in KB
+        if any(s in p.stem for s in ["واژگان معادل", "محدودیت ها"]):
+            continue
         try:
             from kb_manager.parsers.xlsx_parser import XlsxParser
             parser = XlsxParser()
-            # Use detection without full parse for speed: just headers
-            # Fallback to parsing first sheet headers
             parsed = parser.parse(str(p))
             for sheet in parsed.sheets:
                 if sheet.get("schema") == "crm_qa":
@@ -51,13 +62,21 @@ async def test_qa_file_verbatim_recall(qa_file):
     # Load chunks for this document
     from kb_manager.web.routes.search import search_knowledge_base
 
-    # Find document ID for this file
+    # Find document ID for this file (handle slash/case differences between Windows and DB)
+    qpath = str(pathlib.Path(qa_file).resolve())
+    # Normalize to forward slashes for comparison (DB stores with forward slashes on some builds)
+    qpath_norm = qpath.replace("\\", "/")
     async with db.session() as s:
-        r = await s.execute(text("SELECT id FROM documents WHERE source_path = :p"), {"p": str(pathlib.Path(qa_file).resolve())})
-        doc = r.fetchone()
-        if not doc:
+        # Try exact match first, then normalized, then LIKE
+        r = await s.execute(text("SELECT id, source_path FROM documents"))
+        doc_id = None
+        for row in r.fetchall():
+            db_path = row[1]
+            if db_path == qpath or db_path.replace("\\", "/") == qpath_norm or db_path.replace("\\", "/").lower() == qpath_norm.lower():
+                doc_id = row[0]
+                break
+        if not doc_id:
             pytest.skip(f"Document not indexed: {qa_file}")
-        doc_id = doc[0]
         r2 = await s.execute(text("SELECT id, content FROM chunks WHERE document_id = :d"), {"d": doc_id})
         chunks = {row[0]: row[1] for row in r2.fetchall()}
 
