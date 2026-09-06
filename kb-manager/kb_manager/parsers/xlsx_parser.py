@@ -87,6 +87,51 @@ SCHEMA_C_COLUMNS = {
     "summary",
 }
 
+# New type-aware schemas for varied tabular KB (glossary, staff, loan, timeline)
+SCHEMA_GLOSSARY_COLUMNS = {
+    "رتبه",
+    "گرید",
+    "واژه",
+    "معادل",
+    "اصطلاح",
+    "واژه های معادل",
+}
+
+SCHEMA_STAFF_COLUMNS = {
+    "نام و نام خانوادگی",
+    "نام",
+    "سمت",
+    "بخش",
+    "سوابق تحصیلی",
+    "سوابق شغلی",
+    "تخصص ها و مهارت های کلیدی",
+    "نکات مهم",
+}
+
+SCHEMA_LOAN_COLUMNS = {
+    "نام وام",
+    "نوع وام",
+    "نرخ سود وام",
+    "سقف وام",
+    "حداکثر زمان بازپرداخت",
+    "مبلغ قسط",
+    "نوع ضمانت",
+    "نیاز به سپرده",
+    "مجموع سود وام",
+    "مجموع وام و سود",
+    "وضعیت",
+    "حمایت‌شده",
+    "لینک",
+}
+
+SCHEMA_TIMELINE_COLUMNS = {
+    "تاریخ",
+    "رویداد",
+    "شرح رویداد",
+    "عنوان",
+    "زمان",
+}
+
 
 def _normalize_col(name: str) -> str:
     """Normalize column name for comparison."""
@@ -113,6 +158,24 @@ def _detect_schema(headers: list[str]) -> str | None:
         return "crm_qa"
     if {"سوال"} & normalized and {"پاسخ"} & normalized:
         return "crm_qa"
+
+    # Type-aware tabular schemas (new) — check before generic fallback
+    # Glossary: 2-col رتبه/گرید exact (e.g. واژگان معادل.xlsx)
+    glossary_norm = {_normalize_col(c) for c in SCHEMA_GLOSSARY_COLUMNS}
+    if len(headers) == 2 and len(normalized & glossary_norm) >= 2:
+        return "glossary"
+    # Staff: 7-col profile (نام و نام خانوادگی present)
+    staff_norm = {_normalize_col(c) for c in SCHEMA_STAFF_COLUMNS}
+    if {"نامونامخانوادگی"} & normalized and len(normalized & staff_norm) >= 3:
+        return "staff_profile"
+    # Loan catalog: 13-col wide table
+    loan_norm = {_normalize_col(c) for c in SCHEMA_LOAN_COLUMNS}
+    if len(normalized & loan_norm) >= 8:  # 60% of 13
+        return "loan_catalog"
+    # Timeline: date-centric
+    timeline_norm = {_normalize_col(c) for c in SCHEMA_TIMELINE_COLUMNS}
+    if {"تاریخ"} & normalized and len(normalized & timeline_norm) >= 2:
+        return "timeline"
 
     schemas = [
         ("reason_codes", {_normalize_col(c) for c in SCHEMA_A_COLUMNS}),
