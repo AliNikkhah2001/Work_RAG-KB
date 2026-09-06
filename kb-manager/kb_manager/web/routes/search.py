@@ -36,7 +36,7 @@ router = APIRouter()
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
-_RERANKER_TOP_K = 50  # Number of candidates to rerank
+_RERANKER_TOP_K = 100  # Number of candidates to rerank (was 50, increased for Q11/12 reason-code recall)
 
 def _get_device_config():
     """Get device from config (env KB_EMBED_DEVICE / KB_RERANKER_DEVICE)."""
