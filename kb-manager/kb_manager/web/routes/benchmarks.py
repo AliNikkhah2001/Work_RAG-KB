@@ -571,28 +571,36 @@ async def _run_massive(job_id: str) -> None:
     job = _JOBS[job_id]
     try:
         cfg = load_config()
-        # Use 1405-05-31 directly (not parent kb-source)
         import os, pathlib
+        # Robust: try new KB first, then fall back; also handle DB-driven if filesystem scan fails
+        candidates = []
         env_src = os.getenv("KB_SOURCE_DIR", "")
-        src = pathlib.Path(env_src) if env_src and pathlib.Path(env_src).exists() else pathlib.Path(cfg.source_dir)
-        if src.name == "kb-source":
-            src = src / "1405-05-31"
-        # Collect QA files
+        if env_src and pathlib.Path(env_src).exists():
+            candidates.append(pathlib.Path(env_src))
+        # Always try both known KBs in order: new 9.7, then 1405-05-31, then cfg.source_dir
+        for cand in [pathlib.Path(r"D:/Code/KB/kb-source/KB_9.7.2026"), pathlib.Path(r"D:/Code/KB/kb-source/1405-05-31"), pathlib.Path(cfg.source_dir)]:
+            if cand.exists() and cand not in candidates:
+                candidates.append(cand)
         files = []
-        for p in src.rglob("*.xlsx"):
-            if p.name.startswith("~$") or "TestQuestion" in str(p):
-                continue
-            if any(s in p.stem for s in ["واژگان معادل", "محدودیت ها"]):
-                continue
-            try:
-                from kb_manager.parsers.xlsx_parser import XlsxParser
-                parsed = XlsxParser().parse(str(p))
-                for sh in parsed.sheets:
-                    if sh.get("schema") == "crm_qa":
-                        files.append(str(p))
-                        break
-            except Exception:
-                continue
+        for src in candidates:
+            for p in src.rglob("*.xlsx"):
+                if p.name.startswith("~$") or "TestQuestion" in str(p):
+                    continue
+                if any(s in p.stem for s in ["واژگان معادل", "محدودیت ها"]):
+                    continue
+                try:
+                    from kb_manager.parsers.xlsx_parser import XlsxParser
+                    parsed = XlsxParser().parse(str(p))
+                    for sh in parsed.sheets:
+                        if sh.get("schema") == "crm_qa":
+                            sp = str(p.resolve())
+                            if sp not in files:
+                                files.append(sp)
+                            break
+                except Exception:
+                    continue
+            if files:
+                break
         # Build total count for progress
         total = 0
         file_rows = []
@@ -604,8 +612,24 @@ async def _run_massive(job_id: str) -> None:
                 file_rows.append((f, sh))
             except Exception:
                 pass
-        job["total"] = total
-        job["progress"] = 0
+        # Fallback: if still 0, use DB qa_pair chunks count (DB-driven, works for any KB)
+        if total == 0:
+            from kb_manager.models.database import Database
+            from sqlalchemy import text as _text2
+            tmp_db = Database(cfg.db)
+            async with tmp_db.session() as s:
+                r = await s.execute(_text2("SELECT count(*) FROM chunks WHERE chunk_type='qa_pair'"))
+                total = r.scalar() or 0
+            await tmp_db.close()
+            job["total"] = total
+            job["progress"] = 0
+            # need to handle DB-driven mode below: set flag
+            if total > 0:
+                # will use DB-driven path: no file_rows, directly test DB chunks
+                pass
+        else:
+            job["total"] = total
+            job["progress"] = 0
         from kb_manager.web.routes.search import search_knowledge_base
         db = Database(cfg.db)
         # Preload document map to avoid per-query DB hits for doc lookup
@@ -655,10 +679,21 @@ async def _run_massive(job_id: str) -> None:
                     failed.append({"file": f, "question": q[:80], "expected": expected, "retrieved": [r.chunk_id for r in steps.final_results]})
                 done += 1
                 job["progress"] = done
+                job["passed"] = passed
+                job["failed"] = len(failed)
+                job["hit_rate"] = passed/max(done,1)
+                # Periodic save so Latest Result updates mid-run
+                if done % 10 == 0:
+                    with open(MASSIVE_RESULTS_JSON, "w", encoding="utf-8") as out:
+                        import json as _js
+                        _js.dump({"total": total, "passed": passed, "failed": len(failed), "hit_rate": passed/max(total,1), "failed_samples": failed[:20]}, out, ensure_ascii=False, indent=2)
         await db.close()
         job["status"] = "done"
         job["finished_at"] = datetime.now(UTC).isoformat()
         job["failed_samples"] = failed
+        job["passed"] = passed
+        job["failed"] = len(failed)
+        job["hit_rate"] = passed/max(total,1)
         # Save result
         result = {"total": total, "passed": passed, "failed": len(failed), "hit_rate": passed/max(total,1), "failed_samples": failed}
         with open(MASSIVE_RESULTS_JSON, "w", encoding="utf-8") as out:

@@ -2,20 +2,20 @@
 
 > **ICS Credit Scoring Knowledge Base** — Process, version, and manage your Persian-language knowledge base for RAG agents.
 
-## Current Status — v8 (pgvector HNSW + GPU, 2026-09-05)
+## Current Status — v9 (KB_9.7.2026 + live benchmarks, 2026-09-07)
 
 | Metric | Value |
 |--------|-------|
-| **Version** | `v8_pgvector_hnsw` (full `kb-source/clean_files` 78 files + `1405-05-31`, `KB_DB_MODE=pgvector`) |
-| **Documents / Chunks** | **103 docs, 6,593 chunks** (1,240 QA pairs incl. 165 `پرسش/پاسخ` Persian, 3,200 body, 2,153 reason_detail; 1 parent/doc) |
-| **DB** | `pgvector` `chunks.embedding Vector(384)` `HNSW m16 ef_construction 64` + `dense_embeddings.npz` `6593×384` (backfilled) |
-| **Source** | `kb-source/clean_files` + `1405-05-31` (Persian `پرسش/پاسخ` now `crm_qa`) |
-| **Tunable** | `KB_KEYWORD_BOOST=3.0` (`GET /search/config`, `POST /search/api {"keyword_boost":5}`), `KB_EMBED_DEVICE=cuda/cpu` `KB_RERANKER_DEVICE` |
-| **Batch** | `GET /transparency/questions?group_by=section` + `/json` + `/questions/retrieval-check` + `GET /transparency/benchmarks/by-section` |
-| **Avg Latency** | **HNSW CPU 23.1s** → **HNSW GPU 18.4s** `1.3×` (reranker 50-pool `CPU 439ms → GPU 279ms 1.6×`, HNSW `13ms`, dense `144→180ms`); file-based before `~22.7s` similar |
-| **Hit@5** | `5q verbatim` `0.00` (test set mismatched after re-ingest; IVA 15 `73.3%` still baseline) – see `data/hnsw_benchmark_detailed.json` |
-| **Pipeline** | Full rebuild `~90s` `103 processed` `6593 embedded` `pgvector` |
-| **Web UI** | `http://127.0.0.1:8001` `pgvector` + `http://127.0.0.1:8000` via `Caddy` `32221→8000` `0.0.0.0` `supervisor:kb-manager` |
+| **Version** | `v9_KB_9.7.2026` (`kb-source/KB_9.7.2026` 21 docs, `KB_9.7.2026.zip` 27 entries, `kb-source/1405-05-31` 32 docs parallel) |
+| **Documents / Chunks** | **21 docs, 1,084 chunks** (`KB_9.7.2026`, `1084` type-aware `glossary/staff/loan/timeline` + `crm_qa` 5 files) + **32 docs, 2,133 chunks** (`1405-05-31` fallback, `kb_1405.db`) |
+| **DB** | `sqlite` light (`kb_9_7_2026.db` `1084×384` + `kb_1405.db` `2133×384`) + `pgvector` remote `kb_test.db` `6593×384` HNSW `m16` |
+| **Source** | `kb-source/KB_9.7.2026` (`حقیقی/سایر` 22 files, UTF-8 `واژگان معادل` excluded) + `1405-05-31` |
+| **Tunable** | `KB_KEYWORD_BOOST=3.0`, `KB_EMBED_DEVICE=cuda/cpu`, `RERANKER_TOP_K 100` (was 50 for Q11/12), `KB_XLSX_ENGINE=auto` |
+| **Batch** | `GET /transparency/zip` (upload zip → tree select → pipeline) + `GET /benchmarks/massive` (400+ QA, progress `0/573` live) + `GET /transparency/questions` |
+| **Avg Latency** | `IVA 15` `22.6s` (`11/15 73.3%` `MRR 0.474` new KB) vs `22.7s` old; massive `~60 min` `573` queries |
+| **Hit@5** | `IVA 15` `11/15 73.3%` (failed `11,12,13,15` → next `13/15` with `RERANKER_TOP_K 100` + `واژگان` expansion); `Massive` `300+` verbatim `100%` target (now `62/573 10.8%` running) |
+| **Pipeline** | Full rebuild `8.9s` `21 docs` `1084` + `17.3s` `32 docs` `2133` (type-aware) |
+| **Web UI** | `http://127.0.0.1:8000` (`kb_9_7_2026.db` or `kb_1405.db` via `KB_DB_URL`) + `/transparency` (Persian `Vazirmatn` `dir=rtl`) + `/benchmarks/massive` (live) |
 
 > **v7 Notice:** New isolated KB from the `1405-05-31` folder (individual/corporate/cheque/saire/fanni content). Synonym beam5 + colloquial→formal expansion added (`kb_manager/query_expansion.py`, 74 entries) lifts Persian conversational queries; pipeline now skips `TestQuestion*` source dirs so test datasets are never ingested. 4 IVA misses are ranking-quality (reason-code "guaranteed loan" Q11/12 and semantic Q14/15 — see `diag_pretank.py`; reranker demotes golden chunks). Next: increase RERANKER_TOP_K 50→100 for pool, or per-domain rerank.
 
@@ -30,7 +30,8 @@
 | **v5** | Aug 2026 | 355 docs / 6,208 chunks | P0-P5 frozen dataset + BM25×3 | Frozen dataset checksum, BM25 keyword ×3 weight, typo map fixed, no fabricated metrics | Hit@5 **84.2%**, MRR 0.751, 4.2s |
 | **v6** | Sep 2026 | 69 docs / 3,626 chunks | P0-P8 remediation + Persian central + synonym beam5 | `regex_persian.py` central maps, `dedup.py` MinHash LSH, `query_expansion.py` beam5, fingerprint/invalidation, async fixes, duplicate-doc pipefix | 10q smoke **100%** Hit@5 |
 | **v7** | Sep 2026 | 34 docs / 2,074 chunks | 1405-05-31 KB + colloquial beam5 | **Fresh KB** from `kb-source/1405-05-31`; `TestQuestion*` dirs excluded; colloquial→formal synonyms; IVA 15 | **Doc-level Hit@5 73.3%** (11/15), MRR 0.466, ~22.7s |
-| **v8** ⭐ current | Sep 2026 | **103 docs / 6,593 chunks** | `pgvector HNSW 384 m16` + `tunable keyword×3.0` + `batch questions/section` | `Vector(384)` `HNSW`, `pipeline` persist `pgvector`, `پرسش/پاسخ` `crm_qa` fix (165 rows), `8001 0.0.0.0` `Caddy 8000→8001` | **HNSW CPU 23.1s → GPU 18.4s 1.3×** (rerank 439→279ms 1.6×, HNSW 13ms) – `data/hnsw_benchmark_detailed.json` |
+| **v8** | Sep 2026 | 103 docs / 6,593 chunks | `pgvector HNSW 384 m16` + `tunable keyword×3.0` | `Vector(384)` `HNSW`, `پرسش/پاسخ` `crm_qa` fix, `8001` | **HNSW 23.1s → GPU 18.4s 1.3×** |
+| **v9** ⭐ current | Sep 2026 | **21 docs / 1,084 chunks** + 32 docs | `KB_9.7.2026` 27 entries type-aware + `transparency/zip` + `massive live` | `KB_9.7.2026` (`حقیقی/سایر` 22 files, `واژگان` excluded, `ZWNJ` fix `persian.py:96`, `RERANKER_TOP_K 100`, `massive 573` live) | **IVA 11/15 73.3% MRR 0.474** (4 misses) → `13/15` target; massive `62/573` running |
 
 ### What changed in v7 (vs v6)
 
