@@ -2,10 +2,16 @@ import json
 import sqlite3
 
 # Load dataset
-with open(r"C:\Users\10225\Downloads\KB\kb-manager\kb_manager\evaluation\datasets\eval_full.json", "r", encoding="utf-8") as f:
+import os, pathlib
+_BASE = pathlib.Path(__file__).resolve().parent
+ds = os.getenv("KB_EVAL_JSON", str(_BASE / "kb_manager" / "evaluation" / "datasets" / "eval_full.json"))
+if not pathlib.Path(ds).exists():
+    ds = str(_BASE / "data" / "test_questions.json")
+with open(ds, "r", encoding="utf-8") as f:
     dataset = json.load(f)
 
-conn = sqlite3.connect(r"C:\Users\10225\Downloads\KB\kb-manager\data\kb_test.db")
+dbp = os.getenv("KB_DB_PATH", str(_BASE / "data" / "kb_test.db"))
+conn = sqlite3.connect(dbp)
 cur = conn.cursor()
 
 results = []

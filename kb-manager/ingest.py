@@ -5,14 +5,16 @@ import asyncio
 import logging
 import time
 
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///C:/Users/10225/Downloads/KB/kb-manager/data/kb_test.db"
-sys.path.insert(0, r"C:\Users\10225\Downloads\KB\kb-manager")
-os.chdir(r"C:\Users\10225\Downloads\KB\kb-manager")
+if not os.getenv("KB_DB_URL"):
+    os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///./data/kb_test.db"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("ingest")
 
-KB_DIR = r"C:\Users\10225\Downloads\KB\extracted"
+KB_DIR = os.getenv("KB_SOURCE_DIR", str(__import__("pathlib").Path(__file__).resolve().parent / "kb-source" / "clean_files"))
+# Fallback to legacy nested kb-source location
+if not __import__("pathlib").Path(KB_DIR).exists():
+    KB_DIR = os.getenv("KB_SOURCE_DIR", str(__import__("pathlib").Path(__file__).resolve().parent.parent / "kb-source" / "clean_files"))
 
 async def main():
     from kb_manager.config import load_config

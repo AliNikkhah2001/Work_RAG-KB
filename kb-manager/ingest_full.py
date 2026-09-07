@@ -9,19 +9,19 @@ import asyncio
 import logging
 import json
 
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///C:/Users/10225/Downloads/KB/kb-manager/data/kb_test.db"
+if not os.getenv("KB_DB_URL"):
+    os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///./data/kb_test.db"
 if not os.getenv("KB_XLSX_ENGINE"):
     os.environ["KB_XLSX_ENGINE"] = "calamine"
-sys.path.insert(0, r"C:\Users\10225\Downloads\KB\kb-manager")
-os.chdir(r"C:\Users\10225\Downloads\KB\kb-manager")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger("ingest_full")
 
 KB_DIRS = [
-    r"C:\Users\10225\Downloads\KB\extracted_new\31Tir1405",
-    r"C:\Users\10225\Downloads\KB\1405-05-20",
+    os.getenv("KB_SOURCE_DIR", str(__import__("pathlib").Path(__file__).resolve().parent.parent / "kb-source" / "clean_files")),
+    os.getenv("KB_SOURCE_DIR_2", ""),
 ]
+KB_DIRS = [d for d in KB_DIRS if d and __import__("pathlib").Path(d).exists()]
 
 
 async def main():
@@ -75,7 +75,8 @@ async def main():
             print(f"    - {e['file']}: {e['error']}")
     print("=" * 60)
 
-    with open(r"C:\Users\10225\Downloads\KB\kb-manager\ingest_full_result.txt", "w", encoding="utf-8") as f:
+    out_path = __import__("pathlib").Path(__file__).resolve().parent / "ingest_full_result.json"
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(json.dumps(combined, indent=2, ensure_ascii=False))
 
 
