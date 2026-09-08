@@ -7,7 +7,7 @@ import sys
 import time
 import unicodedata
 
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_1405.db"
+os.environ.setdefault("KB_DB_URL", "sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_1405.db")
 os.environ["KB_SYNONYM_ENABLED"] = "true"
 sys.stdout.reconfigure(encoding="utf-8")
 

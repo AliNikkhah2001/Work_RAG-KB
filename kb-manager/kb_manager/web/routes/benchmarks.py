@@ -563,6 +563,18 @@ async def ragas_result():
 MASSIVE_RESULTS_JSON = DATA_DIR / "massive_results.json"
 IVA_RESULTS_JSON = DATA_DIR / "iva_results.json"
 
+
+def rank_of(results, gt_id):
+    for i, r in enumerate(results):
+        if r.chunk_id == gt_id:
+            return i + 1
+    return None
+
+
+def fmt_rank(rank, n):
+    return str(rank) if rank is not None else f">{n}"
+
+
 async def _run_massive(job_id: str) -> None:
     """Run verbatim QA for every row in kb-source QA files, track progress."""
     from kb_manager.config import load_config
@@ -634,6 +646,7 @@ async def _run_massive(job_id: str) -> None:
         db = Database(cfg.db)
         # Preload document map to avoid per-query DB hits for doc lookup
         failed = []
+        passed_samples = []
         passed = 0
         done = 0
         for f, sh in file_rows:
@@ -654,8 +667,18 @@ async def _run_massive(job_id: str) -> None:
                         done += 1
                         job["progress"] = done
                     continue
-                r2 = await s.execute(text("SELECT id, content FROM chunks WHERE document_id = :d"), {"d": doc_id})
-                chunks = {row[0]: row[1] for row in r2.fetchall()}
+                r2 = await s.execute(text("SELECT id, content, chunk_type, metadata FROM chunks WHERE document_id = :d"), {"d": doc_id})
+                qa_chunks = []
+                for _cid, _content, _ctype, _meta in r2.fetchall():
+                    if _ctype != "qa_pair":
+                        continue
+                    _meta_dict = {}
+                    if _meta:
+                        try:
+                            _meta_dict = json.loads(_meta) if isinstance(_meta, str) else (_meta or {})
+                        except Exception:
+                            _meta_dict = {}
+                    qa_chunks.append((_cid, _content, _meta_dict))
             for row in sh["rows"]:
                 q = row[q_idx].strip() if q_idx < len(row) else ""
                 if not q:
@@ -663,20 +686,53 @@ async def _run_massive(job_id: str) -> None:
                     job["progress"] = done
                     continue
                 expected = None
-                for cid, content in chunks.items():
-                    if q[:30] in content:
+                for cid, content, meta in qa_chunks:
+                    mq = ((meta.get("fields") or {}).get("question") or "").strip()
+                    if mq and mq == q:
                         expected = cid
                         break
+                if not expected:
+                    prefix = f"سوال: {q}"
+                    for cid, content, meta in qa_chunks:
+                        if content.startswith(prefix) or prefix in content:
+                            expected = cid
+                            break
+                if not expected:
+                    for cid, content, meta in qa_chunks:
+                        if q[:30] in content:
+                            expected = cid
+                            break
                 if not expected:
                     done += 1
                     job["progress"] = done
                     continue
-                steps = await search_knowledge_base(q, top_k=5)
-                retrieved = {r.chunk_id for r in steps.final_results}
+                steps = await search_knowledge_base(q, top_k=100)
+                retrieved = [r.chunk_id for r in steps.final_results[:5]]
+                top1 = steps.final_results[0] if steps.final_results else None
+                bm25_rank = fmt_rank(rank_of(steps.bm25_results, expected), len(steps.bm25_results))
+                dense_rank = fmt_rank(rank_of(steps.dense_results, expected), len(steps.dense_results))
+                merged_rank = fmt_rank(rank_of(steps.merged_candidates, expected), len(steps.merged_candidates))
+                final_rank = fmt_rank(rank_of(steps.final_results, expected), len(steps.final_results))
                 if expected in retrieved:
                     passed += 1
+                    passed_samples.append({"file": f, "question": q[:80], "expected": expected, "final_rank": final_rank})
                 else:
-                    failed.append({"file": f, "question": q[:80], "expected": expected, "retrieved": [r.chunk_id for r in steps.final_results]})
+                    failed.append({
+                        "file": f,
+                        "question": q[:80],
+                        "expected": expected,
+                        "retrieved": retrieved,
+                        "bm25_rank": bm25_rank,
+                        "dense_rank": dense_rank,
+                        "merged_rank": merged_rank,
+                        "final_rank": final_rank,
+                        "scores": {
+                            "bm25_score": top1.bm25_score if top1 else None,
+                            "dense_score": top1.dense_score if top1 else None,
+                            "hybrid_score": top1.hybrid_score if top1 else None,
+                            "rerank_score": top1.rerank_score if top1 else None,
+                        },
+                    })
                 done += 1
                 job["progress"] = done
                 job["passed"] = passed
@@ -686,16 +742,17 @@ async def _run_massive(job_id: str) -> None:
                 if done % 10 == 0:
                     with open(MASSIVE_RESULTS_JSON, "w", encoding="utf-8") as out:
                         import json as _js
-                        _js.dump({"total": total, "passed": passed, "failed": len(failed), "hit_rate": passed/max(total,1), "failed_samples": failed[:20]}, out, ensure_ascii=False, indent=2)
+                        _js.dump({"total": total, "passed": passed, "failed": len(failed), "hit_rate": passed/max(total,1), "failed_samples": failed[:20], "passed_samples": passed_samples[:20]}, out, ensure_ascii=False, indent=2)
         await db.close()
         job["status"] = "done"
         job["finished_at"] = datetime.now(UTC).isoformat()
         job["failed_samples"] = failed
+        job["passed_samples"] = passed_samples
         job["passed"] = passed
         job["failed"] = len(failed)
         job["hit_rate"] = passed/max(total,1)
         # Save result
-        result = {"total": total, "passed": passed, "failed": len(failed), "hit_rate": passed/max(total,1), "failed_samples": failed}
+        result = {"total": total, "passed": passed, "failed": len(failed), "hit_rate": passed/max(total,1), "failed_samples": failed, "passed_samples": passed_samples}
         with open(MASSIVE_RESULTS_JSON, "w", encoding="utf-8") as out:
             import json
             json.dump(result, out, ensure_ascii=False, indent=2)

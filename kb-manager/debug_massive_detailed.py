@@ -6,6 +6,18 @@ import asyncio, pathlib
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
+
+def rank_of(results, gt_id):
+    for i, r in enumerate(results):
+        if getattr(r, "chunk_id", None) == gt_id:
+            return i + 1
+    return None
+
+
+def fmt_rank(rank, n):
+    return str(rank) if rank is not None else f">{n}"
+
+
 async def main():
     from kb_manager.config import load_config
     from kb_manager.models.database import Database
@@ -58,7 +70,7 @@ async def main():
                 continue
             r2 = await s.execute(text("SELECT id, content FROM chunks WHERE document_id=:d"), {"d": doc_id})
             chunks = {row[0]: row[1] for row in r2.fetchall()}
-        html.append(f"<h2 class='mono'>{f} — {len(sh['rows'])} rows</h2><table><tr><th>#</th><th>Question</th><th>Result</th><th>Top-1 Preview</th></tr>")
+        html.append(f"<h2 class='mono'>{f} — {len(sh['rows'])} rows</h2><table><tr><th>#</th><th>Question</th><th>Result</th><th>BM25</th><th>Dense</th><th>Merged</th><th>Final</th><th>Top-1 Preview</th></tr>")
         for idx, row in enumerate(sh["rows"]):
             q = row[q_idx].strip() if q_idx < len(row) else ""
             if not q:
@@ -70,17 +82,22 @@ async def main():
                     expected = cid
                     break
             if not expected:
-                html.append(f"<tr class='miss'><td>{idx+1}</td><td class='p' dir='auto'>{q[:60]}</td><td>NO CHUNK</td><td></td></tr>")
+                html.append(f"<tr class='miss'><td>{idx+1}</td><td class='p' dir='auto'>{q[:60]}</td><td>NO CHUNK</td><td></td><td></td><td></td><td></td><td></td></tr>")
                 continue
-            steps = await search_knowledge_base(q, top_k=5)
-            retrieved = {r.chunk_id for r in steps.final_results}
+            steps = await search_knowledge_base(q, top_k=100)
+            retrieved = {r.chunk_id for r in steps.final_results[:5]}
             is_hit = expected in retrieved
+            bm25_rank = rank_of(steps.bm25_results, expected)
+            dense_rank = rank_of(steps.dense_results, expected)
+            merged_rank = rank_of(steps.merged_candidates, expected)
+            final_rank = rank_of(steps.final_results, expected)
+            ranks_td = f"<td class='mono'>{fmt_rank(bm25_rank, len(steps.bm25_results))}</td><td class='mono'>{fmt_rank(dense_rank, len(steps.dense_results))}</td><td class='mono'>{fmt_rank(merged_rank, len(steps.merged_candidates))}</td><td class='mono'>{fmt_rank(final_rank, len(steps.final_results))}</td>"
             if is_hit:
                 passed += 1
-                html.append(f"<tr class='hit'><td>{idx+1}</td><td class='p' dir='auto'>{q[:60]}</td><td>HIT</td><td class='mono'>{steps.final_results[0].content_preview[:80] if steps.final_results else ''}</td></tr>")
+                html.append(f"<tr class='hit'><td>{idx+1}</td><td class='p' dir='auto'>{q[:60]}</td><td>HIT</td>{ranks_td}<td class='mono'>{steps.final_results[0].content_preview[:80] if steps.final_results else ''}</td></tr>")
             else:
-                failed_samples.append({"file": f, "question": q[:80], "expected": expected[:8], "retrieved": [r.chunk_id[:8] for r in steps.final_results]})
-                html.append(f"<tr class='miss'><td>{idx+1}</td><td class='p' dir='auto'>{q[:60]}</td><td>MISS</td><td class='mono'>{steps.final_results[0].content_preview[:80] if steps.final_results else 'no result'}</td></tr>")
+                failed_samples.append({"file": f, "question": q[:80], "expected": expected[:8], "retrieved": [r.chunk_id[:8] for r in steps.final_results[:5]], "bm25_rank": bm25_rank, "dense_rank": dense_rank, "merged_rank": merged_rank, "final_rank": final_rank})
+                html.append(f"<tr class='miss'><td>{idx+1}</td><td class='p' dir='auto'>{q[:60]}</td><td>MISS</td>{ranks_td}<td class='mono'>{steps.final_results[0].content_preview[:80] if steps.final_results else 'no result'}</td></tr>")
         html.append("</table>")
 
     await db.close()

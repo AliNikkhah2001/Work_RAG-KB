@@ -8,6 +8,7 @@ Run: pytest tests/test_qa_massive.py -v --tb=short
 Or: python -m pytest tests/test_qa_massive.py -v
 """
 import asyncio
+import json
 import pathlib
 import pytest
 from sqlalchemy import text
@@ -55,11 +56,11 @@ QA_FILES = _collect_qa_files()
 @pytest.mark.asyncio
 @pytest.mark.parametrize("qa_file", QA_FILES)
 async def test_qa_file_verbatim_recall(qa_file):
-    """For each QA file, every question must retrieve its own chunk in top-5."""
+    """For each QA file, every question must retrieve its own child chunk in top-5."""
     cfg = load_config()
     db = Database(cfg.db)
-    # Build question -> expected chunk ID map for this file
-    # Load chunks for this document
+    # Build question -> expected child chunk ID map for this file
+    # Load child chunks (qa_pair) for this document, excluding qa_pair_parent
     from kb_manager.web.routes.search import search_knowledge_base
 
     # Find document ID for this file (handle slash/case differences between Windows and DB)
@@ -77,10 +78,29 @@ async def test_qa_file_verbatim_recall(qa_file):
                 break
         if not doc_id:
             pytest.skip(f"Document not indexed: {qa_file}")
-        r2 = await s.execute(text("SELECT id, content FROM chunks WHERE document_id = :d"), {"d": doc_id})
-        chunks = {row[0]: row[1] for row in r2.fetchall()}
+        r2 = await s.execute(
+            text("SELECT id, content, chunk_type, metadata FROM chunks WHERE document_id = :d"),
+            {"d": doc_id},
+        )
+        children = []
+        for row in r2.fetchall():
+            cid, content, ctype, meta = row[0], row[1], row[2], row[3]
+            if ctype != "qa_pair":
+                continue
+            if isinstance(meta, str):
+                meta = json.loads(meta)
+            fields = meta.get("fields", {}) if isinstance(meta, dict) else {}
+            meta_q = (
+                fields.get("question")
+                or fields.get("پرسش")
+                or fields.get("سوال")
+                or fields.get("متن سوال")
+                or fields.get("متن_سوال")
+                or ""
+            )
+            children.append((cid, content, meta_q.strip()))
 
-    # Parse file to get questions and map to chunk IDs via content matching
+    # Parse file to get questions and map to child chunk IDs via metadata/content matching
     from kb_manager.parsers.xlsx_parser import XlsxParser
     parser = XlsxParser()
     parsed = parser.parse(qa_file)
@@ -95,18 +115,23 @@ async def test_qa_file_verbatim_recall(qa_file):
 
     headers = [h.lower() for h in qa_sheet["headers"]]
     q_idx = headers.index("question") if "question" in headers else 0
-    # Map question text -> chunk ID via DB content search (question text appears in chunk)
+    # Map question text -> child chunk ID via metadata question field, then content match
+    by_question = {}
+    for cid, content, meta_q in children:
+        if meta_q:
+            by_question.setdefault(meta_q, cid)
     failures = []
     for row in qa_sheet["rows"]:
         q = row[q_idx].strip() if q_idx < len(row) else ""
         if not q:
             continue
-        # Find expected chunk ID that contains this question (should be 1 row=1 chunk)
-        expected = None
-        for cid, content in chunks.items():
-            if q[:30] in content:  # first 30 chars as anchor
-                expected = cid
-                break
+        # 1 row = 1 child chunk. Find expected child chunk ID.
+        expected = by_question.get(q)
+        if not expected:
+            for cid, content, meta_q in children:
+                if content.startswith(f"سوال: {q}") or q[:30] in content:
+                    expected = cid
+                    break
         if not expected:
             failures.append((q[:40], "no chunk found"))
             continue

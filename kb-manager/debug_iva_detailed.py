@@ -6,6 +6,18 @@ import asyncio, json, pathlib
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 
+
+def rank_of(results, gt_id):
+    for i, r in enumerate(results):
+        if getattr(r, "chunk_id", None) == gt_id:
+            return i + 1
+    return None
+
+
+def fmt_rank(rank, n):
+    return str(rank) if rank is not None else f">{n}"
+
+
 async def main():
     from kb_manager.web.routes.search import search_knowledge_base
     import json as _json
@@ -35,26 +47,22 @@ th{background:#1e293b;color:#f1f5f9}
         exp_ans = item["expected_answer"]
         exp_ids = set(item["expected_chunk_ids"])
         # Get search results with full scores
-        steps = await search_knowledge_base(q, top_k=10)
-        # Find rank of GT
-        rank = -1
-        gt_chunk = None
-        for r_idx, r in enumerate(steps.final_results):
-            if r.chunk_id in exp_ids:
-                rank = r_idx + 1
-                gt_chunk = r
-                break
-        # Also check if GT is in merged candidates but not in final (reranker demoted)
-        merged_rank = -1
-        for r_idx, r in enumerate(steps.merged_candidates):
-            if r.chunk_id in exp_ids:
-                merged_rank = r_idx + 1
-                break
-        is_hit = rank != -1 and rank <= 5
+        steps = await search_knowledge_base(q, top_k=100)
+        # Find rank of GT in each stage (exp_ids may contain multiple chunks)
+        def _find(results):
+            for r_idx, r in enumerate(results):
+                if r.chunk_id in exp_ids:
+                    return r_idx + 1, r
+            return None, None
+        rank, gt_chunk = _find(steps.final_results)
+        merged_rank, _ = _find(steps.merged_candidates)
+        bm25_rank, _ = _find(steps.bm25_results)
+        dense_rank, _ = _find(steps.dense_results)
+        is_hit = rank is not None and rank <= 5
         # Get IVA result for this query if available
         iva_row = iva_results[idx] if idx < len(iva_results) else {}
         html.append(f"<div style='border:1px solid #334155;border-radius:8px;padding:16px;margin-bottom:20px;background:{'#1e293b' if is_hit else '#1e293b'}'>")
-        html.append(f"<h3 style='margin:0 0 8px 0'>Q{idx+1}: <span class='p' dir='auto'>{q}</span> <span style='float:right;padding:4px 8px;border-radius:4px;background:{'#22c55e' if is_hit else '#ef4444'};color:white;font-size:12px'>{'HIT rank '+str(rank) if is_hit else 'MISS rank '+str(rank if rank!=-1 else 'NF') }</span></h3>")
+        html.append(f"<h3 style='margin:0 0 8px 0'>Q{idx+1}: <span class='p' dir='auto'>{q}</span> <span style='float:right;padding:4px 8px;border-radius:4px;background:{'#22c55e' if is_hit else '#ef4444'};color:white;font-size:12px'>{'HIT rank '+fmt_rank(rank, len(steps.final_results)) if is_hit else 'MISS rank '+fmt_rank(rank, len(steps.final_results))}</span></h3>")
         html.append(f"<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px'>")
         # Left: GT
         html.append(f"<div style='background:#0f172a;padding:12px;border-radius:6px'><h4 style='margin:0 0 8px 0;color:#22c55e'>Ground Truth</h4>")
@@ -62,13 +70,13 @@ th{background:#1e293b;color:#f1f5f9}
         html.append(f"<div class='mono' style='margin-top:8px;color:#94a3b8'>Expected chunks: {len(exp_ids)} | Ans coverage in top-5: {iva_row.get('ans_cov','?')} | IVA doc_rank: {iva_row.get('doc_rank','?')}</div>")
         if gt_chunk:
             html.append(f"<div style='margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border-radius:4px'>")
-            html.append(f"<b>GT found at rank {rank} (final) / {merged_rank} (merged before rerank)</b><br>")
+            html.append(f"<b>GT ranks — bm25: {fmt_rank(bm25_rank, len(steps.bm25_results))} | dense: {fmt_rank(dense_rank, len(steps.dense_results))} | merged: {fmt_rank(merged_rank, len(steps.merged_candidates))} | final: {fmt_rank(rank, len(steps.final_results))}</b><br>")
             html.append(f"<span class='score'>BM25: {gt_chunk.bm25_score} | Dense: {gt_chunk.dense_score} | Hybrid: {gt_chunk.hybrid_score} | Rerank: {gt_chunk.rerank_score}</span><br>")
             html.append(f"<span class='mono'>Doc: {gt_chunk.doc_title} | Chunk: {gt_chunk.chunk_id[:8]} | {gt_chunk.heading_path}</span><br>")
             html.append(f"<div class='p mono' dir='auto' style='margin-top:4px;max-height:100px;overflow:auto'>{gt_chunk.content_preview[:300]}</div>")
             html.append(f"</div>")
         else:
-            html.append(f"<div style='margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border-radius:4px'>GT <b>NOT in top-10 final</b> — merged rank: {merged_rank if merged_rank!=-1 else 'NF (>50)'}<br>Expected chunks are from doc with {len(exp_ids)} chunks, none matched.</div>")
+            html.append(f"<div style='margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border-radius:4px'>GT <b>NOT in top-100 final</b> — bm25: {fmt_rank(bm25_rank, len(steps.bm25_results))} | dense: {fmt_rank(dense_rank, len(steps.dense_results))} | merged: {fmt_rank(merged_rank, len(steps.merged_candidates))} | final: {fmt_rank(rank, len(steps.final_results))}<br>Expected chunks are from doc with {len(exp_ids)} chunks, none matched.</div>")
         html.append(f"</div>")
         # Right: Retrieved top-5
         html.append(f"<div style='background:#0f172a;padding:12px;border-radius:6px'><h4 style='margin:0 0 8px 0'>Top-5 Retrieved (final after rerank)</h4>")
@@ -87,12 +95,12 @@ th{background:#1e293b;color:#f1f5f9}
         if not is_hit:
             html.append(f"<div style='margin-top:12px;padding:10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:6px'>")
             html.append(f"<b>Why MISS?</b> ")
-            if merged_rank != -1 and rank == -1:
-                html.append(f"GT was in merged candidates at rank {merged_rank} but demoted by cross-encoder reranker (top-50 → final 5). Try <code>RERANKER_TOP_K 50→100</code> or check rerank score: GT rerank {gt_chunk.rerank_score if gt_chunk else 'N/A'} vs top-1 {steps.final_results[0].rerank_score if steps.final_results else 'N/A'}.")
-            elif merged_rank == -1:
-                html.append(f"GT not even in BM25+Dense merged top-50. Query may be too colloquial/truncated (e.g. Q11 '؛؛وام‌های ضمانت' leading ؛), or vocabulary mismatch. Check <code>query_expansion.py</code> synonyms and <code>clean.py</code> lstrip. BM25 tokens for query: {steps.tokens[:10]}")
+            if merged_rank is not None and rank is None:
+                html.append(f"GT was in merged candidates at rank {merged_rank} but demoted by cross-encoder reranker (top-100 → final 5). Try <code>RERANKER_TOP_K 100→200</code> or check rerank score: GT rerank {gt_chunk.rerank_score if gt_chunk else 'N/A'} vs top-1 {steps.final_results[0].rerank_score if steps.final_results else 'N/A'}.")
+            elif merged_rank is None:
+                html.append(f"GT not even in BM25+Dense merged top-100. Query may be too colloquial/truncated (e.g. Q11 '؛؛وام‌های ضمانت' leading ؛), or vocabulary mismatch. Check <code>query_expansion.py</code> synonyms and <code>clean.py</code> lstrip. BM25 tokens for query: {steps.tokens[:10]}")
             else:
-                html.append(f"GT at rank {rank} (>5). Close but outside top-5. Consider increasing top_k or tuning RRF k=60.")
+                html.append(f"GT at rank {fmt_rank(rank, len(steps.final_results))} (>5). Close but outside top-5. Consider increasing top_k or tuning RRF k=60.")
             html.append(f"</div>")
         html.append(f"</div>")
 

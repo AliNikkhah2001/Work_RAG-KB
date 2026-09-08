@@ -5,7 +5,7 @@ import os
 import sys
 import unicodedata
 
-os.environ["KB_DB_URL"] = "sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_1405.db"
+os.environ.setdefault("KB_DB_URL", "sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_1405.db")
 sys.stdout.reconfigure(encoding="utf-8")
 
 from openpyxl import load_workbook

@@ -4,134 +4,134 @@
     "query": "در صورتی که اقساط من معوق و یا مشکوک الوصول باشد چه مدت زمان باید از پ",
     "doc_hit": true,
     "doc_rank": 1,
-    "ans_cov": 0.9,
+    "ans_cov": 0.86,
     "ans_hit": true,
-    "elapsed_ms": 118314.3
+    "elapsed_ms": 125456.5
   },
   {
     "i": 2,
     "query": "آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟",
     "doc_hit": true,
     "doc_rank": 1,
-    "ans_cov": 0.88,
+    "ans_cov": 1.0,
     "ans_hit": true,
-    "elapsed_ms": 45433.8
+    "elapsed_ms": 8727.3
   },
   {
     "i": 3,
     "query": "اگر چک برگشتی من رفع سوء اثر شده باشد، اما همچنان در گزارش اعتباری نما",
     "doc_hit": true,
     "doc_rank": 1,
-    "ans_cov": 0.42,
+    "ans_cov": 0.53,
     "ans_hit": false,
-    "elapsed_ms": 43684.6
+    "elapsed_ms": 4105.2
   },
   {
     "i": 4,
     "query": "آیا معوق شدن یک قسط از وام خرد تأثیرش کمتر از معوق شدن قسط وام بزرگ هس",
     "doc_hit": true,
     "doc_rank": 1,
-    "ans_cov": 0.6,
+    "ans_cov": 0.57,
     "ans_hit": false,
-    "elapsed_ms": 29204.9
+    "elapsed_ms": 3887.9
   },
   {
     "i": 5,
     "query": "چرا یکی از وام هایی که دارم قسطشون رو میدم، توی گزارش اعتباری من نیست؟",
     "doc_hit": true,
-    "doc_rank": 2,
+    "doc_rank": 1,
     "ans_cov": 0.21,
     "ans_hit": false,
-    "elapsed_ms": 33800.2
+    "elapsed_ms": 5330.1
   },
   {
     "i": 6,
     "query": "من همه وام های خودم رو پرداخت کردم. چرا امتیاز من کم شده؟",
     "doc_hit": true,
     "doc_rank": 1,
-    "ans_cov": 0.45,
+    "ans_cov": 0.55,
     "ans_hit": false,
-    "elapsed_ms": 26496.1
+    "elapsed_ms": 10640.5
   },
   {
     "i": 7,
     "query": "چکم رو پاس کردم، ولی هنوز توی گزارشم هست. چرا؟",
-    "doc_hit": true,
-    "doc_rank": 1,
-    "ans_cov": 0.49,
+    "doc_hit": false,
+    "doc_rank": -1,
+    "ans_cov": 0.35,
     "ans_hit": false,
-    "elapsed_ms": 27317.2
+    "elapsed_ms": 9476.8
   },
   {
     "i": 8,
     "query": "گزارش من اشتباه داره. چی کار کنم؟",
     "doc_hit": true,
-    "doc_rank": 3,
-    "ans_cov": 0.55,
+    "doc_rank": 2,
+    "ans_cov": 0.59,
     "ans_hit": false,
-    "elapsed_ms": 28058.4
+    "elapsed_ms": 5360.1
   },
   {
     "i": 9,
     "query": "گزارشم رو چطوری بگیرم؟",
     "doc_hit": true,
-    "doc_rank": 5,
-    "ans_cov": 0.93,
-    "ans_hit": true,
-    "elapsed_ms": 37066.3
+    "doc_rank": 2,
+    "ans_cov": 0.43,
+    "ans_hit": false,
+    "elapsed_ms": 4092.8
   },
   {
     "i": 10,
     "query": "چی کار کنم رتبم بهتر بشه؟",
     "doc_hit": true,
-    "doc_rank": 5,
-    "ans_cov": 0.36,
+    "doc_rank": 2,
+    "ans_cov": 0.35,
     "ans_hit": false,
-    "elapsed_ms": 33243.0
+    "elapsed_ms": 5066.4
   },
   {
     "i": 11,
     "query": "این دلیل کاهش امتیاز یعنی چی: ؛؛وام‌های ضمانت شده توسط فرد، در ماه‌های",
-    "doc_hit": false,
-    "doc_rank": -1,
-    "ans_cov": 0.56,
+    "doc_hit": true,
+    "doc_rank": 2,
+    "ans_cov": 0.53,
     "ans_hit": false,
-    "elapsed_ms": 35200.6
+    "elapsed_ms": 6818.7
   },
   {
     "i": 12,
     "query": "این دلیل کاهش امتیاز رو چطوری بهبود بدهم؟ «وام‌های ضمانت شده توسط فرد،",
-    "doc_hit": false,
-    "doc_rank": -1,
-    "ans_cov": 0.3,
+    "doc_hit": true,
+    "doc_rank": 3,
+    "ans_cov": 0.36,
     "ans_hit": false,
-    "elapsed_ms": 22848.6
+    "elapsed_ms": 7269.6
   },
   {
     "i": 13,
     "query": "من قسط وام خودم رو پرداخت کردم. اطلاعات من چه زمانی به روز میشه؟",
-    "doc_hit": true,
-    "doc_rank": 5,
-    "ans_cov": 0.54,
+    "doc_hit": false,
+    "doc_rank": -1,
+    "ans_cov": 0.31,
     "ans_hit": false,
-    "elapsed_ms": 21840.5
+    "elapsed_ms": 5801.0
   },
   {
     "i": 14,
     "query": "رتبه چه فرقی با امتیاز داره؟",
-    "doc_hit": false,
-    "doc_rank": -1,
-    "ans_cov": 0.5,
+    "doc_hit": true,
+    "doc_rank": 3,
+    "ans_cov": 0.56,
     "ans_hit": false,
-    "elapsed_ms": 17380.1
+    "elapsed_ms": 4210.6
   },
   {
     "i": 15,
     "query": "جزئیات قراردادهای منفی در گزارش یعنی چی؟",
-    "doc_hit": false,
-    "doc_rank": -1,
+    "doc_hit": true,
+    "doc_rank": 5,
     "ans_cov": 0.81,
     "ans_hit": true,
-    "elapsed_ms": 16227.2
+    "elapsed_ms": 5406.1
   }
 ]
