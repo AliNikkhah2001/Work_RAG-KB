@@ -242,7 +242,9 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
     from kb_manager.web.deps import db
 
     async with db.session() as session:
-        result = await session.execute(select(Chunk))
+        result = await session.execute(
+            select(Chunk).where(~Chunk.chunk_type.like("%_parent"))
+        )
         all_chunks = result.scalars().all()
 
         doc_ids = list({c.document_id for c in all_chunks})
@@ -330,13 +332,15 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
     from kb_manager.dense import DenseSemanticIndex
 
     async with db.session() as session:
-        chunk_count = (await session.execute(select(func.count(Chunk.id)))).scalar_one()
+        chunk_count = (await session.execute(
+            select(func.count(Chunk.id)).where(~Chunk.chunk_type.like("%_parent"))
+        )).scalar_one()
 
     # Fast path: count mismatch → rebuild; count match but need fingerprint check for same-count content change (F5)
     if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
         # Compute current fingerprint via lightweight DB scan to detect stale cache
         async with db.session() as session:
-            result = await session.execute(select(Chunk))
+            result = await session.execute(select(Chunk).where(~Chunk.chunk_type.like("%_parent")))
             all_chunks = result.scalars().all()
             if len(all_chunks) == chunk_count:
                 doc_ids = list({c.document_id for c in all_chunks})
@@ -357,7 +361,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
             # Re-check fingerprint under lock to avoid race
             async with db.session() as session:
-                result = await session.execute(select(Chunk))
+                result = await session.execute(select(Chunk).where(~Chunk.chunk_type.like("%_parent")))
                 all_chunks = result.scalars().all()
                 if len(all_chunks) == chunk_count:
                     doc_ids = list({c.document_id for c in all_chunks})
