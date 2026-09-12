@@ -76,6 +76,12 @@ class ParserConfig:
 
 
 @dataclass(frozen=True)
+class RerankerConfig:
+    model_name: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+    pool: int = 0  # 0 = keep legacy min(50, top_k*3) pool logic; >0 overrides the pool cap
+
+
+@dataclass(frozen=True)
 class RagasConfig:
     """Configuration for RAGAS LLM-based evaluation."""
 
@@ -93,11 +99,20 @@ class AppConfig:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
+    reranker: RerankerConfig = field(default_factory=RerankerConfig)
     ragas: RagasConfig = field(default_factory=RagasConfig)
     source_dir: str = str(PROJECT_ROOT / "data")
     output_dir: str = str(PROJECT_ROOT / "data" / "processed")
     web_host: str = "0.0.0.0"
     web_port: int = 8000
+
+
+def _int_env(name: str, default: int) -> int:
+    """Read an int env var, returning the default when unset/invalid."""
+    try:
+        return int(os.getenv(name, str(default)) or str(default))
+    except (TypeError, ValueError):
+        return default
 
 
 def load_config() -> AppConfig:
@@ -130,6 +145,13 @@ def load_config() -> AppConfig:
         ),
         parser=ParserConfig(
             xlsx_engine=os.getenv("KB_XLSX_ENGINE", "auto"),
+        ),
+        reranker=RerankerConfig(
+            model_name=os.getenv(
+                "KB_RERANKER_MODEL",
+                "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+            ),
+            pool=_int_env("KB_RERANK_POOL", 0),
         ),
         ragas=RagasConfig(
             llm_model=os.getenv("KB_RAGAS_LLM", "gpt-4o-mini"),

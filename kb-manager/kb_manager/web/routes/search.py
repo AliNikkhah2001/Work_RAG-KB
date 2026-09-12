@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import os
 import re
 import time
 from collections import Counter
@@ -15,7 +16,12 @@ from sqlalchemy import select
 
 from kb_manager.config import PROJECT_ROOT
 from kb_manager.dense import DenseSemanticIndex, load_or_build
-from kb_manager.reranker import CrossEncoderReranker, get_reranker
+from kb_manager.reranker import (
+    CrossEncoderReranker,
+    get_rerank_pool,
+    get_reranker,
+    get_reranker_model_name,
+)
 
 if TYPE_CHECKING:
     pass
@@ -24,8 +30,21 @@ router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-_RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
-_RERANKER_TOP_K = 50  # Number of candidates to rerank
+# Overridable via KB_RERANKER_MODEL env var (see kb_manager.reranker).
+_RERANKER_MODEL = os.getenv(
+    "KB_RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+)
+_RERANKER_TOP_K = 50  # Number of candidates to rerank (legacy pool cap)
+
+
+def _get_reranker_model() -> str:
+    """Re-read KB_RERANKER_MODEL so tests/runtime overrides apply."""
+    return get_reranker_model_name()
+
+
+def _get_rerank_pool() -> int:
+    """Re-read KB_RERANK_POOL so tests/runtime overrides apply."""
+    return get_rerank_pool()
 
 # Persian character normalization map
 _PERSIAN_CHAR_MAP = {
@@ -207,6 +226,7 @@ class SearchSteps(BaseModel):
     merged_candidates: list[SearchResult]
     final_results: list[SearchResult]
     elapsed_ms: float
+    rerank_ms: float = 0.0
 
 
 async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM25, DenseSemanticIndex, CrossEncoderReranker]:
@@ -257,7 +277,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str]], BM2
         model_name=_DENSE_MODEL,
     )
 
-    reranker = get_reranker(model_name=_RERANKER_MODEL)
+    reranker = get_reranker(model_name=_get_reranker_model())
     return chunk_data, bm25, dense, reranker
 
 
@@ -393,8 +413,17 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         c.hybrid_score = round(c.hybrid_score, 6)
 
     # --- Step 6: Cross-encoder Reranking (with BM25 fallback for short queries) ---
-    rerank_input = candidates[:_RERANKER_TOP_K]
-    reranked = reranker.rerank(normalized, [c.model_dump() for c in rerank_input], top_k=top_k)
+    # KB_RERANK_POOL>0 overrides the legacy _RERANKER_TOP_K pre-slice cap.
+    rerank_pool_cap = _get_rerank_pool()
+    rerank_cap = rerank_pool_cap if rerank_pool_cap > 0 else _RERANKER_TOP_K
+    rerank_input = candidates[:rerank_cap]
+    reranked = reranker.rerank(
+        normalized,
+        [c.model_dump() for c in rerank_input],
+        top_k=top_k,
+        pool=rerank_pool_cap,
+    )
+    rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
     
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
@@ -426,6 +455,7 @@ async def search_knowledge_base(query: str, top_k: int = 10) -> SearchSteps:
         merged_candidates=candidates[:top_k],
         final_results=final,
         elapsed_ms=round(elapsed, 1),
+        rerank_ms=rerank_ms,
     )
 
 
