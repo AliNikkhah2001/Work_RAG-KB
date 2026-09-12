@@ -28,6 +28,9 @@ _SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
 # keyword heuristic boost – tunable via env, also per-request override
 _KEYWORD_BOOST_DEFAULT = float(os.getenv("KB_KEYWORD_BOOST", "3.0"))
 
+# rerank/RRF score fusion weight – tunable via env (restart required)
+_RERANK_FUSION_ALPHA = float(os.getenv("KB_RERANK_FUSION_ALPHA", "0.7"))
+
 if TYPE_CHECKING:
     pass
 
@@ -35,8 +38,9 @@ router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-_RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
-_RERANKER_TOP_K = 100  # Number of candidates to rerank (was 50, increased for Q11/12 reason-code recall)
+# reranker model + pool size – tunable via env for A/B (restart required)
+_RERANKER_MODEL = os.getenv("KB_RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
+_RERANKER_TOP_K = int(os.getenv("KB_RERANKER_TOP_K", "100"))  # Number of candidates to rerank (was 50, increased for Q11/12 reason-code recall)
 
 def _get_device_config():
     """Get device from config (env KB_EMBED_DEVICE / KB_RERANKER_DEVICE)."""
@@ -591,12 +595,21 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         c.hybrid_score = round(c.hybrid_score, 6)
 
     # --- Step 6: Cross-encoder Reranking (with BM25 fallback for low scores) ---
+    # Score full rerank pool (not just top_k) so fusion normalizes over the input set.
     rerank_input = candidates[:_RERANKER_TOP_K]
-    reranked = reranker.rerank(normalized, [c.model_dump() for c in rerank_input], top_k=top_k)
-    
+    rerank_pool_size = max(len(rerank_input), 1)
+    reranked = reranker.rerank(normalized, [c.model_dump() for c in rerank_input], top_k=rerank_pool_size)
+
+    # Re-attach RRF hybrid_score by chunk_id (rerank preserves it, but guard anyway).
+    _rrf_by_id = {c.chunk_id: c.hybrid_score for c in rerank_input}
+    for r in reranked:
+        if not r.get("hybrid_score"):
+            r["hybrid_score"] = _rrf_by_id.get(r.get("chunk_id"), 0.0)
+
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
     # Fallback: if reranker gives uniformly low scores for very short queries (<=4 tokens), use BM25
+    _fallback_used = False
     try:
         max_rerank = max((r.rerank_score for r in reranked_results), default=0)
         if max_rerank < 0.2 and len(bm25_results) > 0 and len(tokens) <= 4:
@@ -608,8 +621,54 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                 nr.rerank_score = r.bm25_score
                 fallback.append(nr)
             reranked_results = fallback
+            _fallback_used = True
     except Exception:
         pass
+
+    if not _fallback_used and len(reranked_results) > 1:
+        # --- Step 6b: RRF↔cross-encoder score fusion ---
+        # final_score = alpha * norm(rerank_score) + (1-alpha) * norm(rrf_score),
+        # min-max normalized over the rerank input set. Ordering only;
+        # rerank_score/hybrid_score fields are left untouched for transparency.
+        try:
+            _alpha = float(os.getenv("KB_RERANK_FUSION_ALPHA", str(_RERANK_FUSION_ALPHA)))
+        except ValueError:
+            _alpha = 0.7
+        _alpha = min(1.0, max(0.0, _alpha))
+        _rr = [r.rerank_score for r in reranked_results]
+        _hr = [r.hybrid_score for r in reranked_results]
+        _rr_lo, _rr_hi = min(_rr), max(_rr)
+        _hr_lo, _hr_hi = min(_hr), max(_hr)
+        _rr_span = _rr_hi - _rr_lo
+        _hr_span = _hr_hi - _hr_lo
+        _scored = []
+        for r in reranked_results:
+            _n_rr = (r.rerank_score - _rr_lo) / _rr_span if _rr_span > 0 else 0.0
+            _n_hr = (r.hybrid_score - _hr_lo) / _hr_span if _hr_span > 0 else 0.0
+            _scored.append((_alpha * _n_rr + (1.0 - _alpha) * _n_hr, r))
+        _scored.sort(key=lambda t: t[0], reverse=True)
+        reranked_results = [r for _, r in _scored]
+
+        # Pin protection: merged top-3 + BM25 top-3 may not fall below final rank 10.
+        # BM25-leg guard: RRF dilution can bury a BM25-top hit dense misses (Q1-class);
+        # union keeps merged mechanics unchanged. Absent ids (cut by TOP_K) are skipped.
+        _pinned = [c.chunk_id for c in rerank_input[:3]]
+        for _b in bm25_results[:3]:
+            if _b.chunk_id not in _pinned:
+                _pinned.append(_b.chunk_id)
+        _violators = []
+        _pos = {r.chunk_id: i for i, r in enumerate(reranked_results)}
+        for _pid in _pinned:
+            _idx = _pos.get(_pid)
+            if _idx is not None and _idx >= 10:
+                _violators.append(_pid)
+        if _violators:
+            _by_id = {r.chunk_id: r for r in reranked_results}
+            _rest = [r for r in reranked_results if r.chunk_id not in set(_violators)]
+            _start = max(0, min(10 - len(_violators), len(_rest)))
+            for _j, _pid in enumerate(_violators):
+                _rest.insert(_start + _j, _by_id[_pid])
+            reranked_results = _rest
 
     # --- Step 7: Final top-k ---
     final = reranked_results[:top_k]

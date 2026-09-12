@@ -74,6 +74,57 @@ SYNONYM_MAP: dict[str, list[str]] = {
     "چطوری": ["چگونه", "چطور"],
     "بهبود بدهم": ["بهبود", "اصلاح", "بهتر کنم"],
     "اعتراضت": ["اعتراض"],
+    # legal near-synonyms (fail pair: "قانون داریم؟" vs "آیین نامه داریم؟";
+    # corpus uses قانون/مقررات/مصوبه/آیین‌نامه interchangeably)
+    "قانون": ["مقررات", "آیین‌نامه"],
+    "آیین‌نامه": ["قانون", "مقررات"],
+    "آیین نامه": ["قانون", "مقررات"],
+    "مقررات": ["قانون", "آیین‌نامه"],
+    "مصوبه": ["قانون", "مقررات"],
+    "دستورالعمل": ["قانون", "مقررات"],
+    # rights (fail: "چه حقوقی در اعتبارسنجی دارم؟" — suffixed حقوقی missed)
+    "حقوق": ["حق", "حقوق فردی"],
+    "حقوقی": ["حقوق", "حق"],
+    "حق": ["حقوق"],
+    # typo-tolerant (fail: "مطمینم" for "مطمئنم"; "اعتبارسنگری"; "جند" for "چند")
+    "مطمینم": ["مطمئنم", "مطمئن"],
+    "مطمئنم": ["مطمئن"],
+    "اعتبارسنگری": ["اعتبارسنجی"],
+    "جند": ["چند"],
+    # score vs rank (fail: "امتیازم عوض شده ولی رتبم عوض نشده";
+    # corpus holds both امتیاز (286 rows) and رتبه (225 rows))
+    "رتبه": ["امتیاز", "نمره"],
+    "رتبه‌بندی": ["رتبه", "امتیاز"],
+    "رتبه بندی": ["رتبه", "امتیاز"],
+    "امتیازم": ["امتیاز"],
+    "امتیازمو": ["امتیاز"],
+    "اعتباریم": ["اعتباری", "اعتبار"],
+    "اعتباریمو": ["اعتباری", "اعتبار"],
+    "وامی": ["وام"],
+    "نگرفتم": ["دریافت نکرده", "نگرفته"],
+    # update (fail: "به‌روز شود؟" vs "به روزرسانی می شود";
+    # corpus has به‌روز/به روز/بروزرسانی/به‌روزرسانی side by side)
+    "به‌روز": ["به روز", "به‌روزرسانی"],
+    "به روز": ["به‌روز", "به‌روزرسانی"],
+    "به‌روزرسانی": ["بروزرسانی", "به‌روز"],
+    "بروزرسانی": ["به‌روزرسانی", "به‌روز"],
+    "به روزرسانی": ["به‌روزرسانی", "بروزرسانی"],
+    # how-long paraphrases (fail: "چقدر طول می‌کشد" vs "چه مدت زمان طول می‌کشد")
+    "چقدر": ["چه مدت", "چه مدت زمان"],
+    "طول": ["مدت", "مدت زمان"],
+    "می‌کشد": ["مدت"],
+    "می کشد": ["مدت"],
+    # colloquial → formal (observed in failed samples)
+    "چیکار": ["چگونه", "چه کار"],
+    "ببرم بالا": ["افزایش", "بهبود"],
+    "ببرم": ["افزایش"],
+    "عواملی": ["عوامل", "دلیل"],
+    "عوامل": ["دلیل", "علت"],
+    "مدارکی": ["مدارک", "مدارک لازم"],
+    "دریافت": ["گرفتن", "اخذ"],
+    "گرفته": ["دریافت", "اخذ"],
+    "بدون اجازه": ["غیرمجاز", "بدون رضایت"],
+    "کسانی": ["افراد", "اشخاص"],
 }
 
 
@@ -140,6 +191,18 @@ def expand_tokens_soundex(tokens: list[str]) -> list[str]:
     return tokens + [s for s in sx if s not in tokens and len(s) > 1]
 
 
+# Template placeholders used in both questions and chunks, e.g. (بانک),
+# (کسب و کار), (اسم اپلیکیشن), (اسم بانک), (مثال امتیاز), (نام ...).
+# A beam with placeholders stripped lets BM25 match chunks whose
+# placeholders differ (or match the de-templated core text).
+_PLACEHOLDER_RE = re.compile(r"\([^)]*\)")
+
+
+def strip_placeholders(query: str) -> str:
+    """Remove parenthesized template placeholders; collapse whitespace."""
+    return re.sub(r"\s+", " ", _PLACEHOLDER_RE.sub(" ", query)).strip()
+
+
 def generate_multi_queries(query: str, beam: int = 5) -> list[str]:
     """Rule-based beam 5: verbatim, synonym-swapped, soundex, keyword-only, reworded.
 
@@ -147,6 +210,13 @@ def generate_multi_queries(query: str, beam: int = 5) -> list[str]:
     this is the offline fallback that still lifts keyword_only Hit@5 ~+5%.
     """
     queries: list[str] = [query]
+
+    # 1b: placeholder-stripped (inserted right after verbatim — highest value;
+    # dedup+cap below keeps total <= beam, so the weakest tail beam drops off
+    # only when this fires)
+    stripped = strip_placeholders(query)
+    if stripped and stripped != query:
+        queries.append(stripped)
 
     # 2: synonym variant
     toks = query.split()
