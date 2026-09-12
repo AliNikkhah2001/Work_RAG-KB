@@ -1,0 +1,114 @@
+{
+ "code_rev": "96438c1e8caac5689f5caef11868265c4316e8a1",
+ "db_sha256": "9eac43aedee0af1810f309f5cf43a6710f6bacb7af58759861cccac0683941d1",
+ "npz_sha256": "5a4909985bc5e78958a65e2bd8f91e295f061a0444196ae8dca1ce5ea0f4b923",
+ "docs": [
+  {
+   "id": "cfe5f64c-764c-4b02-8045-3b578d26a345",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\حقیقی\\گزارش اعتباری\\IndividualCreditReport.xlsx"
+  },
+  {
+   "id": "e6d7cabd-c75a-4175-9575-21e9bb0438c3",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\حقیقی\\گزارش اعتباری\\Individual_CRM_Questions.xlsx"
+  },
+  {
+   "id": "97f29e44-8629-4901-9ed0-794e014704bf",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\حقیقی\\گزارش اعتباری\\ReasonCode_IndividualAlternative-chatbot.xlsx"
+  },
+  {
+   "id": "3c000a41-bc2a-45ec-a41a-7b3d7449eddc",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\حقیقی\\گزارش اعتباری\\ReasonCode_IndividualMain-chatbot.xlsx"
+  },
+  {
+   "id": "41fa2d6b-fd07-44ea-8064-cb0dd47c90b9",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\حقیقی\\گزارش چک\\ChequeQuestions.xlsx"
+  },
+  {
+   "id": "422e59ea-ada4-4058-bd87-1568ea579768",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\حقیقی\\گزارش چک\\ChequeReport.xlsx"
+  },
+  {
+   "id": "db7a85f1-c3e8-4dc6-8eb3-de1bb49a0fc8",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\حقیقی\\گزارش چک\\Cheque_ReasonCode_for_Chatbot.xlsx"
+  },
+  {
+   "id": "6558a957-6ae5-48e9-b4e8-f7de075927f0",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\16 کاربرد اعتبارسنجی در اقتصاد.xlsx"
+  },
+  {
+   "id": "10f996cb-d6c0-49ff-86ae-941c91977ab5",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\BoardOfDirectors.xlsx"
+  },
+  {
+   "id": "56240e71-21c9-4463-b2df-ed0da9c690f2",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\DataProviders.xlsx"
+  },
+  {
+   "id": "e7d57b7a-1498-47aa-8a5d-1cc72fe7ebef",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\DataUsers.xlsx"
+  },
+  {
+   "id": "9f935ec5-ee86-4af3-91cd-2ca2544cb97a",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\DepartmentManagers.xlsx"
+  },
+  {
+   "id": "046a2f43-4e4a-485c-96a4-22a07749f07f",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\DisputeQuestions.xlsx"
+  },
+  {
+   "id": "7614073b-9619-4568-b0e2-b08449380195",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\EtebaritoProblems.xlsx"
+  },
+  {
+   "id": "05cdb9e8-6a8a-4057-bd3b-8c84039386b5",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\ExecutiveManagement.xlsx"
+  },
+  {
+   "id": "3a70e223-0d15-4a4b-aa62-85bd1c8d2136",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\ICS_Business_Model_Comparison.xlsx"
+  },
+  {
+   "id": "bf6ca930-425b-4550-b9b9-33943906beb5",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\ICS_Intro.xlsx"
+  },
+  {
+   "id": "d9f1f851-44ee-4e62-8ff1-bef95cf31edb",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\ImportantLinks.xlsx"
+  },
+  {
+   "id": "d50fb51e-42a8-425b-834d-919d9c01746c",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\PublicQuestions.xlsx"
+  },
+  {
+   "id": "c81ab07b-2300-42d3-ad37-411e789c814f",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\StockHolders.xlsx"
+  },
+  {
+   "id": "899a2d25-3950-42aa-8159-03e1878df154",
+   "source_path": "D:\\Code\\KB\\kb-source\\KB_9.7.2026\\سایر\\لیست و عناوین وام ها.xlsx"
+  }
+ ],
+ "chunk_type_histogram": {
+  "body": 552,
+  "qa_pair": 508,
+  "qa_pair_parent": 5,
+  "staff_profile": 16,
+  "staff_profile_parent": 3
+ },
+ "qa_pair_count": 508,
+ "models": {
+  "dense": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "reranker": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+ },
+ "retrieval_config": {
+  "rrf_k": 60,
+  "rerank_top_k": 100,
+  "keyword_boost": 3.0,
+  "synonym_beam": 5,
+  "fusion_alpha": 0.7,
+  "pin": "merged-top3+bm25-top3<=10"
+ },
+ "env": {
+  "KB_DB_URL": "sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_9_7_2026.db"
+ }
+}
