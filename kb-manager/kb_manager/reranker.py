@@ -54,7 +54,7 @@ RERANKER_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "Alibaba-NLP/gte-multilingual-reranker-base": {
         "loader": "crossencoder",
-        "needs_trust_remote_code": False,
+        "needs_trust_remote_code": True,  # custom modeling_*.py, fetched once then cached
     },
     "jinaai/jina-reranker-v3": {
         "loader": "crossencoder",
@@ -211,6 +211,15 @@ class CrossEncoderReranker:
         self._tokenizer = AutoTokenizer.from_pretrained(
             self._model_name, trust_remote_code=trust_remote_code
         )
+        # Tokenizer-side pad fallback (model-config side is fixed after load
+        # below, once self._model exists).
+        try:
+            pad_id = self._tokenizer.pad_token_id
+        except Exception:
+            pad_id = None
+        if pad_id is None and self._tokenizer.eos_token_id is not None:
+            self._tokenizer.pad_token_id = self._tokenizer.eos_token_id
+            self._tokenizer.pad_token = self._tokenizer.eos_token
         self._model = AutoModelForSequenceClassification.from_pretrained(
             self._model_name,
             torch_dtype=torch.float16 if self._device != "cpu" else torch.float32,
@@ -222,6 +231,33 @@ class CrossEncoderReranker:
         else:
             import torch
             self._model.to("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Model-config pad fallback (must run AFTER load: some causal-LM
+        # rerankers like Jina-v3/Qwen3 ship pad_token_id=None in config,
+        # which crashes batched scoring).
+        try:
+            _eos = self._tokenizer.eos_token_id
+            _cfg = self._model.config
+            _need = False
+            try:
+                _need = _cfg.get_text_config().pad_token_id is None
+            except Exception:
+                try:
+                    _need = _cfg.pad_token_id is None
+                except Exception:
+                    _need = False
+            if _need and _eos is not None:
+                try:
+                    _cfg.pad_token_id = _eos
+                except Exception:
+                    pass
+                try:
+                    _cfg.get_text_config().pad_token_id = _eos
+                except Exception:
+                    pass
+                logger.info("pad_token_id missing for %s; using eos id %s", self._model_name, _eos)
+        except Exception:
+            pass
 
         self._model.eval()
         logger.info(
