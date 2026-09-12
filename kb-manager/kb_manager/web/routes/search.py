@@ -469,7 +469,10 @@ async def search_api(request: Request):
         return {"error": "Empty query"}
 
     try:
-        steps = await asyncio.to_thread(search_knowledge_base_sync, query, top_k)
+        # NOTE: run in the request's event loop (not to_thread): the asyncpg
+        # pool binds connections to the loop that first uses it, so a worker
+        # thread + persistent loop raises "attached to a different loop".
+        steps = await search_knowledge_base(query, top_k)
         return steps.model_dump()
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}
