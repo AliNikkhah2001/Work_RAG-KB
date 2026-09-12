@@ -98,9 +98,28 @@ Query → Persian Normalization + Char 3-grams
 - **BM25**: Okapi BM25 with Persian-aware tokenization, char 3-grams for typo robustness, keyword 3x boost
 - **Dense**: `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) with contextual embeddings (title + heading prepended)
 - **RRF**: Reciprocal Rank Fusion over BM25 + Dense ranked lists
-- **Reranker**: `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` on top-50 candidates
+- **Reranker**: configurable via `KB_RERANKER_MODEL` (default `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`) on a `KB_RERANK_POOL`-capped candidate pool (default `min(50, top_k*3)`); per-call latency logged (`rerank model=… n=… ms=…`, `SearchSteps.rerank_ms`)
+
+### Reranker backbones (select via `KB_RERANKER_MODEL`)
+
+| Model | Params | License | Loader | Status |
+|---|---|---|---|---|
+| `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (default) | 118M | Apache 2.0 | CrossEncoder | production baseline |
+| `BAAI/bge-reranker-v2-m3` | 568M | MIT | CrossEncoder | candidate — m3 family tops FaMTEB Persian rerank |
+| `jinaai/jina-reranker-v3` | 0.6B | Apache 2.0 | CrossEncoder (`trust_remote_code`, EOS pad fallback) | candidate (v2 skipped: CC-BY-NC) |
+| `Qwen/Qwen3-Reranker-0.6B` | 0.6B | Apache 2.0 | FlagEmbedding LLM head | candidate |
+| `Qwen/Qwen3-Reranker-4B` | 4B | Apache 2.0 | FlagEmbedding LLM head | candidate (~23GB RAM, CPU-only here) |
+| `BAAI/bge-reranker-v2-gemma` | 2.5B | Apache 2.0 | FlagEmbedding LLM head | candidate, biggest SOTA in scope |
+| `BAAI/bge-reranker-v2-minicpm-layerwise` | 2.7B | Apache 2.0 | — | blocked: needs transformers-5 port (remote modeling uses removed APIs) |
+| `Alibaba-NLP/gte-multilingual-reranker-base` | ~300M | Apache 2.0 | — | blocked: custom modeling broken under transformers 5 (rope index bug, verified native) |
+
+Notes: causal-LM-derived rerankers (Jina-v3/Qwen3) ship `pad_token_id=None`; the loader falls back to EOS on tokenizer + model + nested text config. `BAAI/bge-reranker-v2-gemma` is Gemma-2B-based (~2.5B, 9.4GB), not 9B. Hosted APIs (Cohere/Voyage) excluded — self-hosted only. No Persian-specific cross-encoder exists; Persian relies on multilingual models.
 
 ## Benchmark Results
+
+### v9 — cross-encoder backbone shootout, 800 QA (`eval_clean.json`), CPU (2026-09-12, running)
+
+Massive retrieval benchmark: every query × every backbone above (pool 30, top_k 5), in-process parallel workers. See `eval/results/reranker_benchmark_*` for per-variant JSON + plots. Results table lands here when the runs finish.
 
 ### v7 — IVA 15 questions, 1405-05-31 KB (verbatim, CPU)
 
