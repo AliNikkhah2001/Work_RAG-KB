@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 try:
     from datasets import load_dataset
@@ -157,8 +160,16 @@ def load_famteb_retrieval_dataset(
         if max_samples and i >= max_samples:
             break
 
+        # F15 fix: validate schema — do not silently synthesize IDs that invalidate qrels
+        if id_field not in row or not str(row.get(id_field, "")).strip():
+            raise ValueError(f"Dataset {dataset_key} missing id_field '{id_field}' in row {i}: {list(row.keys())}")
+        if query_field not in row:
+            raise ValueError(f"Dataset {dataset_key} missing query_field '{query_field}' in row {i}")
+        if corpus_field not in row:
+            raise ValueError(f"Dataset {dataset_key} missing corpus_field '{corpus_field}' in row {i}")
+
         query_id = f"q_{i}"
-        doc_id = str(row.get(id_field, f"d_{i}"))
+        doc_id = str(row[id_field]).strip()
         
         query_text = str(row.get(query_field, "")).strip()
         corpus_text = str(row.get(corpus_field, "")).strip()
@@ -196,10 +207,9 @@ def load_multiple_famteb_datasets(
             datasets[key] = load_famteb_retrieval_dataset(
                 key, max_samples=max_samples_per_dataset
             )
-            print(f"Loaded {key}: {len(datasets[key].queries)} queries, "
-                  f"{len(datasets[key].corpus)} docs")
+            logger.info("Loaded %s: %d queries, %d docs", key, len(datasets[key].queries), len(datasets[key].corpus))
         except Exception as e:
-            print(f"Failed to load {key}: {e}")
+            logger.warning("Failed to load %s: %s", key, e)
     return datasets
 
 

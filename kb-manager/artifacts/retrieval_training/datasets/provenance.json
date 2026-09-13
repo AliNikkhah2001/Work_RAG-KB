@@ -1,0 +1,90 @@
+{
+  "manifest": {
+    "code_rev": "34c2fd56681aa3f1da042be630f8af38417add3e",
+    "db_sha": "9eac43aedee0af1810f309f5cf43a6710f6bacb7af58759861cccac0683941d1",
+    "config": {
+      "train_ratio": 0.8,
+      "val_ratio": 0.1,
+      "test_ratio": 0.1,
+      "negatives_per_positive": 4,
+      "tier_ratios": {
+        "Tier1": 0.25,
+        "Tier2": 0.25,
+        "Tier3": 0.25,
+        "Tier4": 0.25
+      },
+      "seed": 42,
+      "provenance": "validate1"
+    },
+    "seed": 42
+  },
+  "stats": {
+    "queries": 511,
+    "negatives": 2044,
+    "avg_negatives_per_query": 4.0,
+    "tier_counts": {
+      "Tier1": 64,
+      "Tier2": 1965,
+      "Tier3": 15,
+      "Tier4": 0
+    },
+    "splits": {
+      "train": 411,
+      "validation": 48,
+      "test": 52
+    },
+    "split_tier_counts": {
+      "train": {
+        "Tier1": 48,
+        "Tier2": 1584,
+        "Tier3": 12,
+        "Tier4": 0
+      },
+      "validation": {
+        "Tier1": 11,
+        "Tier2": 180,
+        "Tier3": 1,
+        "Tier4": 0
+      },
+      "test": {
+        "Tier1": 5,
+        "Tier2": 201,
+        "Tier3": 2,
+        "Tier4": 0
+      }
+    },
+    "fail_ids": [
+      "Individual_CRM_Questions#100",
+      "Individual_CRM_Questions#17",
+      "Individual_CRM_Questions#19",
+      "Individual_CRM_Questions#224",
+      "Individual_CRM_Questions#239",
+      "Individual_CRM_Questions#292",
+      "Individual_CRM_Questions#3",
+      "Individual_CRM_Questions#314",
+      "Individual_CRM_Questions#340",
+      "Individual_CRM_Questions#343",
+      "Individual_CRM_Questions#352",
+      "Individual_CRM_Questions#6",
+      "Individual_CRM_Questions#72",
+      "Individual_CRM_Questions#97",
+      "Individual_CRM_Questions#99",
+      "PublicQuestions#24",
+      "PublicQuestions#26",
+      "PublicQuestions#38",
+      "PublicQuestions#40",
+      "PublicQuestions#41",
+      "PublicQuestions#48",
+      "PublicQuestions#58"
+    ],
+    "errors": [],
+    "warnings": [],
+    "seed": 42,
+    "provenance": "validate1"
+  },
+  "artifacts": {
+    "train": "train.jsonl",
+    "validation": "validation.jsonl",
+    "test": "test.jsonl"
+  }
+}

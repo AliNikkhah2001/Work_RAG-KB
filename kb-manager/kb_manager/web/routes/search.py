@@ -40,6 +40,9 @@ _SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
 # keyword heuristic boost – tunable via env, also per-request override
 _KEYWORD_BOOST_DEFAULT = float(os.getenv("KB_KEYWORD_BOOST", "3.0"))
 
+# rerank/RRF score fusion weight – tunable via env (restart required)
+_RERANK_FUSION_ALPHA = float(os.getenv("KB_RERANK_FUSION_ALPHA", "0.7"))
+
 if TYPE_CHECKING:
     pass
 
@@ -47,11 +50,11 @@ router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-# Overridable via KB_RERANKER_MODEL env var (see kb_manager.reranker).
+# Reranker model (KB_RERANKER_MODEL-aware helper below) + pool size – tunable via env (restart required)
 _RERANKER_MODEL = os.getenv(
     "KB_RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
 )
-_RERANKER_TOP_K = 50  # Number of candidates to rerank (legacy pool cap)
+_RERANKER_TOP_K = int(os.getenv("KB_RERANKER_TOP_K", "100"))  # rerank candidates (was 50, raised for Q11/12 recall)
 
 
 def _get_reranker_model() -> str:
@@ -62,6 +65,16 @@ def _get_reranker_model() -> str:
 def _get_rerank_pool() -> int:
     """Re-read KB_RERANK_POOL so tests/runtime overrides apply."""
     return get_rerank_pool()
+
+
+def _get_device_config():
+    """Get device from config (env KB_EMBED_DEVICE / KB_RERANKER_DEVICE)."""
+    try:
+        from kb_manager.config import load_config
+        cfg = load_config()
+        return cfg.embedding.device, cfg.embedding.reranker_device
+    except Exception:
+        return "cpu", "cpu"
 
 # HyDE configuration (disabled by default; set KB_HYDE_ENABLED=true to enable)
 _HYDE_ENABLED = os.getenv("KB_HYDE_ENABLED", "false").lower() == "true"
@@ -259,7 +272,9 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
     from kb_manager.web.deps import db
 
     async with db.session() as session:
-        result = await session.execute(select(Chunk))
+        result = await session.execute(
+            select(Chunk).where(~Chunk.chunk_type.like("%_parent"))
+        )
         all_chunks = result.scalars().all()
 
         doc_ids = list({c.document_id for c in all_chunks})
@@ -295,6 +310,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
 
     dense_texts = [cd[4] for cd in chunk_data]
     dense_ids = [cd[0] for cd in chunk_data]
+    _embed_device, _rerank_device = _get_device_config()
     dense = load_or_build(
         _DENSE_CACHE_PATH,
         dense_ids,
@@ -303,9 +319,10 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
         headings=dense_headings,
         chunk_types=dense_chunk_types,
         model_name=_DENSE_MODEL,
+        device=_embed_device,
     )
 
-    reranker = get_reranker(model_name=_get_reranker_model())
+    reranker = get_reranker(model_name=_get_reranker_model(), device=_rerank_device)
 
     # HyDE: optional LLM-based hypothetical document generation
     hyde = None
@@ -345,13 +362,15 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
     from kb_manager.dense import DenseSemanticIndex
 
     async with db.session() as session:
-        chunk_count = (await session.execute(select(func.count(Chunk.id)))).scalar_one()
+        chunk_count = (await session.execute(
+            select(func.count(Chunk.id)).where(~Chunk.chunk_type.like("%_parent"))
+        )).scalar_one()
 
     # Fast path: count mismatch → rebuild; count match but need fingerprint check for same-count content change (F5)
     if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
         # Compute current fingerprint via lightweight DB scan to detect stale cache
         async with db.session() as session:
-            result = await session.execute(select(Chunk))
+            result = await session.execute(select(Chunk).where(~Chunk.chunk_type.like("%_parent")))
             all_chunks = result.scalars().all()
             if len(all_chunks) == chunk_count:
                 doc_ids = list({c.document_id for c in all_chunks})
@@ -372,7 +391,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
             # Re-check fingerprint under lock to avoid race
             async with db.session() as session:
-                result = await session.execute(select(Chunk))
+                result = await session.execute(select(Chunk).where(~Chunk.chunk_type.like("%_parent")))
                 all_chunks = result.scalars().all()
                 if len(all_chunks) == chunk_count:
                     doc_ids = list({c.document_id for c in all_chunks})
@@ -602,21 +621,30 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         c.hybrid_score = round(c.hybrid_score, 6)
 
     # --- Step 6: Cross-encoder Reranking (with BM25 fallback for short queries) ---
-    # KB_RERANK_POOL>0 overrides the legacy _RERANKER_TOP_K pre-slice cap.
+    # KB_RERANK_POOL>0 overrides the _RERANKER_TOP_K pre-slice cap.
+    # Score the full rerank pool (not just top_k) so fusion normalizes over the input set.
     rerank_pool_cap = _get_rerank_pool()
     rerank_cap = rerank_pool_cap if rerank_pool_cap > 0 else _RERANKER_TOP_K
     rerank_input = candidates[:rerank_cap]
+    rerank_pool_size = max(len(rerank_input), 1)
     reranked = reranker.rerank(
         normalized,
         [c.model_dump() for c in rerank_input],
-        top_k=top_k,
+        top_k=rerank_pool_size,
         pool=rerank_pool_cap,
     )
     rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
-    
+
+    # Re-attach RRF hybrid_score by chunk_id (rerank preserves it, but guard anyway).
+    _rrf_by_id = {c.chunk_id: c.hybrid_score for c in rerank_input}
+    for r in reranked:
+        if not r.get("hybrid_score"):
+            r["hybrid_score"] = _rrf_by_id.get(r.get("chunk_id"), 0.0)
+
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
     # Fallback: if reranker gives uniformly low scores for very short queries (<=4 tokens), use BM25
+    _fallback_used = False
     try:
         max_rerank = max((r.rerank_score for r in reranked_results), default=0)
         if max_rerank < 0.2 and len(bm25_results) > 0 and len(tokens) <= 4:
@@ -628,8 +656,54 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                 nr.rerank_score = r.bm25_score
                 fallback.append(nr)
             reranked_results = fallback
+            _fallback_used = True
     except Exception:
         pass
+
+    if not _fallback_used and len(reranked_results) > 1:
+        # --- Step 6b: RRF↔cross-encoder score fusion ---
+        # final_score = alpha * norm(rerank_score) + (1-alpha) * norm(rrf_score),
+        # min-max normalized over the rerank input set. Ordering only;
+        # rerank_score/hybrid_score fields are left untouched for transparency.
+        try:
+            _alpha = float(os.getenv("KB_RERANK_FUSION_ALPHA", str(_RERANK_FUSION_ALPHA)))
+        except ValueError:
+            _alpha = 0.7
+        _alpha = min(1.0, max(0.0, _alpha))
+        _rr = [r.rerank_score for r in reranked_results]
+        _hr = [r.hybrid_score for r in reranked_results]
+        _rr_lo, _rr_hi = min(_rr), max(_rr)
+        _hr_lo, _hr_hi = min(_hr), max(_hr)
+        _rr_span = _rr_hi - _rr_lo
+        _hr_span = _hr_hi - _hr_lo
+        _scored = []
+        for r in reranked_results:
+            _n_rr = (r.rerank_score - _rr_lo) / _rr_span if _rr_span > 0 else 0.0
+            _n_hr = (r.hybrid_score - _hr_lo) / _hr_span if _hr_span > 0 else 0.0
+            _scored.append((_alpha * _n_rr + (1.0 - _alpha) * _n_hr, r))
+        _scored.sort(key=lambda t: t[0], reverse=True)
+        reranked_results = [r for _, r in _scored]
+
+        # Pin protection: merged top-3 + BM25 top-3 may not fall below final rank 10.
+        # BM25-leg guard: RRF dilution can bury a BM25-top hit dense misses (Q1-class);
+        # union keeps merged mechanics unchanged. Absent ids (cut by TOP_K) are skipped.
+        _pinned = [c.chunk_id for c in rerank_input[:3]]
+        for _b in bm25_results[:3]:
+            if _b.chunk_id not in _pinned:
+                _pinned.append(_b.chunk_id)
+        _violators = []
+        _pos = {r.chunk_id: i for i, r in enumerate(reranked_results)}
+        for _pid in _pinned:
+            _idx = _pos.get(_pid)
+            if _idx is not None and _idx >= 10:
+                _violators.append(_pid)
+        if _violators:
+            _by_id = {r.chunk_id: r for r in reranked_results}
+            _rest = [r for r in reranked_results if r.chunk_id not in set(_violators)]
+            _start = max(0, min(10 - len(_violators), len(_rest)))
+            for _j, _pid in enumerate(_violators):
+                _rest.insert(_start + _j, _by_id[_pid])
+            reranked_results = _rest
 
     # --- Step 7: Final top-k ---
     final = reranked_results[:top_k]

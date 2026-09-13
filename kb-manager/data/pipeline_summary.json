@@ -1,0 +1,52 @@
+{
+  "job_id": "eec0ab52-1db3-487d-932a-e6cdb8e16305",
+  "job_type": "full_rebuild",
+  "documents_processed": 78,
+  "documents_created": 0,
+  "documents_updated": 69,
+  "documents_skipped": 0,
+  "documents_failed": 9,
+  "chunks_created": 3626,
+  "chunks_embedded": 0,
+  "chunks_skipped_incomplete": 92,
+  "versions_created": 62,
+  "errors": [
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\PublicQuesions_Individual.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\PublicQuestions_Cheque.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\PublicQuestions_Company.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\دسترسیAPI.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\سوالات پیشنهادی.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\لیستAPI.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\نمونه سوال واحد کسب و کار.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\واژه های معادل یا متفاوت.xlsx",
+      "error": "Processing failed (see logs for details)"
+    },
+    {
+      "file": "D:\\Code\\KB\\kb-source\\clean_files\\پرسش و پاسخ تامین کنندگان.xlsx",
+      "error": "Processing failed (see logs for details)"
+    }
+  ],
+  "elapsed_seconds": 102.55
+}

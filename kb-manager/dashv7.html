@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - KB Manager</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/lib/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="console.warn('CDN Chart.js failed, using local stub')"></script>
+    <script>if(typeof Chart==='undefined'){window.Chart=function(){return{update:function(){},data:{datasets:[]}}};window.Chart.register=function(){};console.warn('Chart.js not loaded, using stub - charts disabled');}</script>
+</head>
+<body>
+    <div class="app-layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>KB Manager</h2>
+                <p class="subtitle">Knowledge Base Management System</p>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link active">Dashboard</a></li>
+                <li><a href="/documents" class="nav-link ">Documents</a></li>
+                <li><a href="/chunks" class="nav-link ">Chunks</a></li>
+                <li><a href="/pipeline" class="nav-link ">Pipeline</a></li>
+                <li><a href="/versions" class="nav-link ">Versions</a></li>
+                <li><a href="/monitoring" class="nav-link ">Monitoring</a></li>
+                <li><a href="/cleanup/qa" class="nav-link ">Cleanup QA</a></li>
+                <li><a href="/search" class="nav-link ">Search</a></li>
+                <li><a href="/benchmarks" class="nav-link ">Benchmarks</a></li>
+                <li><a href="/benchmarks/comparison" class="nav-link ">Comparison</a></li>
+            </ul>
+        </nav>
+        <main class="main-content">
+            <header class="content-header">
+                
+<h1>Dashboard</h1>
+
+            </header>
+            <div class="content-body">
+                
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">34</div>
+        <div class="stat-label">Total Documents</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">2074</div>
+        <div class="stat-label">Total Chunks</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Documents by Domain</h3>
+        <div class="bar-chart">
+            
+            <div class="bar-row">
+                <span class="bar-label">general</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: 100%"></div>
+                </div>
+                <span class="bar-value">34</span>
+            </div>
+            
+        </div>
+    </div>
+    <div class="chart-card">
+        <h3>Documents by Category</h3>
+        <div class="bar-chart">
+            
+            <div class="bar-row">
+                <span class="bar-label">article</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: 100%"></div>
+                </div>
+                <span class="bar-value">34</span>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>

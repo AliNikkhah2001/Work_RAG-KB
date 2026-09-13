@@ -6,7 +6,7 @@ import sys
 
 def test_cli_version():
     result = subprocess.run(
-        [sys.executable, "-m", "kb_manager", "--version"],
+        [sys.executable, "-m", "kb_manager.cli", "--version"],
         capture_output=True,
         text=True,
     )
@@ -25,7 +25,7 @@ def test_cli_inspect(tmp_path):
     wb.save(str(xlsx_path))
 
     result = subprocess.run(
-        [sys.executable, "-m", "kb_manager", "inspect", str(xlsx_path)],
+        [sys.executable, "-m", "kb_manager.cli", "inspect", str(xlsx_path)],
         capture_output=True,
         text=True,
     )

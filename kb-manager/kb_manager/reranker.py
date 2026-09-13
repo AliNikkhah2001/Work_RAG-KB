@@ -220,17 +220,16 @@ class CrossEncoderReranker:
         if pad_id is None and self._tokenizer.eos_token_id is not None:
             self._tokenizer.pad_token_id = self._tokenizer.eos_token_id
             self._tokenizer.pad_token = self._tokenizer.eos_token
+        # Phase 1 fix F11: use float16 only on non-CPU (cuda) — None must not imply float16.
+        actual_device = self._device or ("cuda" if torch.cuda.is_available() else "cpu")
+        dtype = torch.float16 if actual_device != "cpu" else torch.float32
         self._model = AutoModelForSequenceClassification.from_pretrained(
             self._model_name,
-            torch_dtype=torch.float16 if self._device != "cpu" else torch.float32,
+            torch_dtype=dtype,
             trust_remote_code=trust_remote_code,
         )
 
-        if self._device:
-            self._model.to(self._device)
-        else:
-            import torch
-            self._model.to("cuda" if torch.cuda.is_available() else "cpu")
+        self._model.to(actual_device)
 
         # Model-config pad fallback (must run AFTER load: some causal-LM
         # rerankers like Jina-v3/Qwen3 ship pad_token_id=None in config,
@@ -307,7 +306,9 @@ class CrossEncoderReranker:
             pool = get_rerank_pool()
 
         # Sort by initial score and take top candidates for reranking
-        # (cross-encoder is expensive, so we only rerank a subset)
+        # (cross-encoder is expensive, so we only rerank a subset).
+        # The search route pre-slices to the pool cap; pool=0 keeps the
+        # legacy min(top_k*3, len) logic — never silently truncate here.
         ordered = sorted(
             candidates,
             key=lambda x: x.get(score_key, 0),

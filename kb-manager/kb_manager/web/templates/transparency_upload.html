@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Live Parse — {{ filename }}{% endblock %}
+{% block header %}
+<a href="/transparency" class="btn btn-secondary" style="margin-bottom:.6rem">← Back</a>
+<h1>Live parse preview — <span class="mono">{{ filename }}</span></h1>
+{% endblock %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet"/>
+<style>.persian{font-family:'Vazirmatn','Tahoma',sans-serif}.persian-cell{font-family:'Vazirmatn','Tahoma',sans-serif;direction:rtl;text-align:right;white-space:pre-wrap;word-break:break-word}.mono{font-family:'Consolas',monospace;font-size:.82rem}.ltr{direction:ltr;text-align:left}.pill{display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.72rem;border:1px solid var(--border-color);background:var(--bg-primary)}</style>
+
+{% if error %}<div class="card" style="border-color:var(--danger)"><p style="color:var(--danger)">{{ error }}</p></div>{% endif %}
+
+<div class="card">
+  <h3>File — {{ parse_info.size_bytes }} bytes · {{ parse_info.sheets|length }} sheet(s) · parser: {{ parse_info.parser }}</h3>
+  {% if parse_info.integrity_warnings and parse_info.integrity_warnings|length>0 %}<p class="mono" style="color:var(--warning)">{{ parse_info.integrity_warnings|join("; ") }}</p>{% endif %}
+</div>
+
+{% for sh in sheets %}
+<div class="card">
+  <h3>Sheet: {{ sh.name }} — {{ sh.rows|length }} rows · schema: <span class="pill">{{ sh.schema or "generic" }}</span></h3>
+  <div class="table-container" style="margin:.6rem 0">
+    <table class="data-table mono ltr" style="font-size:.82rem"><thead><tr><th>#</th><th>Original header</th><th>Normalized</th><th>Claims</th></tr></thead>
+    <tbody>{% for h in sh._header_detail %}<tr><td>{{ loop.index }}</td><td class="persian" dir="auto">{{ h.original }}</td><td>{{ h.normalized }}</td><td>{% for c in h.claims %}<span class="pill">{{ c }}</span> {% endfor %}</td></tr>{% endfor %}</tbody></table>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-bottom:.8rem">
+    {% for cand in sh._schema_debug.candidates %}<div style="border:1px solid var(--border-color);border-radius:8px;padding:.5rem;background:var(--bg-primary)"><b>{{ cand.schema }}</b> {{ cand.overlap }}/{{ cand.required_count }} {% if cand.would_match %}<span style="color:var(--success)">MATCH</span>{% endif %}<br><span class="mono" style="font-size:.76rem">matched: {{ cand.matched|join(", ") }}<br>missing: {{ cand.missing|join(", ") }}</span></div>{% endfor %}
+  </div>
+  <h4>Raw rows (first {{ rows_limit }})</h4>
+  <div class="table-container" style="max-height:420px; overflow:auto; border:1px solid var(--border-color); border-radius:8px">
+    <table class="data-table"><thead><tr><th>#</th>{% for h in sh.headers %}<th class="persian" dir="auto">{{ h }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for row in sh.rows[:rows_limit] %}<tr><td class="mono ltr">{{ loop.index }}</td>{% for cell in row %}<td class="persian-cell" dir="auto">{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+  </div>
+</div>
+{% endfor %}
+
+<div class="card"><h3>Combined parser text (first 8000 chars)</h3><div class="content-preview"><pre class="persian" dir="auto" style="white-space:pre-wrap;word-break:break-word;font-family:'Vazirmatn','Consolas',monospace">{{ parse_info.combined_preview }}</pre></div></div>
+{% endblock %}

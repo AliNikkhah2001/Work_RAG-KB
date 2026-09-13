@@ -79,5 +79,6 @@ async def rollback_version(doc_id: str, version_id: str):
 
             document.content_hash = version.content_hash
             document.version += 1
+            await session.flush()
 
     return RedirectResponse(f"/versions/{doc_id}", status_code=302)

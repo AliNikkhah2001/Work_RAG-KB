@@ -1,0 +1,137 @@
+[
+  {
+    "i": 1,
+    "query": "در صورتی که اقساط من معوق و یا مشکوک الوصول باشد چه مدت زمان باید از پ",
+    "doc_hit": true,
+    "doc_rank": 1,
+    "ans_cov": 0.9,
+    "ans_hit": true,
+    "elapsed_ms": 114240.3
+  },
+  {
+    "i": 2,
+    "query": "آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟",
+    "doc_hit": true,
+    "doc_rank": 1,
+    "ans_cov": 0.88,
+    "ans_hit": true,
+    "elapsed_ms": 17410.9
+  },
+  {
+    "i": 3,
+    "query": "اگر چک برگشتی من رفع سوء اثر شده باشد، اما همچنان در گزارش اعتباری نما",
+    "doc_hit": true,
+    "doc_rank": 1,
+    "ans_cov": 0.5,
+    "ans_hit": false,
+    "elapsed_ms": 18285.3
+  },
+  {
+    "i": 4,
+    "query": "آیا معوق شدن یک قسط از وام خرد تأثیرش کمتر از معوق شدن قسط وام بزرگ هس",
+    "doc_hit": true,
+    "doc_rank": 1,
+    "ans_cov": 0.62,
+    "ans_hit": false,
+    "elapsed_ms": 18785.3
+  },
+  {
+    "i": 5,
+    "query": "چرا یکی از وام هایی که دارم قسطشون رو میدم، توی گزارش اعتباری من نیست؟",
+    "doc_hit": true,
+    "doc_rank": 2,
+    "ans_cov": 0.21,
+    "ans_hit": false,
+    "elapsed_ms": 16755.6
+  },
+  {
+    "i": 6,
+    "query": "من همه وام های خودم رو پرداخت کردم. چرا امتیاز من کم شده؟",
+    "doc_hit": true,
+    "doc_rank": 2,
+    "ans_cov": 0.53,
+    "ans_hit": false,
+    "elapsed_ms": 15401.6
+  },
+  {
+    "i": 7,
+    "query": "چکم رو پاس کردم، ولی هنوز توی گزارشم هست. چرا؟",
+    "doc_hit": true,
+    "doc_rank": 1,
+    "ans_cov": 0.57,
+    "ans_hit": false,
+    "elapsed_ms": 14878.2
+  },
+  {
+    "i": 8,
+    "query": "گزارش من اشتباه داره. چی کار کنم؟",
+    "doc_hit": true,
+    "doc_rank": 3,
+    "ans_cov": 0.55,
+    "ans_hit": false,
+    "elapsed_ms": 14757.1
+  },
+  {
+    "i": 9,
+    "query": "گزارشم رو چطوری بگیرم؟",
+    "doc_hit": true,
+    "doc_rank": 4,
+    "ans_cov": 0.93,
+    "ans_hit": true,
+    "elapsed_ms": 16113.5
+  },
+  {
+    "i": 10,
+    "query": "چی کار کنم رتبم بهتر بشه؟",
+    "doc_hit": true,
+    "doc_rank": 5,
+    "ans_cov": 0.36,
+    "ans_hit": false,
+    "elapsed_ms": 15234.4
+  },
+  {
+    "i": 11,
+    "query": "این دلیل کاهش امتیاز یعنی چی: ؛؛وام‌های ضمانت شده توسط فرد، در ماه‌های",
+    "doc_hit": false,
+    "doc_rank": -1,
+    "ans_cov": 0.64,
+    "ans_hit": false,
+    "elapsed_ms": 15816.2
+  },
+  {
+    "i": 12,
+    "query": "این دلیل کاهش امتیاز رو چطوری بهبود بدهم؟ «وام‌های ضمانت شده توسط فرد،",
+    "doc_hit": false,
+    "doc_rank": -1,
+    "ans_cov": 0.3,
+    "ans_hit": false,
+    "elapsed_ms": 17011.7
+  },
+  {
+    "i": 13,
+    "query": "من قسط وام خودم رو پرداخت کردم. اطلاعات من چه زمانی به روز میشه؟",
+    "doc_hit": true,
+    "doc_rank": 5,
+    "ans_cov": 0.58,
+    "ans_hit": false,
+    "elapsed_ms": 16721.6
+  },
+  {
+    "i": 14,
+    "query": "رتبه چه فرقی با امتیاز داره؟",
+    "doc_hit": false,
+    "doc_rank": -1,
+    "ans_cov": 0.5,
+    "ans_hit": false,
+    "elapsed_ms": 14845.3
+  },
+  {
+    "i": 15,
+    "query": "جزئیات قراردادهای منفی در گزارش یعنی چی؟",
+    "doc_hit": false,
+    "doc_rank": -1,
+    "ans_cov": 0.16,
+    "ans_hit": false,
+    "elapsed_ms": 14332.9
+  }
+]

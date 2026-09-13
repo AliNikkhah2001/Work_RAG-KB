@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Versions - KB Manager</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/lib/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="console.warn('CDN Chart.js failed, using local stub')"></script>
+    <script>if(typeof Chart==='undefined'){window.Chart=function(){return{update:function(){},data:{datasets:[]}}};window.Chart.register=function(){};console.warn('Chart.js not loaded, using stub - charts disabled');}</script>
+</head>
+<body>
+    <div class="app-layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>KB Manager</h2>
+                <p class="subtitle">Knowledge Base Management System</p>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/" class="nav-link ">Dashboard</a></li>
+                <li><a href="/documents" class="nav-link ">Documents</a></li>
+                <li><a href="/chunks" class="nav-link ">Chunks</a></li>
+                <li><a href="/pipeline" class="nav-link ">Pipeline</a></li>
+                <li><a href="/versions" class="nav-link active">Versions</a></li>
+                <li><a href="/monitoring" class="nav-link ">Monitoring</a></li>
+                <li><a href="/cleanup/qa" class="nav-link ">Cleanup QA</a></li>
+                <li><a href="/search" class="nav-link ">Search</a></li>
+                <li><a href="/benchmarks" class="nav-link ">Benchmarks</a></li>
+                <li><a href="/benchmarks/comparison" class="nav-link ">Comparison</a></li>
+            </ul>
+        </nav>
+        <main class="main-content">
+            <header class="content-header">
+                
+<h1>Version Management</h1>
+
+            </header>
+            <div class="content-body">
+                
+<div class="card">
+    <h3>Versioned Documents</h3>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Domain</th>
+                    <th>Current Version</th>
+                    <th>Version Count</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+                <tr>
+                    <td>پرسش و پاسخ چت بات</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/f598bcca-d50c-482e-90e9-a279fef52276" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>نمونه قالب</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/05e5644b-6a0c-44ab-8eb4-1f40fe0c2b16" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>موقت</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/54295356-15c3-42a0-aebd-707fc327e558" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>قالب</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/1586f7a1-b04b-4d78-bb27-9ec3eb52f9bd" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>قالب محتوا</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/75b36a2a-f2f0-47dc-aa05-bfa124f29eb7" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>فایل خام</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/d59990f4-c58c-48cc-9014-66ff350b31a6" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>فایل خام (2)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/b2f40453-5f2c-4637-a973-0d1a16abf98e" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>شناسنامه ریزن کد</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/b35689b1-c76b-4a1c-9e71-13c34e81cb77" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>بخش دوم و چهارم، موقت</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/6571bc62-deb9-43e7-bd4b-b6a25dfddc99" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>بخش اول، سوم و پنجم، موقت</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/6867447f-e5ad-4026-9610-4e3212c9856a" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>chatbot-companyreason</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/112225eb-91df-43ac-be8e-898d7d51565d" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>chatbot-companyreason (2)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/8104bd74-2f56-404a-9345-b03cf53d30a8" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Temp</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/0a4ca5fc-069c-4bfa-a568-06a25f4446ca" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>StockHolders</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/38e31b3d-3e6e-4a09-9ed8-61334189dddc" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_IndividualMain-chatbot</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/0e2112ee-528e-4b9a-9760-8b09a1ed2dd4" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_IndividualMain-chatbot (4)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/f59822ab-0d0b-4d7c-8fc1-1105de96a3dc" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_IndividualMain-chatbot (3)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/1a1d1211-8389-4d21-9e6b-51db8a36ced6" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_IndividualMain-chatbot (2)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/53e9dcb5-9420-4393-be74-8f0043504821" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_IndividualAlternative-chatbot</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/fc8b7315-b729-4422-b6a8-54d173018922" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_Company_Chatbot</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/435b89a0-0588-4ee8-b13c-33c48c63dd0d" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_Company_Chatbot (6)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/2225d014-b7be-49b2-82e7-80098578c7bd" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_Company_Chatbot (5)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/867b1dab-b109-42c5-8742-721f2a003013" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_Company_Chatbot (4)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/6dd28813-71df-4f97-8056-465e775eabd9" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_Company_Chatbot (3)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/c0939a8d-eec7-46ff-8a9d-7128b7c18a3c" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_Company_Chatbot (2)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/fb439664-efac-448b-819d-d1a268d2d0e6" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCode_Company</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/4e8886e6-b963-42d1-9d5e-f84e8451ddb0" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ReasonCodeIndualMain-chatbot</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/a296d99e-74c7-47df-ba1a-82b9741f43af" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Reason codes structure for chatbot</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/8410f9c8-ddd8-45ed-9e14-4213592a4a00" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>KeyIssuesAddressedby CreditScoring</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/daee8285-4ca4-4033-855e-26a2c360d86e" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>InsuranceandCreditScoring</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/cc6e7860-7ec0-43d8-b04c-5476e1eabad3" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Individual_CRM_Questions_Part2</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/a6dae09a-3591-4a34-8edb-80c9643df429" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Individual_CRM_Questions</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/d1a79a79-6024-4862-b765-857e76fa22db" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualModel</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/23e137b1-4b7e-493b-ac0e-09c719547f22" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualCreditScore</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/f1a9bde0-9be4-4395-b732-d612a767c76c" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualAndCompanyQuestions_Part4</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/d9f8c251-e2a8-4ce4-b020-0a13603d5aea" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualAndCompanyQuestions_Part3 (2)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/09c0d9e8-ba26-4a51-a190-f880921d8e64" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualAndCompanyQuestions_Part2 (3)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/51caf74f-180e-4177-93ea-5ab818b61ad2" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualAndCompanyQuestions_Part2 (2)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/6e3560f6-c9a2-4343-93ca-4958c45797bc" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualAndCompanyQuestions_Part1</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/20b2e9b3-f592-4e15-b679-b27a6cc90c69" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>IndividualAndBusinessCreditReport</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/fec89609-5cd4-447e-99c6-9602624a37f5" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ImportantLinks</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/81362786-8d81-48b1-a19d-a97896e02624" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ICS_Intro</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/7819e122-f25e-445c-b408-99784a0d035f" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ICS_Business_Model_Comparison</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/24015b8d-4b44-4937-9b13-464734242f34" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ForCh</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/c37a2fba-a900-4585-9bdb-61a388734a97" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>FactorsAffectingCreditScore</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/a147f7de-9248-46b9-a67f-d064e1db7ee7" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>EtebaritoProblems</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/52f18f5d-3306-4ec2-aba3-e155c2f3c4a4" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>DisputeQuestions</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/09d26b3d-4e61-4bd2-bd47-734bcc24b484" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>DataUsers</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/9a99fcb5-6003-460e-8d0c-ce707f05fc6f" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>DataProvidersQuestions</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/4387a9e7-1141-408e-b6d0-a539fd5ffd78" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>DataProvidersAndUsers</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/8160f92e-ff1d-4bb3-8945-ba47f3f08fe5" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>DataProviders</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/14605a9e-b305-4c48-8f42-103c0dc0c8c5" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>DataGovernanceinCreditScoring</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/a62752b2-92fb-4ba9-8879-cd943734f394" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>CreditScore</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/b151988d-9ad3-4b8d-ae3a-c9fabc56485b" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Credit ScoringandArtificial Intelligence</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/fc32ac7b-8585-40bb-894d-ebbb1a484d7e" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Copy of ReasonCodeIndualMain-chatbot</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/376b31c3-6c15-4592-8f2b-0e9039ab3f4a" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Copy of IndividualModel</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/cf651cb2-9fbe-4567-8c94-18fdc7deb41f" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Company_CRM_Questions</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/4d5d522f-e773-418b-89de-e0f1b7d62727" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>Cheque_Model</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/8ca89646-ba6d-46c7-bcf3-bc061425285e" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>ChequeQuestions (2)</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/e0f45ad9-540f-4c34-9777-42ff197ce84e" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>BNPLandCreditScoring</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/642b31c6-cd36-4443-aa79-e0b11f537e4e" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>APIQuestion</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/134a64fa-9aee-469c-b651-13cd2c322be4" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td>AIandCreditScoring</td>
+                    <td>general</td>
+                    <td>2</td>
+                    <td>2</td>
+                    <td>
+                        <a href="/versions/957f8710-0638-4f24-bf29-b704c01ea1e5" class="btn btn-secondary btn-sm">History</a>
+                    </td>
+                </tr>
+                
+            </tbody>
+        </table>
+    </div>
+</div>
+
+            </div>
+        </main>
+    </div>
+</body>
+</html>

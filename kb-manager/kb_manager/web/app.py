@@ -17,6 +17,22 @@ async def lifespan(app: FastAPI):
     log = logging.getLogger(__name__)
 
     await db.create_tables()
+    # Mark stale jobs from previous process runs as interrupted
+    try:
+        import datetime as _dt
+
+        from sqlalchemy import update
+
+        from kb_manager.models.database import IngestionJob
+
+        async with db.session() as s:
+            await s.execute(
+                update(IngestionJob)
+                .where(IngestionJob.status.in_(["running", "pending"]))
+                .values(status="interrupted", completed_at=_dt.datetime.now(_dt.UTC))
+            )
+    except Exception:
+        pass
     # Ensure indexes exist on existing tables (create_all only creates missing tables)
     try:
         async with db.async_engine.begin() as conn:
@@ -64,7 +80,9 @@ from kb_manager.web.routes import (
     monitoring,
     pipeline,
     search,
+    transparency,
     versions,
+    zip_browser,
 )  # noqa: E402
 
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
@@ -74,31 +92,50 @@ app.include_router(versions.router, prefix="/versions", tags=["versions"])
 app.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
 app.include_router(search.router, prefix="/search", tags=["search"])
 app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
+app.include_router(cleanup.router, prefix="/cleanup", tags=["cleanup"])
+app.include_router(transparency.router, prefix="/transparency", tags=["transparency"])
+app.include_router(zip_browser.router, prefix="/transparency", tags=["transparency-zip"])
 
-# Workaround for FastAPI 0.141+ include_router not working properly
-# Manually add cleanup routes with /cleanup prefix
-for route in cleanup.router.routes:
-    if hasattr(route, "path"):
-        # Create a copy of the route with prefixed path
-        from fastapi.routing import APIRoute
-        if isinstance(route, APIRoute):
-            new_route = APIRoute(
-                path="/cleanup" + route.path,
-                endpoint=route.endpoint,
-                methods=route.methods,
-                response_class=route.response_class,
-                name=route.name,
-                tags=route.tags,
-                summary=route.summary,
-                description=route.description,
-                response_model=route.response_model,
-                status_code=route.status_code,
-                dependencies=route.dependencies,
-                callbacks=route.callbacks,
-                openapi_extra=route.openapi_extra,
-                include_in_schema=route.include_in_schema,
-            )
-            app.router.routes.append(new_route)
+
+@app.get("/health")
+async def health():
+    """Health check — reports DB mode and connectivity."""
+    from kb_manager.config import load_config
+
+    cfg = load_config()
+    db_ok = False
+    doc_count = chunk_count = None
+    error = None
+    try:
+        from sqlalchemy import func, select, text
+
+        from kb_manager.models.database import Chunk, Document
+
+        async with db.session() as session:
+            # lightweight ping
+            await session.execute(text("SELECT 1"))
+            doc_count = (await session.execute(select(func.count(Document.id)))).scalar()
+            chunk_count = (await session.execute(select(func.count(Chunk.id)))).scalar()
+        db_ok = True
+    except Exception as exc:
+        error = str(exc)[:500]
+
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "db_mode": cfg.db.mode,
+        "db_driver": cfg.db.driver,
+        "db_url": cfg.db.async_url.split("@")[-1] if "@" in cfg.db.async_url else cfg.db.async_url,
+        "db_ok": db_ok,
+        "doc_count": doc_count,
+        "chunk_count": chunk_count,
+        "error": error,
+    }
+
+
+@app.get("/api/health")
+async def api_health():
+    """Alias for /health."""
+    return await health()
 
 
 @app.get("/health")

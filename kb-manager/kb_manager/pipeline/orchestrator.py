@@ -221,6 +221,8 @@ class PipelineOrchestrator:
             raise FileNotFoundError(f"Source directory not found: {source_dir}")
 
         files: list[str] = []
+        # Files that are preprocessing / guardrail resources, not KB content
+        EXCLUDED_STEMS = {"واژگان معادل", "محدودیت ها و چالش ها", "محدودیت‌ها و چالش‌ها"}
         for path in root.rglob("*"):
             if not path.is_file():
                 continue
@@ -228,6 +230,9 @@ class PipelineOrchestrator:
                 continue  # Microsoft Office temporary lock files
             # Skip test-question datasets — they are evaluation data, not KB content
             if any(seg.startswith("TestQuestion") for seg in path.parts):
+                continue
+            # Skip preprocessing/guardrail files — ingested via preprocessor/llm, not KB
+            if any(stem in path.stem for stem in EXCLUDED_STEMS):
                 continue
             if path.suffix.lower() in self._SUPPORTED_EXTENSIONS:
                 files.append(str(path.resolve()))
@@ -312,6 +317,10 @@ class PipelineOrchestrator:
                         "reason_codes": "reason_detail",
                         "crm_qa": "qa_pair",
                         "articles": "article",
+                        "glossary": "glossary",
+                        "staff_profile": "staff_profile",
+                        "loan_catalog": "loan_catalog",
+                        "timeline": "timeline",
                     }
                     doc_type = schema_map.get(sheet["schema"], "body")
                     break

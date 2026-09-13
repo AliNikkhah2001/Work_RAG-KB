@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "opencode-orchestrator": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "@cloudpftc/opencode-orchestrator@latest",
+        "mcp",
+        "start"
+      ],
+      "env": {
+        "npm_config_update_notifier": "false",
+        "OPENCODE_MODE": "v3",
+        "OPENCODE_HOOKS_ENABLED": "true",
+        "OPENCODE_TOPOLOGY": "hierarchical-mesh",
+        "OPENCODE_MAX_AGENTS": "15",
+        "OPENCODE_MEMORY_BACKEND": "hybrid"
+      },
+      "autoStart": false
+    }
+  }
+}

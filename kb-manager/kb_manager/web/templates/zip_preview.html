@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Zip Preview — {{ zip_name }}{% endblock %}
+{% block header %}
+<a href="/transparency/zip" class="btn btn-secondary" style="margin-bottom:.6rem">← Back to Zip Browser</a>
+<h1 class="persian" dir="auto">{{ zip_name }}</h1>
+<p class="mono" style="color:var(--text-secondary)">{{ entries|length }} entries ({{ total_files }} files, {{ total_dirs }} dirs) · id <code>{{ zip_id }}</code></p>
+{% endblock %}
+{% block content %}
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet"/>
+<style>
+  .persian{font-family:'Vazirmatn','Tahoma',sans-serif}
+  .mono{font-family:'Consolas',monospace;font-size:.82rem}
+  .ltr{direction:ltr;text-align:left}
+  .tree-row{display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-bottom:1px solid var(--border-color)}
+  .tree-row:hover{background:var(--bg-primary)}
+  .indent{width: calc(var(--d) * 18px); display:inline-block}
+</style>
+
+<form action="/transparency/zip/ingest" method="post" id="ingest-form">
+  <input type="hidden" name="zip_id" value="{{ zip_id }}">
+  <div class="card">
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.6rem">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="setAll(true)">Select all</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="setAll(false)">Clear</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="selectXlsx()">Only .xlsx</button>
+      <span style="color:var(--text-muted);font-size:.85rem">Folder tick → all children. Persian names are <span class="persian" dir="rtl">UTF-8</span> safe.</span>
+    </div>
+    <div style="max-height:520px;overflow:auto;border:1px solid var(--border-color);border-radius:8px">
+      {% for e in entries %}
+      <label class="tree-row" style="--d:{{ e.depth }}">
+        <span class="indent"></span>
+        <input type="checkbox" name="selected" value="{{ e.path }}" class="sel" {% if not e.is_dir and e.path.lower().endswith('.xlsx') %}checked{% endif %} data-isdir="{{ '1' if e.is_dir else '0' }}" data-path="{{ e.path }}">
+        {% if e.is_dir %}📁{% else %}📄{% endif %}
+        <span class="persian mono" dir="auto" title="{{ e.path }}">{{ e.basename }}</span>
+        <span class="mono" style="color:var(--text-muted);font-size:.75rem;margin-left:auto">{{ e.path }}</span>
+        {% if not e.is_dir %}<span class="mono" style="color:var(--text-secondary)">{{ e.size }} B</span>{% endif %}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="card">
+    <h3>2 — Run pipeline on selected</h3>
+    <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center">
+      <label>Job <select name="job_type" class="filter-select"><option value="full_rebuild" selected>full_rebuild</option><option value="incremental">incremental</option></select></label>
+      <label>Parent scope <select name="parent_scope" class="filter-select"><option value="sheet" selected>sheet</option><option value="document">document</option></select></label>
+      <button type="submit" class="btn btn-primary">Ingest selected → Pipeline</button>
+      <span style="color:var(--text-secondary);font-size:.85rem">Job appears in <a href="/pipeline">Pipeline</a> (watch status there).</span>
+    </div>
+  </div>
+</form>
+
+<script>
+function setAll(v){ document.querySelectorAll('.sel').forEach(c=>c.checked=v); }
+function selectXlsx(){
+  document.querySelectorAll('.sel').forEach(c=>{
+    const p=c.getAttribute('data-path')||'';
+    c.checked = !c.getAttribute('data-isdir') || c.getAttribute('data-isdir')==='0' ? p.toLowerCase().endsWith('.xlsx') : false;
+  });
+}
+// folder checkbox toggles children
+document.querySelectorAll('.sel[data-isdir="1"]').forEach(f=>{
+  f.addEventListener('change', ()=>{
+    const prefix = f.getAttribute('data-path');
+    const checked = f.checked;
+    document.querySelectorAll('.sel').forEach(c=>{
+      const p=c.getAttribute('data-path')||'';
+      if(p!==prefix && p.startsWith(prefix)) c.checked=checked;
+    });
+  });
+});
+</script>
+{% endblock %}

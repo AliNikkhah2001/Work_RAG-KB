@@ -170,7 +170,24 @@ class AsyncBenchmarkRunner(BenchmarkRunner):
         dataset: list[dict],
         progress: Callable[[int, int], None] | None = None,
     ) -> BenchmarkResult:
-        return asyncio.run(self._run_async(dataset, progress))
+        # F2 fix: handle already-running loop (e.g. FastAPI)
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self._run_async(dataset, progress))
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            fut = pool.submit(asyncio.run, self._run_async(dataset, progress))
+            return fut.result()
+
+    async def arun(
+        self,
+        dataset: list[dict],
+        progress: Callable[[int, int], None] | None = None,
+    ) -> BenchmarkResult:
+        """Async entry point — preferred from async callers."""
+        return await self._run_async(dataset, progress)
 
     async def _run_async(
         self,

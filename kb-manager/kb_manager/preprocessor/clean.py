@@ -106,7 +106,8 @@ def clean_text(text: str) -> str:
     4. Replace URLs with ``[URL]`` placeholder
     5. Replace emails with ``[EMAIL]`` placeholder
     6. Remove temp-file markers (``~$…``)
-    7. Collapse multiple whitespace / blank lines
+    7. Strip leading/trailing punctuation artefacts (e.g. "؛؛" from truncated Excel) — fix for IVA Q11/12
+    8. Collapse multiple whitespace / blank lines
 
     Returns the cleaned string.
     """
@@ -119,6 +120,8 @@ def clean_text(text: str) -> str:
     text = remove_urls(text)
     text = remove_emails(text)
     text = remove_temp_markers(text)
+    # Fix truncated reason-code queries like "؛؛وام‌های ضمانت..." — strip leading ؛ ; : - —
+    text = text.lstrip("؛;؛:：-— \t")
     text = collapse_whitespace(text)
 
     return text

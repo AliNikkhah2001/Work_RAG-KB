@@ -17,6 +17,18 @@ router = APIRouter()
 # Active background tasks
 _running_tasks: dict[str, asyncio.Task] = {}
 
+def _evict_old_tasks() -> None:
+    """Keep at most 50 pipeline tasks, evict done (D30 fix)."""
+    if len(_running_tasks) <= 50:
+        return
+    done = [k for k, v in list(_running_tasks.items()) if v.done()]
+    for k in done:
+        _running_tasks.pop(k, None)
+    if len(_running_tasks) > 50:
+        # keep newest 50
+        for k in list(_running_tasks.keys())[:-50]:
+            _running_tasks.pop(k, None)
+
 
 @router.get("")
 async def pipeline_status(request: Request):
@@ -67,14 +79,14 @@ async def run_pipeline(
     if not source_dir.strip():
         source_dir = config.source_dir
 
-    # Create job record
+    # Create job record (F31 fix: do not store config in error_log)
     async with db.session() as session:
         job = IngestionJob(
             job_type=job_type,
             status="running",
             source_dir=source_dir,
             started_at=datetime.now(UTC),
-            error_log=f"parent_scope={parent_scope}",
+            error_log=None,
         )
         session.add(job)
         await session.flush()
@@ -84,7 +96,12 @@ async def run_pipeline(
     async def _run():
         try:
             async with db.session() as session:
-                orchestrator = PipelineOrchestrator(database=db)
+                # F31 fix: actually apply parent_scope to chunker instead of stuffing it in error_log
+                from kb_manager.chunker.semantic import SemanticChunker
+
+                scope = parent_scope if parent_scope in ("sheet", "document") else "sheet"
+                chunker = SemanticChunker(parent_scope=scope)
+                orchestrator = PipelineOrchestrator(database=db, chunker=chunker)
                 if job_type == "full_rebuild":
                     summary = await orchestrator.run_full_rebuild(source_dir)
                 else:
@@ -108,8 +125,11 @@ async def run_pipeline(
                     job_rec.error_log = str(exc)[:2000]
                     job_rec.completed_at = datetime.now(UTC)
 
+    _evict_old_tasks()
     task = asyncio.create_task(_run())
     _running_tasks[job_id] = task
+    # Clean up when done to prevent leak
+    task.add_done_callback(lambda t, jid=job_id: _running_tasks.pop(jid, None) if t.done() else None)
 
     return RedirectResponse("/pipeline", status_code=302)
 

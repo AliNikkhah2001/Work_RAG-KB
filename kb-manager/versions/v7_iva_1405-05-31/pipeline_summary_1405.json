@@ -1,0 +1,15 @@
+{
+  "job_id": "f508e964-58dd-491d-8a03-6f5659855c45",
+  "job_type": "full_rebuild",
+  "documents_processed": 34,
+  "documents_created": 34,
+  "documents_updated": 0,
+  "documents_skipped": 0,
+  "documents_failed": 0,
+  "chunks_created": 2074,
+  "chunks_embedded": 0,
+  "chunks_skipped_incomplete": 307,
+  "versions_created": 34,
+  "errors": [],
+  "elapsed_seconds": 23.28
+}

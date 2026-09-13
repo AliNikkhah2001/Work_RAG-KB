@@ -1,0 +1,266 @@
+{
+  "version": "live-kb",
+  "created_at": "2026-09-02T10:55:41.317011+00:00",
+  "top_k": 5,
+  "total_queries": 10,
+  "by_format": {
+    "conversational": {
+      "queries": 3,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 54233.8
+    },
+    "keyword_only": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 0.0,
+      "mrr": 0.3333,
+      "avg_rank": 3.0,
+      "avg_latency_ms": 65276.9
+    },
+    "paraphrase": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 44612.2
+    },
+    "reworded": {
+      "queries": 3,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 48003.1
+    },
+    "typo": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 28052.7
+    },
+    "verbatim": {
+      "queries": 1,
+      "hit_rate": 1.0,
+      "top1_hit_rate": 1.0,
+      "mrr": 1.0,
+      "avg_rank": 1.0,
+      "avg_latency_ms": 31501.2
+    }
+  },
+  "overall": {
+    "queries": 10,
+    "hit_rate": 1.0,
+    "top1_hit_rate": 0.9,
+    "mrr": 0.9333,
+    "avg_rank": 1.2,
+    "avg_latency_ms": 47615.4
+  },
+  "queries": [
+    {
+      "query": "راستی، در پنل کاربری خود گزینه‌ای برای «بازگشت وجه به کارت بانکی» مشاهده نکردم؛ آیا این قابلیت در دسترس کاربران قرار دارد یا خیر؟",
+      "expected_ids": [
+        "88683af8-e335-41b5-be64-9abdac00e3e5"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.436,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 56934.2,
+      "retrieved_ids": [
+        "88683af8-e335-41b5-be64-9abdac00e3e5",
+        "18874cc5-90ad-49d6-a781-9f4005bb3380",
+        "22c438f8-5e56-43ae-ae29-12c7253b4623",
+        "840c8df5-d0be-48a6-bae2-092a31755aca",
+        "70bd7b88-8775-45dd-a448-2e4e59244fdc"
+      ]
+    },
+    {
+      "query": "یه سوال داشتم، چنانچه حکم دادگاه برای پرداخت نفقه یا مهریه داشته باشم و آن را پرداخت نکنم، آیا این موضوع بر رتبه اعتباری من تاثیر دارد؟",
+      "expected_ids": [
+        "cb1ddc00-42d5-4547-a9c9-779e8608ed1b"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.579,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 56409.7,
+      "retrieved_ids": [
+        "cb1ddc00-42d5-4547-a9c9-779e8608ed1b",
+        "8fa2ba59-9c25-4f0d-8c82-6667cd43c816",
+        "546d9f38-bbef-4373-92d5-3918d1cf0b8b",
+        "58fe981c-576e-4873-88ed-a7b33cfaeb68",
+        "1ced3ae6-7796-419c-8565-9556b8fb8263"
+      ]
+    },
+    {
+      "query": "ممکن است توضیح دهید که داده‌های گمرک چه تأثیری اعتبار ارزیابی در کسب‌وکارها دارند؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "4896c351-808d-4a86-a088-ae5f05dd3e06"
+      ],
+      "format": "paraphrase",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.581,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 44612.2,
+      "retrieved_ids": [
+        "4896c351-808d-4a86-a088-ae5f05dd3e06",
+        "5c5367ef-6751-4e4d-b051-77e5b3c069e8",
+        "f3d05a19-a17b-4b7f-b4d4-cf3b63cfc87f",
+        "4981ab80-9ddb-4ba6-98a6-8da27e8f0770",
+        "0078175b-60f7-4ceb-9bc2-db5d24413575"
+      ]
+    },
+    {
+      "query": "در این باره بگویید که همان‌طور که اشاره شد در صورت گسترده در سیستم بازپرداخت در تأخیر اقساط ارائه شود، شرکت چگونه وضعیت مدیریت می‌کند؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "744f2c80-5241-4812-a310-1e8f643dcbad"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.659,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 44038.6,
+      "retrieved_ids": [
+        "744f2c80-5241-4812-a310-1e8f643dcbad",
+        "a57424b7-2b6f-4dee-a796-5ea5beceb613",
+        "d13d2067-66f7-4a6b-a436-76f36cad2e57",
+        "f9db6171-6d94-40f7-99e9-ab5a97475b9d",
+        "e14ccbb7-ae1a-48da-bc0f-9922cd3f617e"
+      ]
+    },
+    {
+      "query": "لطفاً بگویید همان‌طور که اشاره شد اطلاعات در باید قالب استاندارد شوند و چرا است؟؟",
+      "expected_ids": [
+        "c14f169c-23b4-4c06-8326-46b9c27d679a"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.784,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 41790.8,
+      "retrieved_ids": [
+        "c14f169c-23b4-4c06-8326-46b9c27d679a",
+        "24e76bbd-a4a8-45a3-ad6e-27df2be9cee4",
+        "720eeeba-ffea-4484-bdb4-260492134dc5",
+        "e0fb1bc4-ee6f-41a8-8985-fca79f5bf7b5",
+        "ff1d287a-9eee-4ac3-bea8-4f5165954bc3"
+      ]
+    },
+    {
+      "query": "ببخشید، داده‌های مربوط به بدهی بیمه‌ای و تامین اجتماعی چگونه پردازش میشن . لطفاً دقیق توضیح دهید.",
+      "expected_ids": [
+        "d5fa5d03-a59e-4b6a-bcf9-c1128bae6cfd"
+      ],
+      "format": "conversational",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.449,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 49357.6,
+      "retrieved_ids": [
+        "d5fa5d03-a59e-4b6a-bcf9-c1128bae6cfd",
+        "9a36cb16-465c-475d-9778-535dc01ad269",
+        "9a7ec84c-0b7a-4453-a735-f22e8617c127",
+        "776829cd-1628-44be-bba9-173ca0874703",
+        "f58a11d9-a69e-446a-9bec-cce92e6ebe34"
+      ]
+    },
+    {
+      "query": "آیا دادههای بورس و اوراق بهادار نیز ارسال می‌شود؟",
+      "expected_ids": [
+        "aa2241ee-d034-49f5-bbf4-33ff6d05d6db"
+      ],
+      "format": "typo",
+      "difficulty": "medium",
+      "similarity_to_gt": 0.422,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 28052.7,
+      "retrieved_ids": [
+        "aa2241ee-d034-49f5-bbf4-33ff6d05d6db",
+        "78949e3f-30c3-4678-bb33-186d57c18226",
+        "09d4ac27-a502-4bcc-ab33-ab487accca92",
+        "37dd95b3-dab7-4ac8-b0b1-b9c2b5932bd5",
+        "ddd08972-1116-4f6e-9563-8861cd6dcf35"
+      ]
+    },
+    {
+      "query": "تفاوت تأثیر تأخیر یک روزه در پرداخت قسط با تأخیر یک ماهه چیه",
+      "expected_ids": [
+        "5fcfdfd6-3bbc-4123-94ca-0fa794d7ff0d"
+      ],
+      "format": "verbatim",
+      "difficulty": "easy",
+      "similarity_to_gt": 1.0,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 31501.2,
+      "retrieved_ids": [
+        "5fcfdfd6-3bbc-4123-94ca-0fa794d7ff0d",
+        "d8a1a538-4c9b-4de1-b8ad-508f0a3f1e25",
+        "41f57794-aede-49e5-b1a9-0af4efbed502",
+        "32da1ce1-078e-4515-b973-63570902fda4",
+        "34f88b14-fda5-4f9d-9f3e-56f8d6f2d942"
+      ]
+    },
+    {
+      "query": "اختلال بانکی تأخیر اصلاح سامانه",
+      "expected_ids": [
+        "744f2c80-5241-4812-a310-1e8f643dcbad"
+      ],
+      "format": "keyword_only",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.763,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 65276.9,
+      "retrieved_ids": [
+        "2016fcd2-fdf9-4cbb-bc2c-71431634b50c",
+        "931c93d6-2710-4ef9-b444-6df60b4d5984",
+        "744f2c80-5241-4812-a310-1e8f643dcbad",
+        "7b9a1abf-f849-465b-8ac3-e2f8742b86d6",
+        "3ea0246f-c1a2-455c-8357-e4f16c899499"
+      ]
+    },
+    {
+      "query": "می‌خواهم بدانم طبق متن آیا خارجی کاربرد در دارد؟ . اگر جزئیات دارید در میان بگذارید.",
+      "expected_ids": [
+        "6ff84df2-9d2f-4672-9f31-1463d9a0c811"
+      ],
+      "format": "reworded",
+      "difficulty": "hard",
+      "similarity_to_gt": 0.617,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 58179.9,
+      "retrieved_ids": [
+        "6ff84df2-9d2f-4672-9f31-1463d9a0c811",
+        "c92c13a2-0d3b-40de-8478-13ddf2f365ed",
+        "56fadea7-ccf3-46e1-9695-9331dbbd2c6b",
+        "5bdf65e6-e40c-4665-ab3e-f42ebef618d3",
+        "d0e5263b-c229-4952-94d0-c20beb00c8b5"
+      ]
+    }
+  ]
+}

@@ -134,9 +134,9 @@ class SemanticChunker(BaseChunker):
         doc_type = meta.get("doc_type", "body")
         sheets = meta.get("sheets")
 
-        # If we have raw sheet data for Q&A or reason codes,
-        # chunk by rows directly (never split a QA pair)
-        if sheets and doc_type in ("qa_pair", "reason_detail"):
+        # Row-wise tabular types: each row = one chunk (never split)
+        # Includes QA, reason codes, plus new type-aware tables (glossary, loan, staff, timeline)
+        if sheets and doc_type in ("qa_pair", "reason_detail", "glossary", "loan_catalog", "staff_profile", "timeline"):
             return self._chunk_excel_rows(sheets, doc_type, meta)
 
         if doc_type == "reason_detail":

@@ -1,0 +1,58 @@
+{
+  "iva_before": [
+    {
+      "i": 1,
+      "query": "در صورتی که اقساط من معوق و یا مشکوک الوصول باشد چه مدت زمان باید از پ",
+      "doc_hit": true,
+      "doc_rank": 1,
+      "ans_cov": 0.9,
+      "ans_hit": true,
+      "elapsed_ms": 114240.3
+    },
+    {
+      "i": 2,
+      "query": "آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟",
+      "doc_hit": true,
+      "doc_rank": 1,
+      "ans_cov": 0.88,
+      "ans_hit": true,
+      "elapsed_ms": 17410.9
+    }
+  ],
+  "iva_after": [
+    {
+      "i": 1,
+      "query": "در صورتی که اقساط من معوق و یا مشکوک الوصول باشد چه مدت زمان باید از پ",
+      "doc_hit": false,
+      "doc_rank": -1,
+      "ans_cov": 0.81,
+      "ans_hit": true,
+      "elapsed_ms": 83060.5
+    },
+    {
+      "i": 2,
+      "query": "آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟",
+      "doc_hit": false,
+      "doc_rank": -1,
+      "ans_cov": 1.0,
+      "ans_hit": true,
+      "elapsed_ms": 27854.8
+    }
+  ],
+  "bench_before_overall": {
+    "queries": 15,
+    "hit_rate": 0.7333,
+    "top1_hit_rate": 0.3333,
+    "mrr": 0.4656,
+    "avg_rank": 2.36,
+    "avg_latency_ms": 22706.0
+  },
+  "bench_after_overall": {
+    "queries": 15,
+    "hit_rate": 0.7333,
+    "top1_hit_rate": 0.3333,
+    "mrr": 0.4656,
+    "avg_rank": 2.36,
+    "avg_latency_ms": 22706.0
+  }
+}

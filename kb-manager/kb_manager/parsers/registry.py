@@ -36,14 +36,14 @@ def get_parser(file_path: str) -> BaseParser:
         ValueError: If the file type is not supported.
         FileNotFoundError: If the file does not exist.
     """
-    if not os.path.isfile(file_path):
-        raise FileNotFoundError(f"File not found: {file_path}")
-
     ext = Path(file_path).suffix.lower()
 
     if ext not in _EXTENSION_PARSERS:
         supported = ", ".join(sorted(_EXTENSION_PARSERS.keys()))
         raise ValueError(f"Unsupported file type '{ext}'. Supported types: {supported}")
+
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
 
     parser_class = _EXTENSION_PARSERS[ext]
     cache_key = parser_class.__name__

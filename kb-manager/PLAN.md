@@ -47,11 +47,11 @@
 
 **Goal:** Improve keyword_only Hit@5 from 65% to >80%.
 
-| Task | Complexity | Impact |
-|------|-----------|--------|
-| HyDE (Hypothetical Document Embeddings) | 🟡 Medium | +10-15% MRR |
-| Multi-query rewriting (beam 5) | 🟡 Medium | +3-6% MRR |
-| Query expansion with synonyms | 🟢 Low | +5% Hit |
+| Task | Complexity | Impact | Status |
+|------|-----------|--------|--------|
+| HyDE (Hypothetical Document Embeddings) | 🟡 Medium | +10-15% MRR | ✅ DONE |
+| Multi-query rewriting (beam 5) | 🟡 Medium | +3-6% MRR | ⬜ TODO |
+| Query expansion with synonyms | 🟢 Low | +5% Hit | ⬜ TODO |
 
 ### Phase 12: Corpus Deduplication
 
@@ -79,6 +79,16 @@
 | Write technical blog post | 🟡 Medium | Knowledge sharing |
 | Package as pip-installable | 🟡 Medium | Easy deployment |
 
+### Phase 15: RAGAS Quality Evaluation
+
+**Goal:** Add LLM-based quality metrics (faithfulness, answer relevance, context recall).
+
+| Task | Complexity | Impact | Status |
+|------|-----------|--------|--------|
+| RAGAS evaluator integration | 🟡 Medium | Quality metrics | ✅ DONE |
+| Web UI route (/benchmarks/ragas) | 🟢 Low | Easy evaluation | ✅ DONE |
+| Reference-based evaluation with ground truth | 🟡 Medium | Context recall | ✅ DONE |
+
 ---
 
 ## Architecture Decisions
@@ -96,9 +106,11 @@
 
 | File | Purpose |
 |------|---------|
-| `kb_manager/web/routes/search.py` | BM25 + Dense + RRF + Reranker search pipeline |
+| `kb_manager/web/routes/search.py` | BM25 + Dense + [HyDE] + RRF + Reranker search pipeline |
+| `kb_manager/hyde.py` | HyDE: LLM-based hypothetical document embedding generation |
 | `kb_manager/chunker/semantic.py` | Structure-aware chunking with QA filtering |
 | `kb_manager/evaluation/benchmark.py` | BenchmarkRunner for retrieval evaluation |
+| `kb_manager/evaluation/ragas_metrics.py` | RAGAS evaluator for faithfulness/relevance/recall |
 | `kb_manager/evaluation/query_formats.py` | 6 query format transformations |
 | `kb_manager/web/app.py` | FastAPI app with startup pre-warm |
 | `regen_test_questions.py` | Regenerate benchmark dataset from current KB |

@@ -1,0 +1,326 @@
+{
+  "version": "v7-iva-1405",
+  "created_at": "2026-09-02T11:45:35.529003+00:00",
+  "top_k": 5,
+  "total_queries": 15,
+  "by_format": {
+    "verbatim": {
+      "queries": 15,
+      "hit_rate": 0.4667,
+      "top1_hit_rate": 0.2,
+      "mrr": 0.2944,
+      "avg_rank": 2.14,
+      "avg_latency_ms": 19674.5
+    }
+  },
+  "overall": {
+    "queries": 15,
+    "hit_rate": 0.4667,
+    "top1_hit_rate": 0.2,
+    "mrr": 0.2944,
+    "avg_rank": 2.14,
+    "avg_latency_ms": 19674.5
+  },
+  "queries": [
+    {
+      "query": "در صورتی که اقساط من معوق و یا مشکوک الوصول باشد چه مدت زمان باید از پرداخت بدهی طی شود تا امتیاز از 250 خارج شود؟",
+      "expected_ids": [
+        "0c0e6088-2a8f-4579-86ed-82b82c0a880d"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 172225.2,
+      "retrieved_ids": [
+        "7a1d372a-b714-451c-b8b1-e2eafda62ee7",
+        "81c1c830-a547-4ddd-b592-e74707a4e275",
+        "0c0e6088-2a8f-4579-86ed-82b82c0a880d",
+        "1ea1685a-c597-4eee-bf68-04a1a9c3e4aa",
+        "239ddcc6-44f1-40d5-9f88-4a4af98b8b80"
+      ]
+    },
+    {
+      "query": "آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟",
+      "expected_ids": [
+        "19eb4d50-e86d-497c-a0ac-79d01d90b0f1"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 12233.9,
+      "retrieved_ids": [
+        "19eb4d50-e86d-497c-a0ac-79d01d90b0f1",
+        "5e9eec9a-2c2e-4b2a-a958-9fb0ed947591",
+        "1347afaf-1d47-43bd-bff7-99381822d6a2",
+        "682418c7-27c5-416c-a55d-4a50f223b44c",
+        "5e96a189-1415-483b-a69a-241d307f1e1f"
+      ]
+    },
+    {
+      "query": "اگر چک برگشتی من رفع سوء اثر شده باشد، اما همچنان در گزارش اعتباری نمایش داده شود، چه اقداماتی باید انجام دهم تا از گزارش اعتباری من حذف شود؟",
+      "expected_ids": [
+        "45c40882-940e-4a6a-bae5-b65a3b9282dd"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 9728.3,
+      "retrieved_ids": [
+        "45c40882-940e-4a6a-bae5-b65a3b9282dd",
+        "85ed4916-b5d4-41a1-838f-8a9708a8ca9a",
+        "0a2b75aa-3a32-4ed9-b332-7405dec0a863",
+        "e2cfa322-68ea-47d4-9b71-8e8536bf9efd",
+        "5e9eec9a-2c2e-4b2a-a958-9fb0ed947591"
+      ]
+    },
+    {
+      "query": "آیا معوق شدن یک قسط از وام خرد تأثیرش کمتر از معوق شدن قسط وام بزرگ هست؟",
+      "expected_ids": [
+        "bc3defd7-48f5-4e63-8979-c06197052115"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": true,
+      "rank": 1,
+      "top1_hit": true,
+      "elapsed_ms": 8154.0,
+      "retrieved_ids": [
+        "bc3defd7-48f5-4e63-8979-c06197052115",
+        "501c370d-d00e-40f6-8538-a8087a6b4c20",
+        "3c8c9a29-a84e-4d6a-94fb-d6ae378fc520",
+        "df9a4d6e-983a-41f6-bb0a-bd2d186ee469",
+        "df66af8d-b6d2-4146-b9d5-0b50ad227f7d"
+      ]
+    },
+    {
+      "query": "چرا یکی از وام هایی که دارم قسطشون رو میدم، توی گزارش اعتباری من نیست؟",
+      "expected_ids": [
+        "7956a366-9f02-469c-9712-fce96626e937"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 8194.8,
+      "retrieved_ids": [
+        "b6d1aae9-8ec6-402f-b388-80756a8d73ab",
+        "1347afaf-1d47-43bd-bff7-99381822d6a2",
+        "737d26fb-777c-4a08-bf0d-c2811397bfe8",
+        "eb1f101a-a082-4552-8b04-7d2926eeba9e",
+        "d153f304-8ef7-4a6d-9c7c-20fff7b9f986"
+      ]
+    },
+    {
+      "query": "من همه وام های خودم رو پرداخت کردم. چرا امتیاز من کم شده؟",
+      "expected_ids": [
+        "880070fc-8650-4f53-812f-6eda1ec064cf"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 7705.1,
+      "retrieved_ids": [
+        "b3248db4-5f62-476f-a0f0-81e4852bb4e2",
+        "0f29ef35-1c2e-4784-b0e8-814c82ae3e9c",
+        "589a7e7e-8277-4570-8ffc-aa243de3b9cc",
+        "ac82241e-2aa2-40bf-890b-3e9195a4f7ce",
+        "d3178008-5dbc-4a61-97e2-91ff46e27326"
+      ]
+    },
+    {
+      "query": "چکم رو پاس کردم، ولی هنوز توی گزارشم هست. چرا؟",
+      "expected_ids": [
+        "550482c0-d357-454f-ae65-b5ace1526c23"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": true,
+      "rank": 2,
+      "top1_hit": false,
+      "elapsed_ms": 8124.0,
+      "retrieved_ids": [
+        "665ccd2f-3607-45d4-b791-b477ab11c55b",
+        "550482c0-d357-454f-ae65-b5ace1526c23",
+        "0cc30367-907b-4066-b862-754112df9386",
+        "ff861c7a-4d8a-4382-8409-17b7c07fa17f",
+        "c50620b9-804f-477a-8a5f-590df27e92db"
+      ]
+    },
+    {
+      "query": "گزارش من اشتباه داره. چی کار کنم؟",
+      "expected_ids": [
+        "9188997a-7796-48f1-b454-fb64f02f504f"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 10451.2,
+      "retrieved_ids": [
+        "6d4b1b2f-9ab6-4e62-bd06-ea8de83313fd",
+        "f69781e0-c570-44da-84d6-c1eade7ccf33",
+        "39091a9f-8a83-44ff-bd37-9386150790e8",
+        "5b87702c-50da-4448-a46a-648320e80ee8",
+        "abf12942-a474-4615-892f-c7f1361fbd53"
+      ]
+    },
+    {
+      "query": "گزارشم رو چطوری بگیرم؟",
+      "expected_ids": [
+        "bf3e9458-874f-4d34-8630-127d350661ea"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": true,
+      "rank": 4,
+      "top1_hit": false,
+      "elapsed_ms": 7608.9,
+      "retrieved_ids": [
+        "9c2a5615-7e85-4b80-acc2-27795b7f694a",
+        "7aee37c6-5894-4776-bd3a-7efe9bd1def1",
+        "6eceeaf9-87d9-4414-8787-462b896e6c0c",
+        "bf3e9458-874f-4d34-8630-127d350661ea",
+        "f8e2a86b-6f3a-486e-b579-031f1f5aabe9"
+      ]
+    },
+    {
+      "query": "چی کار کنم رتبم بهتر بشه؟",
+      "expected_ids": [
+        "c8754f54-7b41-4d2f-9e1d-554984e665e6"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 8239.6,
+      "retrieved_ids": [
+        "a8dce960-afb8-4104-a147-d52aff1b465e",
+        "4b2b45bb-c0ee-4f5d-a78b-be181221665c",
+        "d4df40c7-c3ed-42f6-826a-8232842b57e2",
+        "79e645f3-51d9-4152-b65c-cdf869ed1e1d",
+        "6eacfb84-1a11-4dae-835c-e468a289eebb"
+      ]
+    },
+    {
+      "query": "این دلیل کاهش امتیاز یعنی چی: ؛؛وام‌های ضمانت شده توسط فرد، در ماه‌های بسیار کمی در 3 سال گذشته، بازپرداخت به موقع داشته است.؛؛؛",
+      "expected_ids": [
+        "6cbf98d5-78e9-4642-a40f-0c8c4e42e36f"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 8501.1,
+      "retrieved_ids": [
+        "df545948-5a69-4afd-9ffc-8d218dc43935",
+        "d5e06fce-8ebf-4f13-a7bc-9087547543f5",
+        "78e55333-e718-4e2b-8fba-0f49ed070e82",
+        "59d5c42f-9775-4f6e-bb5f-efd4b0dd7516",
+        "e41fbb73-e6c0-49b6-8e91-7f7b1a0ff1cf"
+      ]
+    },
+    {
+      "query": "این دلیل کاهش امتیاز رو چطوری بهبود بدهم؟ «وام‌های ضمانت شده توسط فرد، در ماه‌های بسیار کمی در 3 سال گذشته، بازپرداخت به موقع داشته است.»",
+      "expected_ids": [
+        "6cbf98d5-78e9-4642-a40f-0c8c4e42e36f"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 8289.8,
+      "retrieved_ids": [
+        "a8dce960-afb8-4104-a147-d52aff1b465e",
+        "4b2b45bb-c0ee-4f5d-a78b-be181221665c",
+        "18d1766d-7a2b-4b13-98c4-1a94166d601d",
+        "df545948-5a69-4afd-9ffc-8d218dc43935",
+        "d5e06fce-8ebf-4f13-a7bc-9087547543f5"
+      ]
+    },
+    {
+      "query": "من قسط وام خودم رو پرداخت کردم. اطلاعات من چه زمانی به روز میشه؟",
+      "expected_ids": [
+        "e715db2f-5eb1-4825-a7ed-cb7736d34b05"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 7928.2,
+      "retrieved_ids": [
+        "b3248db4-5f62-476f-a0f0-81e4852bb4e2",
+        "66e4c27c-7419-4745-bee0-a417f6b96bc7",
+        "239ddcc6-44f1-40d5-9f88-4a4af98b8b80",
+        "1c8909f2-ead1-4091-a1c0-910b404dbc1e",
+        "61f3b3cd-d32b-4c8f-8c08-94110983aaa4"
+      ]
+    },
+    {
+      "query": "رتبه چه فرقی با امتیاز داره؟",
+      "expected_ids": [
+        "5a518a2e-dcda-4f2a-a072-a59abeb75876"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": true,
+      "rank": 3,
+      "top1_hit": false,
+      "elapsed_ms": 7418.6,
+      "retrieved_ids": [
+        "0f29ef35-1c2e-4784-b0e8-814c82ae3e9c",
+        "bd6fcbe9-bdaf-44bf-8792-6aac5ff6ebee",
+        "5a518a2e-dcda-4f2a-a072-a59abeb75876",
+        "b3299d86-4018-4737-8134-149622773c7b",
+        "702a046f-101d-4c0f-b85e-a73b10470aac"
+      ]
+    },
+    {
+      "query": "جزئیات قراردادهای منفی در گزارش یعنی چی؟",
+      "expected_ids": [
+        "9d236f1c-22ee-4ff3-aea3-02503acbee24"
+      ],
+      "format": "verbatim",
+      "difficulty": "medium",
+      "similarity_to_gt": null,
+      "hit": false,
+      "rank": -1,
+      "top1_hit": false,
+      "elapsed_ms": 10314.3,
+      "retrieved_ids": [
+        "72a3f2bb-60b3-4e12-a851-2321ee2293b1",
+        "dc4541a1-b1ee-423f-af62-b9146470449c",
+        "ba2f2402-749c-4f2a-866c-78010fa546ec",
+        "b2a1ad6b-d6fb-4207-8e46-5c000d3ec2b3",
+        "9c2a5615-7e85-4b80-acc2-27795b7f694a"
+      ]
+    }
+  ]
+}

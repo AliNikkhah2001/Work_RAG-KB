@@ -1,0 +1,82 @@
+[
+  {
+    "query": "آیا امکان ارائه ضمانت‌نامه بانکی به‌جای چک وجود دارد",
+    "expected_chunk_ids": [
+      "6829e9b6-b782-4179-9311-9a9089976d84"
+    ],
+    "expected_answer": "",
+    "relevance_scores": {
+      "6829e9b6-b782-4179-9311-9a9089976d84": 1.0
+    },
+    "category": "factual",
+    "difficulty": "easy",
+    "format": "verbatim",
+    "gt": "آیا امکان ارائه ضمانت‌نامه بانکی به‌جای چک وجود دارد؟",
+    "keywords": "چک، بانک، تغییر نام، به‌روز‌...",
+    "gt_similarity": 0.818
+  },
+  {
+    "query": "ممکن است توضیح دهید که آیا چک ارائه ضمانت‌نامه بانکی به‌جای امکان وجود دارد؟؟",
+    "expected_chunk_ids": [
+      "6829e9b6-b782-4179-9311-9a9089976d84"
+    ],
+    "expected_answer": "",
+    "relevance_scores": {
+      "6829e9b6-b782-4179-9311-9a9089976d84": 1.0
+    },
+    "category": "factual",
+    "difficulty": "medium",
+    "format": "paraphrase",
+    "gt": "آیا امکان ارائه ضمانت‌نامه بانکی به‌جای چک وجود دارد؟",
+    "keywords": "چک، بانک، تغییر نام، به‌روز‌...",
+    "gt_similarity": 0.562
+  },
+  {
+    "query": "می‌خواهم بدانم در این بخش آیا ارائه چک بانکی ضمانت‌نامه دارد؟؟",
+    "expected_chunk_ids": [
+      "6829e9b6-b782-4179-9311-9a9089976d84"
+    ],
+    "expected_answer": "",
+    "relevance_scores": {
+      "6829e9b6-b782-4179-9311-9a9089976d84": 1.0
+    },
+    "category": "factual",
+    "difficulty": "hard",
+    "format": "reworded",
+    "gt": "آیا امکان ارائه ضمانت‌نامه بانکی به‌جای چک وجود دارد؟",
+    "keywords": "چک، بانک، تغییر نام، به‌روز‌...",
+    "gt_similarity": 0.294
+  },
+  {
+    "query": "چک بانک تغییر نام به‌روز‌...",
+    "expected_chunk_ids": [
+      "6829e9b6-b782-4179-9311-9a9089976d84"
+    ],
+    "expected_answer": "",
+    "relevance_scores": {
+      "6829e9b6-b782-4179-9311-9a9089976d84": 1.0
+    },
+    "category": "factual",
+    "difficulty": "hard",
+    "format": "keyword_only",
+    "gt": "آیا امکان ارائه ضمانت‌نامه بانکی به‌جای چک وجود دارد؟",
+    "keywords": "چک، بانک، تغییر نام، به‌روز‌...",
+    "gt_similarity": 0.071
+  },
+  {
+    "query": "آیا امکان ارائه ضمانتنامه بانکی به‌جای چک وجود دارد؟",
+    "expected_chunk_ids": [
+      "6829e9b6-b782-4179-9311-9a9089976d84"
+    ],
+    "expected_answer": "",
+    "relevance_scores": {
+      "6829e9b6-b782-4179-9311-9a9089976d84": 1.0
+    },
+    "category": "factual",
+    "difficulty": "medium",
+    "format": "typo",
+    "gt": "آیا امکان ارائه ضمانت‌نامه بانکی به‌جای چک وجود دارد؟",
+    "keywords": "چک، بانک، تغییر نام، به‌روز‌...",
+    "gt_similarity": 0.727
+  }
+]
