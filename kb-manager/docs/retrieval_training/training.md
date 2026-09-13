@@ -31,3 +31,36 @@ to later agents.
 - Every entry point takes `(config, seed, provenance)`; record a `RunManifest`.
 - No `torch` imports at scaffolding scope; training agents isolate heavy deps.
 - Gate both tracks on stage 5: promote only on frozen-baseline improvement.
+
+## Stage-3 dataset stats (seed 42, `PYTHONHASHSEED=0`)
+
+Built by `scripts/retrieval_training/run_dataset.py` from the 4584 accepted
+negatives (17 uncertain dropped, 0 missing-chunk errors):
+`artifacts/retrieval_training/datasets/{train,validation,test}.jsonl` +
+`provenance.json` sidecar (manifest + stats + code rev + DB sha).
+
+Split rule (exact): group by source file (`query_id` prefix); large files
+(`Individual*`, `Cheque*`, `Public*`) divided 80/10/10 by seeded shuffle of
+query ids; small files (`Dispute*`, `Etebarito*`) wholly to train; fail-class
+(A/B/C) representatives forced into validation+test (seeded single-query
+moves, train preferred as donor). No query appears in more than one split.
+
+| Split | Queries | Per-file breakdown |
+|---|---|---|
+| train | 411 | Individual 297, Cheque 54, Public 41, Etebarito 11, Dispute 8 |
+| validation | 48 | Individual 37, Cheque 6, Public 5 |
+| test | 52 | Individual 38, Cheque 8, Public 6 |
+
+Fail representatives: 22 total → train 18, validation 2
+(`Individual_CRM_Questions#6`, `Individual_CRM_Questions#99`), test 2
+(`Individual_CRM_Questions#239`, `PublicQuestions#38`).
+
+Row shapes: CE `{query, positive_text, negatives_text}` (max 4/query,
+Tier1 > Tier2 > Tier3 > Tier4 priority) + dense `{query, positive, hard
+(Tier1+Tier2), medium (Tier3), easy (Tier4)}`. Counts per tier/split (after
+the width-4 priority trim): train Tier1 48 / Tier2 1584 / Tier3 12 /
+Tier4 0; validation 11 / 180 / 1 / 0; test 5 / 201 / 2 / 0; totals 64 /
+1965 / 15 / 0. Average negatives/query: 4.00 (every query kept 4: Tier1
+first, then Tier2; Tier3/4 survive only where a query yields fewer than 4
+Tier1+Tier2 negatives). `TierRatio` (default 0.25⁴) is preserved in the
+manifest for downstream triple sampling, not enforced as per-row quotas.

@@ -37,3 +37,34 @@ and `RunManifest(code_rev, db_sha, config, seed)` pinned at dataset build.
 This chains each negative back to the exact code, DB snapshot
 (`baseline_freeze.json`: rev `96438c1…`, `kb_9_7_2026.db` sha), tier mixture,
 and seed that produced it.
+
+## Observed yields (frozen v10 baseline, seed 42, `PYTHONHASHSEED=0`)
+
+Mined with `search_knowledge_base(q, top_k=100)` over all 511 evaluated rows
+(`scripts/retrieval_training/run_mining.py`, resume-capable, 600 s/query
+timeout, 0 errors; two parallel shards, ~74 min wall). Pool = the
+`merged_candidates` slice of 100 (RRF ranks deeper than 100 are unreachable
+via the public API; Tier3 "outside pool" candidates come from DB same-doc
+lookups). Caps per query: Tier1 ≤ 3, Tier2 ≤ 4, Tier3 ≤ 3, Tier4 ≤ 2;
+`mine_negatives` union capped at 12/query (`negatives_per_query=12`).
+
+Accepted (post-validation) tier counts per failure class (4601 mined, 17
+uncertain → 4584 accepted):
+
+| Class | Queries | Tier1 reranker_mistake | Tier2 hard_rrf | Tier3 medium | Tier4 easy |
+|---|---|---|---|---|---|
+| A retriever_failure | 18 | 0 | 72 | 54 | 36 |
+| B fusion_failure | 2 | 0 | 8 | 6 | 4 |
+| C reranker_failure | 2 | 6 | 6 | 6 | 4 |
+| D success | 489 | 58 | 1892 | 1457 | 975 |
+| Total accepted | 511 | 64 | 1978 | 1523 | 1019 |
+
+Tier1 is empty for A/B by construction (needs gold merged ≤ 20; A has gold
+outside merged top-100, B has merged > 20). C yields the full Tier1 set
+(above-gold final confusers).
+
+Validation (stage 2, 8-rule filter): 4584/4601 accepted (99.6 %). Uncertain
+(kept in `mined_negatives.jsonl` with reason, dropped from training pools):
+17 total — `R5:same_doc_overlap` × 12, `R4:near_dup` × 5, all in class D.
+No `R1`/`R2`/`R3`/`R6`/`R7` fires (mining already removes gold ids, dedups
+normalized questions, and the index excludes `*_parent` chunks).
