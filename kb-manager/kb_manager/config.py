@@ -105,6 +105,9 @@ class HyDEConfig:
     llm_base_url: str = ""
     num_hypotheses: int = 1
     prompt_template: str = ""  # empty = use default Persian template
+class RerankerConfig:
+    model_name: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+    pool: int = 0  # 0 = keep legacy min(50, top_k*3) pool logic; >0 overrides the pool cap
 
 
 @dataclass(frozen=True)
@@ -126,6 +129,7 @@ class AppConfig:
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
     hyde: HyDEConfig = field(default_factory=HyDEConfig)
+    reranker: RerankerConfig = field(default_factory=RerankerConfig)
     ragas: RagasConfig = field(default_factory=RagasConfig)
     source_dir: str = str(PROJECT_ROOT / "kb-source")
     output_dir: str = str(PROJECT_ROOT / "data" / "processed")
@@ -188,6 +192,12 @@ def _resolve_db_mode_and_url() -> tuple[str, str, str]:
     sqlite_path = os.getenv("KB_SQLITE_PATH", os.getenv("KB_DB_SQLITE_PATH", "./data/kb_test.db"))
     # Allow KB_DB_URL to also serve as sqlite path if it looks like a path (legacy)
     return mode, "", sqlite_path
+def _int_env(name: str, default: int) -> int:
+    """Read an int env var, returning the default when unset/invalid."""
+    try:
+        return int(os.getenv(name, str(default)) or str(default))
+    except (TypeError, ValueError):
+        return default
 
 
 def load_config() -> AppConfig:
@@ -232,6 +242,13 @@ def load_config() -> AppConfig:
             llm_api_key=os.getenv("KB_HYDE_API_KEY", os.getenv("OPENAI_API_KEY", "")),
             llm_base_url=os.getenv("KB_HYDE_BASE_URL", os.getenv("OPENAI_BASE_URL", "")),
             num_hypotheses=int(os.getenv("KB_HYDE_NUM", "1")),
+        ),
+        reranker=RerankerConfig(
+            model_name=os.getenv(
+                "KB_RERANKER_MODEL",
+                "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+            ),
+            pool=_int_env("KB_RERANK_POOL", 0),
         ),
         ragas=RagasConfig(
             llm_model=os.getenv("KB_RAGAS_LLM", "gpt-4o-mini"),

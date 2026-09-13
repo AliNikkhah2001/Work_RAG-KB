@@ -26,7 +26,12 @@ except ImportError:
     except ImportError:
         HyDEGenerator = None  # type: ignore[assignment]
 
-from kb_manager.reranker import CrossEncoderReranker, get_reranker
+from kb_manager.reranker import (
+    CrossEncoderReranker,
+    get_rerank_pool,
+    get_reranker,
+    get_reranker_model_name,
+)
 
 # query expansion (Phase 11: synonym + multi-query beam5)
 _SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
@@ -42,8 +47,21 @@ router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-_RERANKER_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
-_RERANKER_TOP_K = 50  # Number of candidates to rerank
+# Overridable via KB_RERANKER_MODEL env var (see kb_manager.reranker).
+_RERANKER_MODEL = os.getenv(
+    "KB_RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+)
+_RERANKER_TOP_K = 50  # Number of candidates to rerank (legacy pool cap)
+
+
+def _get_reranker_model() -> str:
+    """Re-read KB_RERANKER_MODEL so tests/runtime overrides apply."""
+    return get_reranker_model_name()
+
+
+def _get_rerank_pool() -> int:
+    """Re-read KB_RERANK_POOL so tests/runtime overrides apply."""
+    return get_rerank_pool()
 
 # HyDE configuration (disabled by default; set KB_HYDE_ENABLED=true to enable)
 _HYDE_ENABLED = os.getenv("KB_HYDE_ENABLED", "false").lower() == "true"
@@ -232,6 +250,7 @@ class SearchSteps(BaseModel):
     merged_candidates: list[SearchResult]
     final_results: list[SearchResult]
     elapsed_ms: float
+    rerank_ms: float = 0.0
 
 
 async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
@@ -286,7 +305,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
         model_name=_DENSE_MODEL,
     )
 
-    reranker = get_reranker(model_name=_RERANKER_MODEL)
+    reranker = get_reranker(model_name=_get_reranker_model())
 
     # HyDE: optional LLM-based hypothetical document generation
     hyde = None
@@ -582,9 +601,18 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     for i, c in enumerate(candidates):
         c.hybrid_score = round(c.hybrid_score, 6)
 
-    # --- Step 6: Cross-encoder Reranking (with BM25 fallback for low scores) ---
-    rerank_input = candidates[:_RERANKER_TOP_K]
-    reranked = reranker.rerank(normalized, [c.model_dump() for c in rerank_input], top_k=top_k)
+    # --- Step 6: Cross-encoder Reranking (with BM25 fallback for short queries) ---
+    # KB_RERANK_POOL>0 overrides the legacy _RERANKER_TOP_K pre-slice cap.
+    rerank_pool_cap = _get_rerank_pool()
+    rerank_cap = rerank_pool_cap if rerank_pool_cap > 0 else _RERANKER_TOP_K
+    rerank_input = candidates[:rerank_cap]
+    reranked = reranker.rerank(
+        normalized,
+        [c.model_dump() for c in rerank_input],
+        top_k=top_k,
+        pool=rerank_pool_cap,
+    )
+    rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
     
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
@@ -618,6 +646,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         merged_candidates=candidates[:top_k],
         final_results=final,
         elapsed_ms=round(elapsed, 1),
+        rerank_ms=rerank_ms,
     )
 
 
@@ -674,6 +703,7 @@ async def search_api(request: Request):
 
     try:
         # F2/F29 fix: directly await async pipeline — no to_thread/_sync_loop indirection
+        # (asyncpg pool binds to the loop that first uses it; a worker thread breaks it)
         steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost)
         out = steps.model_dump()
         out["keyword_boost_used"] = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
