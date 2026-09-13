@@ -107,6 +107,7 @@ class HyDEConfig:
     llm_base_url: str = ""
     num_hypotheses: int = 1
     prompt_template: str = ""  # empty = use default Persian template
+@dataclass(frozen=True)
 class RerankerConfig:
     model_name: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
     pool: int = 0  # 0 = keep legacy min(50, top_k*3) pool logic; >0 overrides the pool cap
