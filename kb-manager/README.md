@@ -118,9 +118,45 @@ Notes: causal-LM-derived rerankers (Jina-v3/Qwen3) ship `pad_token_id=None`; the
 
 ## Benchmark Results
 
-### v9 — cross-encoder backbone shootout, 800 QA (`eval_clean.json`), CPU (2026-09-12, running)
+### v9 — reranker shootout, wave-1 full-800 CPU (2026-09-12/13, measured)
 
-Massive retrieval benchmark: every query × every backbone above (pool 30, top_k 5), in-process parallel workers. See `eval/results/reranker_benchmark_*` for per-variant JSON + plots. Results table lands here when the runs finish.
+Dataset: 800 Persian QA, answer-grounded golds remapped to the live 2077-chunk PG KB (threshold 0.6, 772/800 covered, ~7 gold/query), top_k=5. In-process parallel workers (`bench_backbone.py`, one persistent event loop per worker — `asyncio.run()` per query breaks the asyncpg pool).
+
+| Backbone | Pool | Hit@5 | Top-1 | MRR | s/q (CPU) |
+|---|---|---|---|---|---|
+| MiniLM-L12 `mmarco-mMiniLMv2-L12-H384-v1` (default) | 15 | 0.536 | 0.469 | 0.493 | 3.9 |
+| MiniLM-L12 | 30 | 0.538 | — | 0.495 | 7.4 |
+| BGE-m3 `BAAI/bge-reranker-v2-m3` | 30 | 0.536 | 0.474 | 0.496 | 52 |
+| Jina-v3 | — | EXCLUDED | — | 0.117 | — |
+
+Jina-v3 excluded: classification head failed to load under transformers 5 ("MISSING params newly initialized" → near-random scores, MRR 0.117 — not a quality signal).
+
+Decision: keep MiniLM-L12 pool15 default. BGE-m3 gains +0.003 MRR at ~13x latency; pool30 gains +0.002 at ~2x. Heavies (Qwen3, bgemma-2B) must prove on GPU full-800 (`deploy/vast/wave2_gpu.sh` in the parent repo).
+
+#### Flag-LLM reranker prompt (`KB_RERANKER_PROMPT`)
+
+`kb_manager/reranker.py`: `get_reranker_prompt()` reads `KB_RERANKER_PROMPT`; empty/unset = FlagEmbedding library default, literal `detailed` = `DEFAULT_LLM_RERANK_PROMPT`. The detailed prompt keeps the Yes/No prediction contract the loader scores (the `Yes` logit) and adds a Persian semantic-answerhood instruction:
+
+> "Given a search query A and a candidate passage B, determine whether passage B contains an answer to query A by providing a prediction of either 'Yes' or 'No'. Predict 'Yes' only if the passage directly answers the query, defines its key terms, states the applicable rules, procedures, amounts, dates, names, or reason codes. Predict 'No' if the passage is merely topically related, mentions query terms without answering, or answers a different question. The query and passage may be in Persian: judge semantic answerhood, not keyword overlap. Respond with exactly one word: 'Yes' or 'No'."
+
+Live pair-scoring demo (`demo_bgemma_prompt.py`) showed correct ranking under both default and detailed prompts (detailed shifts margins, not order, on the demo pair).
+
+#### Interim: bgemma-2B vs MiniLM, identical 25-query slice (CPU, pool15, 2026-09-13)
+
+| Reranker | Prompt | Hit@5 | Top-1 | MRR | nDCG@5 | s/q (CPU) |
+|---|---|---|---|---|---|---|
+| bge-reranker-v2-gemma 2B | detailed | 0.44 | 0.44 | 0.44 | 0.186 | 64 |
+| MiniLM-L12 | n/a (cross-encoder) | 0.44 | 0.44 | 0.44 | 0.191 | 6.2 |
+
+Identical ranking at ~10x cost — heavies must prove on GPU full-800 before displacing MiniLM.
+
+#### Blocker ledger (CPU wave-1)
+
+| Model | Blocker |
+|---|---|
+| `Alibaba-NLP/gte-multilingual-reranker-base` | rope index bug under transformers 5 (custom modeling, verified native) |
+| `BAAI/bge-reranker-v2-minicpm-layerwise` | transformers-5 remote modeling uses removed APIs |
+| `Qwen/Qwen3-Reranker-0.6B` | too slow on CPU (~33 s/q); smoke 5q hit 0.2 @ 11.5 s/q — plumbing OK, needs GPU |
 
 ### v7 — IVA 15 questions, 1405-05-31 KB (verbatim, CPU)
 
