@@ -95,6 +95,39 @@ def get_rerank_pool() -> int:
         return _DEFAULT_POOL
 
 
+# Detailed scoring prompt for decoder-only (flag-llm) rerankers such as
+# Qwen3-Reranker and bge-reranker-v2-gemma. It keeps the Yes/No prediction
+# contract the loader scores (the 'Yes' logit) but spells out what counts
+# as an answer — direct answer, definition, rule/procedure, exact facts —
+# and tells the model to judge semantic answerhood (queries and passages
+# may be in Persian) instead of keyword overlap.
+DEFAULT_LLM_RERANK_PROMPT = (
+    "Given a search query A and a candidate passage B, determine whether "
+    "passage B contains an answer to query A by providing a prediction of "
+    "either 'Yes' or 'No'. "
+    "Predict 'Yes' only if the passage directly answers the query, defines "
+    "its key terms, states the applicable rules, procedures, amounts, dates, "
+    "names, or reason codes. "
+    "Predict 'No' if the passage is merely topically related, mentions query "
+    "terms without answering, or answers a different question. "
+    "The query and passage may be in Persian: judge semantic answerhood, "
+    "not keyword overlap. "
+    "Respond with exactly one word: 'Yes' or 'No'."
+)
+
+
+def get_reranker_prompt() -> str | None:
+    """Return the configured flag-llm scoring prompt (``KB_RERANKER_PROMPT``).
+
+    Empty/unset means "use the FlagEmbedding library default". The literal
+    value ``detailed`` selects :data:`DEFAULT_LLM_RERANK_PROMPT`.
+    """
+    raw = os.getenv("KB_RERANKER_PROMPT", "")
+    if raw.strip().lower() == "detailed":
+        return DEFAULT_LLM_RERANK_PROMPT
+    return raw or None
+
+
 def resolve_reranker_spec(model_name: str) -> dict[str, Any]:
     """Return the loader spec for a reranker model id.
 
@@ -411,11 +444,17 @@ class FlagEmbeddingReranker:
         batch_size: int = 32,
         device: Optional[str] = None,
         max_length: int = _MAX_LENGTH,
+        prompt: Optional[str] = None,
     ) -> None:
         self._model_name = model_name
         self._batch_size = batch_size
         self._device = device
         self._max_length = max_length
+        # Scoring prompt for flag-llm loaders (None = FlagEmbedding default).
+        # Env default applies when the caller passes nothing explicitly.
+        self._prompt = DEFAULT_LLM_RERANK_PROMPT if prompt == "detailed" else prompt
+        if prompt is None:
+            self._prompt = get_reranker_prompt()
 
         self._reranker: Any = None
         self.last_rerank_ms: float = 0.0
@@ -461,6 +500,7 @@ class FlagEmbeddingReranker:
                 use_fp16=False,
                 max_length=self._max_length,
                 devices=devices,
+                prompt=self._prompt,  # None = library default Yes/No prompt
             )
         elif loader == "crossencoder":
             raise NotImplementedError(
@@ -552,11 +592,14 @@ def get_reranker(
     model_name: Optional[str] = None,
     batch_size: int = 32,
     device: Optional[str] = None,
+    prompt: Optional[str] = None,
 ) -> "CrossEncoderReranker | FlagEmbeddingReranker":
     """Factory function to create a reranker instance.
 
     ``model_name`` defaults to the ``KB_RERANKER_MODEL`` env var (falling
     back to the built-in default), so an explicit argument always wins.
+    ``prompt`` defaults to ``KB_RERANKER_PROMPT`` (``'detailed'`` selects the
+    built-in precise prompt); only flag-llm loaders use it.
     Dispatches on the registry loader: ``'crossencoder'`` (and unknown ids,
     which fall back to that path) → :class:`CrossEncoderReranker`;
     ``'flag'`` / ``'flag-llm'`` → :class:`FlagEmbeddingReranker`. Any other
@@ -569,6 +612,7 @@ def get_reranker(
             model_name=name,
             batch_size=batch_size,
             device=device,
+            prompt=prompt,
         )
     return CrossEncoderReranker(
         model_name=name,
