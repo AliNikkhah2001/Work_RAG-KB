@@ -61,12 +61,12 @@ RERANKER_REGISTRY: dict[str, dict[str, Any]] = {
         "needs_trust_remote_code": True,
     },
     "Qwen/Qwen3-Reranker-0.6B": {
-        "loader": "flag-llm",
-        "needs_trust_remote_code": False,
+        "loader": "qwen3",
+        "needs_trust_remote_code": True,  # Qwen3 modeling + chat template
     },
     "Qwen/Qwen3-Reranker-4B": {
-        "loader": "flag-llm",
-        "needs_trust_remote_code": False,
+        "loader": "qwen3",
+        "needs_trust_remote_code": True,
     },
     "BAAI/bge-reranker-v2-gemma": {
         "loader": "flag-llm",
@@ -592,6 +592,175 @@ class FlagEmbeddingReranker:
         return f"FlagEmbeddingReranker(model={self._model_name!r}, batch_size={self._batch_size})"
 
 
+# Instruct text used in the Qwen3-Reranker chat template (<Instruct> role).
+QWEN3_INSTRUCT = (
+    "Given a web search query, retrieve relevant passages that answer the query"
+)
+
+# Fallback judge instruction if the model's chat template has no system default.
+QWEN3_SYSTEM_FALLBACK = (
+    'Judge whether the Document meets the requirements based on the Query and '
+    'the Instruct provided. Note that the answer can only be "yes" or "no".'
+)
+
+
+class Qwen3Reranker:
+    """Rerank with Qwen3-Reranker models (thinking disabled for scoring).
+
+    Qwen3-Reranker is a thinking model: with reasoning enabled it emits
+    ``<think>…`` before answering, so scoring P(Yes) at position 0 of an
+    empty trace is noise (this is why naive FlagLLMReranker use gives
+    MRR ~0.1). Here inputs are formatted with the model's own chat template
+    and ``enable_thinking=False`` (empty think block, assistant ready to
+    answer), and the score is ``logit(yes) - logit(no)`` at the final
+    position — the official non-thinking scoring method.
+
+    Same public interface as the other rerankers: ``rerank(query,
+    candidates, top_k, score_key, pool)`` + ``last_rerank_ms``.
+    """
+
+    def __init__(
+        self,
+        model_name: str,
+        batch_size: int = 8,
+        device: Optional[str] = None,
+        max_length: int = _MAX_LENGTH,
+    ) -> None:
+        self._model_name = model_name
+        self._batch_size = batch_size
+        self._device = device or "cpu"
+        self._max_length = max_length
+        self._model: Any = None
+        self._tokenizer: Any = None
+        self._yes_id: int = -1
+        self._no_id: int = -1
+        self.last_rerank_ms: float = 0.0
+
+    def _ensure_model(self) -> None:
+        if self._model is not None:
+            return
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+        except ImportError as exc:
+            raise ImportError(
+                "transformers and torch are required for Qwen3 reranking. "
+                "Install with: pip install transformers torch"
+            ) from exc
+        logger.info("Loading Qwen3 reranker %s (thinking disabled) …", self._model_name)
+        self._tokenizer = AutoTokenizer.from_pretrained(
+            self._model_name, trust_remote_code=True
+        )
+        self._model = AutoModelForCausalLM.from_pretrained(
+            self._model_name,
+            trust_remote_code=True,
+            torch_dtype=torch.float16 if self._device != "cpu" else torch.float32,
+        )
+        self._model.to(self._device)
+        self._model.eval()
+        # Left-pad so the scored position is always the last token.
+        try:
+            self._tokenizer.padding_side = "left"
+        except Exception:
+            pass
+        for tok, attr in (("yes", "_yes_id"), ("no", "_no_id")):
+            ids = self._tokenizer(tok, add_special_tokens=False)["input_ids"]
+            setattr(self, attr, ids[0] if len(ids) == 1 else -1)
+        if self._yes_id < 0 or self._no_id < 0:
+            raise ValueError(f"Qwen3 tokenizer lacks single-token yes/no ids")
+        logger.info(
+            "Qwen3 reranker loaded (device=%s, yes=%d, no=%d)",
+            next(self._model.parameters()).device,
+            self._yes_id,
+            self._no_id,
+        )
+
+    def _score_batch(self, prompts: list[str]) -> list[float]:
+        import torch
+
+        enc = self._tokenizer(
+            prompts,
+            padding=True,
+            truncation=True,
+            max_length=self._max_length,
+            return_tensors="pt",
+        )
+        input_ids = enc["input_ids"].to(self._device)
+        attn = enc["attention_mask"].to(self._device)
+        with torch.no_grad():
+            logits = self._model(input_ids=input_ids, attention_mask=attn).logits
+        last = attn.sum(dim=1).long() - 1
+        out: list[float] = []
+        for i in range(len(prompts)):
+            lv = logits[i, last[i]]
+            out.append(float(lv[self._yes_id] - lv[self._no_id]))
+        return out
+
+    def _format(self, query: str, passage: str) -> str:
+        # Qwen3-Reranker template uses custom roles: system=instruction,
+        # query, document (a single "user" message renders empty!).
+        messages = [
+            {"role": "system", "content": QWEN3_INSTRUCT},
+            {"role": "query", "content": query},
+            {"role": "document", "content": passage},
+        ]
+        try:
+            return self._tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
+        except Exception:
+            return (
+                f"{QWEN3_SYSTEM_FALLBACK}\n<Query>: {query}\n<Document>: {passage}\nAnswer with yes or no:"
+            )
+
+    def rerank(
+        self,
+        query: str,
+        candidates: List[dict],
+        top_k: int = 10,
+        score_key: str = "hybrid_score",
+        pool: Optional[int] = None,
+    ) -> List[dict]:
+        """Rerank candidates with think-disabled Qwen3 scoring."""
+        import time
+
+        t0 = time.perf_counter()
+        if not candidates:
+            self.last_rerank_ms = 0.0
+            return []
+        self._ensure_model()
+        if pool is None:
+            pool = get_rerank_pool()
+        ordered = sorted(candidates, key=lambda x: x.get(score_key, 0), reverse=True)
+        if pool and pool > 0:
+            cap = min(pool, len(ordered))
+        else:
+            cap = min(top_k * 3, len(ordered))
+        rerank_pool = ordered[:cap]
+        prompts = [
+            self._format(query, c.get("content") or c.get("content_preview") or "")
+            for c in rerank_pool
+        ]
+        scores: list[float] = []
+        for s in range(0, len(prompts), self._batch_size):
+            scores.extend(self._score_batch(prompts[s : s + self._batch_size]))
+        for cand, score in zip(rerank_pool, scores):
+            cand["rerank_score"] = float(score)
+        reranked = sorted(rerank_pool, key=lambda x: x["rerank_score"], reverse=True)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        self.last_rerank_ms = elapsed_ms
+        logger.info(
+            "rerank model=%s n=%d ms=%.1f", self._model_name, len(rerank_pool), elapsed_ms
+        )
+        return reranked[:top_k]
+
+    def __repr__(self) -> str:
+        return f"Qwen3Reranker(model={self._model_name!r}, batch_size={self._batch_size})"
+
+
 def get_reranker(
     model_name: Optional[str] = None,
     batch_size: int = 32,
@@ -606,7 +775,8 @@ def get_reranker(
     built-in precise prompt); only flag-llm loaders use it.
     Dispatches on the registry loader: ``'crossencoder'`` (and unknown ids,
     which fall back to that path) → :class:`CrossEncoderReranker`;
-    ``'flag'`` / ``'flag-llm'`` → :class:`FlagEmbeddingReranker`. Any other
+    ``'flag'`` / ``'flag-llm'`` → :class:`FlagEmbeddingReranker`;
+    ``'qwen3'`` → :class:`Qwen3Reranker` (thinking disabled). Any other
     loader raises the registry's NotImplementedError.
     """
     name = model_name or get_reranker_model_name()
@@ -617,6 +787,12 @@ def get_reranker(
             batch_size=batch_size,
             device=device,
             prompt=prompt,
+        )
+    if loader == "qwen3":
+        return Qwen3Reranker(
+            model_name=name,
+            batch_size=min(batch_size, 8),
+            device=device,
         )
     return CrossEncoderReranker(
         model_name=name,
