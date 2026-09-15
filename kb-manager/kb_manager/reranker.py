@@ -487,6 +487,10 @@ class FlagEmbeddingReranker:
         )
 
         devices = self._device if self._device else None
+        if isinstance(devices, str):
+            # FlagEmbedding wants device IDs like "cuda:0"/"0", not bare "cuda".
+            if devices == "cuda":
+                devices = "cuda:0"
         if loader == "flag":
             self._reranker = FlagEmbedding.FlagReranker(
                 self._model_name,
