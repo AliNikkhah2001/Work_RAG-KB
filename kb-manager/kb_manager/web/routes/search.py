@@ -52,7 +52,7 @@ _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 # Reranker model (KB_RERANKER_MODEL-aware helper below) + pool size – tunable via env (restart required)
 _RERANKER_MODEL = os.getenv(
-    "KB_RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+    "KB_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"
 )
 _RERANKER_TOP_K = int(os.getenv("KB_RERANKER_TOP_K", "100"))  # rerank candidates (was 50, raised for Q11/12 recall)
 

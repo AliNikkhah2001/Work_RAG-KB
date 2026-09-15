@@ -109,7 +109,7 @@ class HyDEConfig:
     prompt_template: str = ""  # empty = use default Persian template
 @dataclass(frozen=True)
 class RerankerConfig:
-    model_name: str = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+    model_name: str = "BAAI/bge-reranker-v2-m3"
     pool: int = 0  # 0 = keep legacy min(50, top_k*3) pool logic; >0 overrides the pool cap
 
 
@@ -251,7 +251,7 @@ def load_config() -> AppConfig:
         reranker=RerankerConfig(
             model_name=os.getenv(
                 "KB_RERANKER_MODEL",
-                "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+                "BAAI/bge-reranker-v2-m3",
             ),
             pool=_int_env("KB_RERANK_POOL", 0),
         ),

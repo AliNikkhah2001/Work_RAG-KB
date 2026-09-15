@@ -5,7 +5,7 @@ top candidates from the hybrid BM25+Dense retrieval stage.
 
 Model selection:
     ``KB_RERANKER_MODEL`` env var selects the HuggingFace model id
-    (default ``cross-encoder/mmarco-mMiniLMv2-L12-H384-v1``). Known ids are
+    (default ``BAAI/bge-reranker-v2-m3``). Known ids are
     listed in :data:`RERANKER_REGISTRY` with their loader requirements.
 
 Candidate pool:
@@ -26,7 +26,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL = "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1"
+_DEFAULT_MODEL = "BAAI/bge-reranker-v2-m3"
 _DEFAULT_POOL = 0  # 0 = keep legacy min(50, top_k*3) pool logic
 _MAX_LENGTH = 512
 
