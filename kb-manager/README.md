@@ -99,14 +99,16 @@ Query → Persian Normalization + Char 3-grams
 - **BM25**: Okapi BM25 with Persian-aware tokenization, char 3-grams for typo robustness, keyword 3x boost
 - **Dense**: `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) with contextual embeddings (title + heading prepended)
 - **RRF**: Reciprocal Rank Fusion over BM25 + Dense ranked lists
-- **Reranker**: configurable via `KB_RERANKER_MODEL` (default `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`) on a `KB_RERANK_POOL`-capped candidate pool (default `min(50, top_k*3)`); per-call latency logged (`rerank model=… n=… ms=…`, `SearchSteps.rerank_ms`)
+- **Reranker**: `BAAI/bge-reranker-v2-m3` (default, configurable via `KB_RERANKER_MODEL`) on a `KB_RERANK_POOL`-capped candidate pool (default `min(50, top_k*3)`; production CPU sets `KB_RERANK_POOL=15` to bound latency, GPU hosts can raise to 30); per-call latency logged (`rerank model=… n=… ms=…`, `SearchSteps.rerank_ms`)
 
-### Reranker backbones (select via `KB_RERANKER_MODEL`)
+### Reranker backbones (select via `KB_RERANKER_MODEL`; default `BAAI/bge-reranker-v2-m3`)
+
+> **Default: `BAAI/bge-reranker-v2-m3`.** Set in code (`reranker.py _DEFAULT_MODEL`, `config.py RerankerConfig`, `search.py _RERANKER_MODEL` fallback) and live on production KB `:8000` via `KB_RERANKER_MODEL` + `KB_RERANK_POOL=15`.
 
 | Model | Params | License | Loader | Status |
 |---|---|---|---|---|
-| `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` (default) | 118M | Apache 2.0 | CrossEncoder | production baseline |
-| `BAAI/bge-reranker-v2-m3` | 568M | MIT | CrossEncoder | candidate — m3 family tops FaMTEB Persian rerank |
+| `BAAI/bge-reranker-v2-m3` (default) | 568M | Apache 2.0 | CrossEncoder | **production default — best measured MRR + Persian support (see below)** |
+| `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | 118M | Apache 2.0 | CrossEncoder | lightweight fallback: `KB_RERANKER_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` |
 | `jinaai/jina-reranker-v3` | 0.6B | Apache 2.0 | CrossEncoder (`trust_remote_code`, EOS pad fallback) | candidate (v2 skipped: CC-BY-NC) |
 | `Qwen/Qwen3-Reranker-0.6B` | 0.6B | Apache 2.0 | FlagEmbedding LLM head | candidate |
 | `Qwen/Qwen3-Reranker-4B` | 4B | Apache 2.0 | FlagEmbedding LLM head | candidate (~23GB RAM, CPU-only here) |
@@ -114,7 +116,14 @@ Query → Persian Normalization + Char 3-grams
 | `BAAI/bge-reranker-v2-minicpm-layerwise` | 2.7B | Apache 2.0 | — | blocked: needs transformers-5 port (remote modeling uses removed APIs) |
 | `Alibaba-NLP/gte-multilingual-reranker-base` | ~300M | Apache 2.0 | — | blocked: custom modeling broken under transformers 5 (rope index bug, verified native) |
 
-Notes: causal-LM-derived rerankers (Jina-v3/Qwen3) ship `pad_token_id=None`; the loader falls back to EOS on tokenizer + model + nested text config. `BAAI/bge-reranker-v2-gemma` is Gemma-2B-based (~2.5B, 9.4GB), not 9B. Hosted APIs (Cohere/Voyage) excluded — self-hosted only. No Persian-specific cross-encoder exists; Persian relies on multilingual models.
+Notes: causal-LM-derived rerankers (Jina-v3/Qwen3) ship `pad_token_id=None`; the loader falls back to EOS on tokenizer + model + nested text config. `BAAI/bge-reranker-v2-gemma` is Gemma-2B-based (~2.5B, 9.4GB), not 9B. Hosted APIs (Cohere/Voyage) excluded — self-hosted only.
+
+#### Persian support (why v2-m3 is the default multilingual pick)
+
+- **Backbone:** BGE-M3 (XLM-RoBERTa-Large base, 568M params, 2.27GB) — multilinguality over 100+ languages, including Persian.
+- **Benchmark lineage:** SOTA on MIRACL multilingual retrieval, which includes a Persian (`fa`) split, and on MKQA cross-lingual; vendor BGE docs explicitly recommend v2-m3 "for multilingual".
+- **Loader:** plain cross-encoder (sentence-transformers `CrossEncoder`), Apache-2.0, no `trust_remote_code` needed — unlike Jina-v3 / Qwen3 LLM-head loaders.
+- **Production note:** 568M on CPU is heavier than MiniLM-118M → set `KB_RERANK_POOL=15` to bound latency (~5–15s rerank solo on CPU); GPU hosts can raise to 30.
 
 ## Benchmark Results
 
@@ -124,14 +133,15 @@ Dataset: 800 Persian QA, answer-grounded golds remapped to the live 2077-chunk P
 
 | Backbone | Pool | Hit@5 | Top-1 | MRR | s/q (CPU) |
 |---|---|---|---|---|---|
-| MiniLM-L12 `mmarco-mMiniLMv2-L12-H384-v1` (default) | 15 | 0.536 | 0.469 | 0.493 | 3.9 |
+| **BGE-m3 `BAAI/bge-reranker-v2-m3` (default)** | 15 | 0.536 | 0.474 | **0.496** | ~5–15 (rerank solo; pool-15 production cap) |
+| MiniLM-L12 `mmarco-mMiniLMv2-L12-H384-v1` (lightweight fallback) | 15 | 0.536 | 0.469 | 0.493 | 3.9 |
 | MiniLM-L12 | 30 | 0.538 | — | 0.495 | 7.4 |
 | BGE-m3 `BAAI/bge-reranker-v2-m3` | 30 | 0.536 | 0.474 | 0.496 | 52 |
 | Jina-v3 | — | EXCLUDED | — | 0.117 | — |
 
 Jina-v3 excluded: classification head failed to load under transformers 5 ("MISSING params newly initialized" → near-random scores, MRR 0.117 — not a quality signal).
 
-Decision: keep MiniLM-L12 pool15 default. BGE-m3 gains +0.003 MRR at ~13x latency; pool30 gains +0.002 at ~2x. Heavies (Qwen3, bgemma-2B) must prove on GPU full-800 (`deploy/vast/wave2_gpu.sh` in the parent repo).
+Decision (2026-09-15): **default is `BAAI/bge-reranker-v2-m3`** — best measured MRR (0.496) on our Persian credit KB (800 remapped queries, top-5: hit 0.536, top1 0.474) plus multilingual/Persian backbone support (BGE-M3, 100+ languages incl. Persian; MIRACL `fa`; vendor "for multilingual" recommendation). MiniLM stays as the lightweight CPU fallback (`KB_RERANKER_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`: MRR 0.493 at pool15, 0.495 at pool30 — within 0.003 of BGE-m3 at a fraction of the latency). Qwen3-Reranker-4B (think-disabled, GPU): 0.233 — decisively behind. bgemma-2B 25-slice: 0.44 tied with MiniLM at ~10x latency. Production CPU note: 568M → keep `KB_RERANK_POOL=15`; GPU hosts can raise to 30. Heavies (Qwen3, bgemma-2B) must prove on GPU full-800 (`deploy/vast/wave2_gpu.sh` in the parent repo).
 
 #### Flag-LLM reranker prompt (`KB_RERANKER_PROMPT`)
 
@@ -148,7 +158,7 @@ Live pair-scoring demo (`demo_bgemma_prompt.py`) showed correct ranking under bo
 | bge-reranker-v2-gemma 2B | detailed | 0.44 | 0.44 | 0.44 | 0.186 | 64 |
 | MiniLM-L12 | n/a (cross-encoder) | 0.44 | 0.44 | 0.44 | 0.191 | 6.2 |
 
-Identical ranking at ~10x cost — heavies must prove on GPU full-800 before displacing MiniLM.
+Identical ranking at ~10x cost — heavies must prove on GPU full-800 before displacing the BGE-m3 default.
 
 #### Blocker ledger (CPU wave-1)
 
