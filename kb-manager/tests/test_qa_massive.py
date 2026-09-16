@@ -1,8 +1,8 @@
 """Massive QA test: verbatim retrieval must return correct chunk for every QA row in KB.
 
-Scans all QA Excel files in kb-source/1405-05-31 (schema crm_qa), runs each question
-verbatim through search_knowledge_base, asserts expected chunk in top-5.
-Requirement: 100% recall (400+ questions).
+Scans all QA Excel files in the current kb-source version folder (schema crm_qa),
+runs each question verbatim through search_knowledge_base, asserts expected chunk
+in top-5. Set KB_SOURCE_DIR to override (defaults to newest 1405-* version folder).
 
 Run: pytest tests/test_qa_massive.py -v --tb=short
 Or: python -m pytest tests/test_qa_massive.py -v
@@ -19,18 +19,20 @@ from kb_manager.parsers.registry import get_parser
 
 # Collect QA files at test collection time (fast, no DB)
 def _collect_qa_files():
-    # Use the same source as the live DB (1405-05-31) to avoid testing stale clean_files
+    # Prefer explicit KB_SOURCE_DIR env (as used by DB); otherwise use the
+    # newest 1405-* version folder under kb-source (layout since d41a7d9:
+    # version folders replaced the legacy flat clean_files/).
     import os
-    # Prefer explicit KB_SOURCE_DIR env (as used by DB), fallback to 1405-05-31
     env_src = os.getenv("KB_SOURCE_DIR", "")
     if env_src and pathlib.Path(env_src).exists():
         source = pathlib.Path(env_src)
     else:
         cfg = load_config()
-        # Force to 1405-05-31 if cfg points to parent kb-source (which includes clean_files)
         cand = pathlib.Path(cfg.source_dir)
         if cand.name == "kb-source":
-            cand = cand / "1405-05-31"
+            versions = sorted([p for p in cand.iterdir()
+                               if p.is_dir() and p.name.startswith("1405-")])
+            cand = versions[-1] if versions else cand / "1405-05-31"
         source = cand if cand.exists() else pathlib.Path(cfg.source_dir)
     files = []
     for p in source.rglob("*.xlsx"):
