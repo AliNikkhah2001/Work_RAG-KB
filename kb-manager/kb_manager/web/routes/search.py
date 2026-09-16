@@ -417,12 +417,16 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         return _index_cache
 
 
-async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: float | None = None) -> SearchSteps:
+async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None) -> SearchSteps:
     """Run full search pipeline with step tracking.
 
     Pipeline: BM25 + Dense + [HyDE] → RRF → Cross-encoder reranker
     HyDE is optional: only runs when KB_HYDE_ENABLED=true and API key is set.
     keyword_boost: tunable weight for keyword BM25 field (default env KB_KEYWORD_BOOST=3.0)
+    stage_depth: how many ranked items to keep in the diagnostic stage lists
+        (bm25/dense/merged). Defaults to top_k. The cross-encoder rerank pool
+        and the final top-k are unaffected. Added for the massive retrieval
+        benchmark so per-stage recall can be measured at K > top_k.
     """
     start = time.monotonic()
     normalized = query.strip()
@@ -708,16 +712,17 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     # --- Step 7: Final top-k ---
     final = reranked_results[:top_k]
     elapsed = (time.monotonic() - start) * 1000
+    depth = stage_depth or top_k
 
     return SearchSteps(
         query=query,
         normalized_query=normalized,
         tokens=tokens,
         total_chunks_indexed=len(chunk_data),
-        bm25_results=bm25_results[:top_k],
-        semantic_results=dense_results[:top_k],
-        dense_results=dense_results[:top_k],
-        merged_candidates=candidates[:top_k],
+        bm25_results=bm25_results[:depth],
+        semantic_results=dense_results[:depth],
+        dense_results=dense_results[:depth],
+        merged_candidates=candidates[:depth],
         final_results=final,
         elapsed_ms=round(elapsed, 1),
         rerank_ms=rerank_ms,
@@ -741,9 +746,9 @@ def _run_sync(coro):
         return fut.result()
 
 
-def search_knowledge_base_sync(query: str, top_k: int = 10, keyword_boost: float | None = None) -> SearchSteps:
+def search_knowledge_base_sync(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None) -> SearchSteps:
     """Synchronous wrapper — safe from both sync and async callers."""
-    return _run_sync(search_knowledge_base(query, top_k, keyword_boost=keyword_boost))
+    return _run_sync(search_knowledge_base(query, top_k, keyword_boost=keyword_boost, stage_depth=stage_depth))
 
 @router.get("")
 async def search_page(request: Request):
