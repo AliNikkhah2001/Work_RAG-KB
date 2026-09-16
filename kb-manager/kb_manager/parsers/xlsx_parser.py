@@ -133,6 +133,19 @@ SCHEMA_TIMELINE_COLUMNS = {
 }
 
 
+# Sheets / columns excluded from the KB (internal review notes, legacy dupes).
+# Compared with _normalize_col() output.
+EXCLUDED_SHEETS = {"نظر"}
+EXCLUDED_COLUMNS = {
+    "answerجدید",  # Answer جدید (legacy dup, empty)
+    "answerقدیم",  # Answer قدیم (legacy dup)
+    "column1",  # junk empty column
+    "پاسخسابق",  # legacy answer
+    "بهبود(توصیهبرایورژنبعد)",  # internal next-version notes
+    "کامنتها",  # reviewer comments
+}
+
+
 def _normalize_col(name: str) -> str:
     """Normalize column name for comparison."""
     return re.sub(r"[\s_\-]+", "", name.strip().lower())
@@ -159,6 +172,11 @@ def _detect_schema(headers: list[str]) -> str | None:
     if {"سوال"} & normalized and {"پاسخ"} & normalized:
         return "crm_qa"
 
+    # Reason codes: minimal core columns (reason_code + reason_text + one explanation)
+    reason_core = {"reasoncode", "reasontext", "briefexplanation", "detailedexplanation", "improvementsuggestions", "keywords", "modelname", "modelid"}
+    if {"reasoncode", "reasontext"} <= normalized and len(normalized & reason_core) >= 3:
+        return "reason_codes"
+
     # Type-aware tabular schemas (new) — check before generic fallback
     # Glossary: 2-col رتبه/گرید exact (e.g. واژگان معادل.xlsx)
     glossary_norm = {_normalize_col(c) for c in SCHEMA_GLOSSARY_COLUMNS}
@@ -176,6 +194,11 @@ def _detect_schema(headers: list[str]) -> str | None:
     timeline_norm = {_normalize_col(c) for c in SCHEMA_TIMELINE_COLUMNS}
     if {"تاریخ"} & normalized and len(normalized & timeline_norm) >= 2:
         return "timeline"
+
+    # Generic narrow tables (2-3 columns, no known schema): key/value flow.
+    # Each row becomes one kv_pair chunk (paragraph + keywords).
+    if 2 <= len([h for h in headers if h]) <= 3:
+        return "kv_pair"
 
     schemas = [
         ("reason_codes", {_normalize_col(c) for c in SCHEMA_A_COLUMNS}),
@@ -263,6 +286,9 @@ class XlsxParser(BaseParser):
             if engine_used == "auto":
                 engine_used = self._detect_available_engine()
             for sheet_name in sheet_names:
+                if _normalize_col(sheet_name) in EXCLUDED_SHEETS:
+                    logger.info("Skipping excluded sheet %r in %s", sheet_name, Path(file_path).name)
+                    continue
                 sheet_result = self._parse_sheet_rows(
                     sheet_name, rows_by_sheet[sheet_name], integrity_issues
                 )
@@ -377,8 +403,34 @@ class XlsxParser(BaseParser):
         while headers and not headers[-1]:
             headers.pop()
 
-        if len(headers) < 2:
+        # Drop excluded (internal/legacy) columns everywhere, keeping alignment
+        keep_idx = [i for i, h in enumerate(headers) if h and _normalize_col(h) not in EXCLUDED_COLUMNS]
+        if not keep_idx:
             return None
+        dropped = len(headers) - len(keep_idx)
+        if dropped:
+            logger.info("Dropping %d excluded column(s) in sheet %r", dropped, sheet_name)
+            headers = [headers[i] for i in keep_idx]
+            rows = [[r[i] if i < len(r or []) else None for i in keep_idx] for r in rows]
+
+        if len(headers) < 2:
+            non_empty = [h for h in headers if h]
+            if len(non_empty) != 1:
+                return None
+            # Fall through: single-column sheet handled below.
+            headers = non_empty
+
+        non_empty_headers = [h for h in headers if h]
+        is_single_col = len(non_empty_headers) == 1
+        single_col_idx: int | None = None
+        if is_single_col:
+            # Remember original column index in case the single header
+            # is not at position 0 (e.g. ["", "Bank"]).
+            try:
+                single_col_idx = headers.index(non_empty_headers[0])
+            except ValueError:
+                single_col_idx = 0
+            headers = [non_empty_headers[0]]
 
         # Collect remaining rows
         data_rows: list[list[str]] = []
@@ -386,10 +438,15 @@ class XlsxParser(BaseParser):
             if row is None:
                 continue
             values: list[str] = []
-            for i, cell in enumerate(row):
-                if i >= len(headers):
-                    break
+            if is_single_col:
+                idx = single_col_idx if single_col_idx is not None else 0
+                cell = row[idx] if idx < len(row) else None
                 values.append(self._format_cell(cell))
+            else:
+                for i, cell in enumerate(row):
+                    if i >= len(headers):
+                        break
+                    values.append(self._format_cell(cell))
             # Skip fully empty rows
             if any(v for v in values):
                 data_rows.append(values)
@@ -406,7 +463,10 @@ class XlsxParser(BaseParser):
         if not data_rows:
             return None
 
-        schema = _detect_schema(headers)
+        if is_single_col:
+            schema: str | None = "single_col_list"
+        else:
+            schema = _detect_schema(headers)
 
         return {
             "name": sheet_name,
@@ -417,12 +477,34 @@ class XlsxParser(BaseParser):
 
     @staticmethod
     def _format_cell(cell: object) -> str:
-        """Normalize a single cell value to string."""
+        """Normalize a single cell value to string.
+
+        JSON-ish cells (stripped value starts with "{" and ends with "}")
+        are flattened: ``"key": value`` pairs are extracted via regex and
+        joined as ``"key: value"`` segments (braces/quotes dropped),
+        truncated to max 500 chars.
+        """
         if cell is None:
             return ""
         if isinstance(cell, float):
             return f"{cell:g}" if cell == int(cell) else str(cell)
-        return str(cell).strip()
+        text = str(cell).strip()
+        if len(text) >= 2 and text.startswith("{") and text.endswith("}"):
+            pairs = re.findall(
+                r'"([^"]+)"\s*:\s*(?:"([^"]*)"|([^,}]+))', text
+            )
+            if pairs:
+                segments: list[str] = []
+                for key, quoted_val, raw_val in pairs:
+                    val = quoted_val if not raw_val.strip() else raw_val.strip()
+                    val = val.strip().strip('"').strip("'").strip()
+                    segments.append(f"{key.strip()}: {val}")
+                flattened = ", ".join(segments)
+                return flattened[:500]
+            # Fallback: drop braces/quotes when regex finds nothing.
+            fallback = text[1:-1].replace('"', "").replace("'", "").strip()
+            return fallback[:500]
+        return text
 
     def _sheet_to_text(self, sheet_data: dict) -> str:
         """Convert sheet data to readable text format.

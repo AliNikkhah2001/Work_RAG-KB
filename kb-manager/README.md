@@ -47,6 +47,75 @@
 - Latency ~22.7s/query is CPU-bound (cross-encoder 50-pool); on GPU (H200) expect the v5-era ~4s baseline. See Remediation Phase 9.
 - Only `verbatim` format benchmarked for IVA; expanding to 6 formats + answer-grounded RAGAS eval is the next milestone.
 
+## Knowledge Base Content Map — 1405-06-23 (41 files)
+
+Full detail: `docs/KV_CHUNKING_PLAN.md` (KV / tree / variable chunking plan, audit findings, work order).
+
+### Corpus hierarchy (41 files)
+
+```mermaid
+graph TD
+  ROOT["corpus root - 41 files"] --> HOQ["hoquqi - 3 xlsx"]
+  ROOT --> HAGH_ET["haghighi / gozaresh-etebari - individual files"]
+  ROOT --> HAGH_CH["haghighi / gozaresh-check - cheque files"]
+  ROOT --> SAIR["sair misc - 16 xlsx"]
+  ROOT --> ZAM["zamime appendix - docx + pdfs + pngs"]
+  ROOT --> MIS["misnamed - 2 extensionless xlsx"]
+  HOQ --> HOQ_A["row-wise QA / reason / articles"]
+  HAGH_ET --> HAGH_ET_A["individual credit-report sheets"]
+  HAGH_CH --> HAGH_CH_A["cheque report + reason codes"]
+  SAIR --> SAIR_A["glossary + staff + loan + timeline + KV tables"]
+  ZAM --> ZAM_A["1 docx + 2 pdf + 5 png"]
+  MIS --> MIS_A["IndividualQuestions V3 + ReasonCodeIndividual V3"]
+```
+
+### Schema to chunk strategy
+
+```mermaid
+flowchart LR
+  QA["schema: crm_qa"] --> S_QA["strategy: qa_pair, 1 row = 1 chunk"]
+  RC["schema: reason_codes"] --> S_RC["strategy: reason row, 1 row = 1 chunk"]
+  AR["schema: articles"] --> S_AR["strategy: article row-wise, 1 row = 1 chunk"]
+  TYP["schema: glossary / staff / loan / timeline"] --> S_TYP["strategy: typed row, 1 row = 1 chunk"]
+  KV["schema: none + 2-col KV"] --> S_KV["strategy: kv_pair, 1 row = 1 chunk"]
+  GEN["schema: none + generic body"] --> S_GEN["strategy: structural body chunks"]
+```
+
+### Variable expansion
+
+```mermaid
+graph TD
+  TPL["template row with <bank_name>"] --> REG["registry: bank_name.json"]
+  REG --> REG_SRC["seeded from neobanks + Mobile_Banks + DataUsers"]
+  REG --> C1["chunk 1: value A"]
+  REG --> C2["chunk 2: value B"]
+  REG --> CN["chunk N: value N"]
+  C1 --> PAR["parent chunk per group"]
+  C2 --> PAR
+  CN --> PAR
+```
+
+### Schema changes Before / After
+
+| Change | Before | After |
+|--------|--------|-------|
+| Skip rule | no test-data skip | skip TestQuestion paths |
+| Articles | articles grouped, not row-wise | articles row-wise, 1 row = 1 chunk |
+| KV tables | 2-col KV had no strategy | new kv_pair type, 1 row = 1 chunk |
+| Single-col lists | single-col sheets rejected | single-col parsed as list, 1 row = 1 chunk |
+| Extensionless xlsx | misnamed files invisible | magic sniffing parses PK zip workbooks |
+| Chunk labels | generic labels only | localized question / answer / keyword labels |
+| Duplicates | both cheque QA files ingested | byte-identical duplicate excluded, ingest one |
+| Survey sheets | opinion sheets ingested | nazar sheets excluded |
+
+### TODO (from docs/KV_CHUNKING_PLAN.md section 8)
+
+- [ ] kv_table chunk type + parser single-col lists + V3 renames
+- [ ] Variable registry + expansion in session parser + suite variables column
+- [ ] Tree-KV parent chains + chunking-view support (colors per parent group)
+- [ ] Keywords/summary enrichment for non-QA rows
+- [ ] Multi-query + enhancer behind flags, benchmarked before default-on
+
 ## Quick Start
 
 ```bash

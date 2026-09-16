@@ -321,6 +321,8 @@ class PipelineOrchestrator:
                         "staff_profile": "staff_profile",
                         "loan_catalog": "loan_catalog",
                         "timeline": "timeline",
+                        "kv_pair": "kv_pair",
+                        "single_col_list": "single_col_list",
                     }
                     doc_type = schema_map.get(sheet["schema"], "body")
                     break

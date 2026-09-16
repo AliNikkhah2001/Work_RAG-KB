@@ -12,12 +12,13 @@ import pathlib
 import pytest
 
 from kb_manager.chunker.semantic import SemanticChunker
+from kb_manager.config import PROJECT_ROOT
 from kb_manager.web.routes.search import _tokenize, BM25
 
 
 def test_dataset_checksum_frozen():
-    p = pathlib.Path("data/test_questions.json")
-    sha = pathlib.Path("data/test_questions.sha256").read_text(encoding="utf-8").split()[0]
+    p = PROJECT_ROOT / "data" / "test_questions.json"
+    sha = (PROJECT_ROOT / "data" / "test_questions.sha256").read_text(encoding="utf-8").split()[0]
     h = hashlib.sha256(p.read_bytes()).hexdigest()
     assert h == sha, "dataset changed without version bump — see REMEDIATION_PLAN.md Phase 0"
     data = json.loads(p.read_text(encoding="utf-8"))

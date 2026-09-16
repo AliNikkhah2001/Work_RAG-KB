@@ -802,3 +802,17 @@ async def search_config():
         "dense_model": _DENSE_MODEL,
         "reranker_model": _RERANKER_MODEL,
     }
+
+
+class EnhanceRequest(BaseModel):
+    query: str = ""
+
+
+@router.post("/enhance")
+async def enhance_api(payload: EnhanceRequest):
+    """Rule-based query enhancement endpoint (offline, no network)."""
+    from kb_manager.query_enhance import enhance_query
+
+    q = payload.query or ""
+    res = enhance_query(q)
+    return {"query": q, "enhanced": res["enhanced"], "beams": res["beams"]}

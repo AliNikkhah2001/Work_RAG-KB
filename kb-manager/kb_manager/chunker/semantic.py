@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -135,8 +136,8 @@ class SemanticChunker(BaseChunker):
         sheets = meta.get("sheets")
 
         # Row-wise tabular types: each row = one chunk (never split)
-        # Includes QA, reason codes, plus new type-aware tables (glossary, loan, staff, timeline)
-        if sheets and doc_type in ("qa_pair", "reason_detail", "glossary", "loan_catalog", "staff_profile", "timeline"):
+        # Includes QA, reason codes, articles, single-col lists, KV pairs, plus new type-aware tables (glossary, loan, staff, timeline)
+        if sheets and doc_type in ("qa_pair", "reason_detail", "article", "single_col_list", "kv_pair", "glossary", "loan_catalog", "staff_profile", "timeline"):
             return self._chunk_excel_rows(sheets, doc_type, meta)
 
         if doc_type == "reason_detail":
@@ -168,16 +169,42 @@ class SemanticChunker(BaseChunker):
 
     # Persian field name mapping for content display
     _FIELD_NAMES_FA: dict[str, str] = {
-        "question": "\u0633\u0648\u0627\u0644",
-        "briefanswer": "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647",
-        "brief_answer": "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647",
-        "answer": "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644",
-        "keyword": "\u06a9\u0644\u06cc\u062f\u0648\u0627\u0698\u0647\u200c\u0647\u0627",
-        "keywords": "\u06a9\u0644\u06cc\u062f\u0648\u0627\u0698\u0647\u200c\u0647\u0627",
-        "model": "\u0645\u062f\u0644",
-        "reason_code": "\u06a9\u062f \u062f\u0644\u06cc\u0644",
-        "brief_explanation": "\u062a\u0648\u0636\u06cc\u062d \u06a9\u0648\u062a\u0627\u0647",
-        "detailed_explanation": "\u062a\u0648\u0636\u06cc\u062d \u06a9\u0627\u0645\u0644",
+        "question": "سوال",
+        "briefanswer": "پاسخ کوتاه",
+        "brief_answer": "پاسخ کوتاه",
+        "answer": "پاسخ کامل",
+        "keyword": "کلیدواژه‌ها",
+        "keywords": "کلیدواژه‌ها",
+        "model": "مدل",
+        "reason_code": "کد دلیل",
+        "brief_explanation": "توضیح کوتاه",
+        "detailed_explanation": "توضیح کامل",
+        "reason_text": "متن دلیل",
+        "improvement_suggestions": "پیشنهاد بهبود",
+        "Category": "دسته‌بندی",
+        "category": "دسته‌بندی",
+        "DocumentName": "نام سند",
+        "documentname": "نام سند",
+        "Title": "عنوان",
+        "title": "عنوان",
+        "SectionTitle": "عنوان بخش",
+        "sectiontitle": "عنوان بخش",
+        "Content": "محتوا",
+        "content": "محتوا",
+        "Type": "نوع",
+        "type": "نوع",
+        "Version": "نسخه",
+        "version": "نسخه",
+        "Author(s)": "نویسنده",
+        "author(s)": "نویسنده",
+        "Heading": "سرفصل",
+        "heading": "سرفصل",
+        "Summary": "خلاصه",
+        "summary": "خلاصه",
+        "Name": "نام",
+        "name": "نام",
+        "OBJECT": "موضوع",
+        "object": "موضوع",
     }
 
     def _chunk_excel_rows(
@@ -189,8 +216,9 @@ class SemanticChunker(BaseChunker):
         """Create one chunk per data row from raw XLSX sheet data.
 
         Each row becomes a single chunk.  For ``qa_pair`` rows, the content
-        is formatted with Persian field names and newlines.  Incomplete rows
-        (missing question or answer) are skipped with a warning.
+        is formatted with Persian field names and newlines.  A row is
+        skipped only when ALL of its (selected) columns are empty --
+        partial rows are always kept.
 
         Parent chunks aggregate child chunks.  The ``parent_scope`` metadata
         key (falling back to the constructor default) selects:
@@ -228,23 +256,11 @@ class SemanticChunker(BaseChunker):
                         collapsed = str(value).strip().replace("\n", " ")
                         fields[header.lower()] = collapsed
 
-                # --- Phase 1: Filter incomplete QA rows ---
-                if doc_type == "qa_pair":
-                    has_question = any(
-                        k in fields for k in ("question", "پرسش", "سوال", "متن سوال", "متن_سوال")
-                    )
-                    has_answer = any(
-                        k in fields
-                        for k in ("answer", "briefanswer", "پاسخ", "متن پاسخ", "متن_پاسخ", "پاسخ کوتاه", "پاسخ کامل")
-                    )
-                    # A QA row is incomplete if it is missing the question or
-                    # the answer.  Such rows are skipped (never serve a user),
-                    # and a warning is logged with the count.
-                    if not has_question or not has_answer:
-                        skipped_incomplete += 1
-                        continue
-
+                # --- Phase 1: Skip only fully-empty rows ---
+                # A row is skipped only when ALL selected columns are empty.
+                # Partial rows (e.g. answer without question) are always kept.
                 if not fields:
+                    skipped_incomplete += 1
                     continue
 
                 # --- Phase 1b: Deduplicate QA rows by normalized question text ---
@@ -252,14 +268,62 @@ class SemanticChunker(BaseChunker):
                     # Try English then Persian question fields
                     q_raw = fields.get("question", "") or fields.get("پرسش", "") or fields.get("سوال", "") or fields.get("متن سوال", "") or fields.get("متن_سوال", "")
                     norm_q = self._normalize_question(q_raw)
-                    if not norm_q:
-                        continue
-                    if norm_q in self._seen_questions:
-                        self._dedup_skipped += 1
-                        continue
-                    self._seen_questions.add(norm_q)
+                    if norm_q:
+                        if norm_q in self._seen_questions:
+                            self._dedup_skipped += 1
+                            continue
+                        self._seen_questions.add(norm_q)
+                    # Rows without any question text are kept (partial data).
 
                 # --- Phase 2: Structured format with Persian field names ---
+                if doc_type == "kv_pair":
+                    # First column = key, remaining columns joined as value
+                    # (supports 2-col KV as well as 3-col title/link/desc tables).
+                    cells = [
+                        str(c).strip().replace("\n", " ")
+                        for c in (row[: len(headers)] if len(headers) > 1 else row[:2])
+                        if c is not None and str(c).strip()
+                    ]
+                    if not cells:
+                        skipped_incomplete += 1
+                        continue
+                    col0 = cells[0]
+                    col_rest = " | ".join(cells[1:]) if len(cells) > 1 else ""
+                    if not col0 and not col_rest:
+                        skipped_incomplete += 1
+                        continue
+                    content = f"Key: {col0} | Value: {col_rest}" if col_rest else f"Key: {col0}"
+                    if len(col_rest.split()) > 25:
+                        first_sentence = re.split(r"(?<=[.!?\؟])\s+", col_rest.strip())[0].strip()
+                        if first_sentence:
+                            content += f"\nSummary: {first_sentence}"
+                    seen_tokens: set[str] = set()
+                    kv_keywords: list[str] = []
+                    for tok in col0.split():
+                        if tok not in seen_tokens:
+                            seen_tokens.add(tok)
+                            kv_keywords.append(tok)
+                        if len(kv_keywords) >= 10:
+                            break
+                    chunk = Chunk(
+                        content=content,
+                        ordinal=ordinal,
+                        chunk_type=doc_type,
+                        heading_path=f"Sheet: {sheet_name}" if sheet_name else "",
+                        keywords=kv_keywords,
+                        token_count=_estimate_tokens(content),
+                        metadata={
+                            **metadata,
+                            "sheet_name": sheet_name,
+                            "schema": schema,
+                            "fields": fields,
+                            "raw_json": json.dumps(row, ensure_ascii=False, default=str),
+                        },
+                    )
+                    chunks.append(chunk)
+                    sheet_children.append(chunk)
+                    ordinal += 1
+                    continue
                 if doc_type in ("qa_pair", "reason_detail"):
                     content = self._format_qa_content(fields, schema)
                 else:
@@ -351,7 +415,7 @@ class SemanticChunker(BaseChunker):
             self._skipped_incomplete = skipped_incomplete
             import logging
             logging.getLogger(__name__).warning(
-                "Skipped %d incomplete QA rows (missing question or answer)",
+                "Skipped %d fully-empty rows (all selected columns empty)",
                 skipped_incomplete,
             )
         else:

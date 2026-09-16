@@ -9,13 +9,18 @@ Or: python -m pytest tests/test_qa_massive.py -v
 """
 import asyncio
 import json
+import os
 import pathlib
 import pytest
 from sqlalchemy import text
 
-from kb_manager.config import load_config
+from kb_manager.config import PROJECT_ROOT, load_config
 from kb_manager.models.database import Database
 from kb_manager.parsers.registry import get_parser
+
+# Anchor the default sqlite DB to the project root so the suite passes
+# regardless of the invocation cwd (load_config resolves ./data/... relatively).
+os.environ.setdefault("KB_SQLITE_PATH", str(PROJECT_ROOT / "data" / "kb_test.db"))
 
 # Collect QA files at test collection time (fast, no DB)
 def _collect_qa_files():

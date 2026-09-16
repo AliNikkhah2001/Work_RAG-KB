@@ -77,6 +77,8 @@ from kb_manager.web.routes import (
     chunks,
     cleanup,
     documents,
+    ingestion_suite,
+    kb_history,
     monitoring,
     pipeline,
     search,
@@ -95,6 +97,8 @@ app.include_router(benchmarks.router, prefix="/benchmarks", tags=["benchmarks"])
 app.include_router(cleanup.router, prefix="/cleanup", tags=["cleanup"])
 app.include_router(transparency.router, prefix="/transparency", tags=["transparency"])
 app.include_router(zip_browser.router, prefix="/transparency", tags=["transparency-zip"])
+app.include_router(ingestion_suite.router, prefix="/ingestion", tags=["ingestion"])
+app.include_router(kb_history.router, prefix="/ingestion", tags=["ingestion-kbs"])
 
 
 @app.get("/health")

@@ -1,0 +1,868 @@
+{% extends "base.html" %}
+{% block title %}Ingestion Suite{% endblock %}
+{% block header %}
+<h1>Ingestion Suite</h1>
+<p style="color:var(--text-secondary)">Upload zip, edit tree &amp; files, run ingest</p>
+{% endblock %}
+{% block content %}
+<div lang="en" dir="ltr" class="ing-root">
+  <div id="ing-error" class="card" style="display:none;border-color:var(--danger);background:rgba(239,68,68,.08)">
+    <p style="color:var(--danger)"><span>Backend error: </span><span id="ing-error-text"></span></p>
+  </div>
+
+  <!-- Stepper tabs: one step visible at a time -->
+  <div class="ing-steps" role="tablist" aria-label="Ingestion steps">
+    <button class="ing-step is-active" data-ing-tab="1" role="tab" aria-selected="true"><span class="ing-step-num">1</span> Upload</button>
+    <button class="ing-step" data-ing-tab="2" role="tab" aria-selected="false"><span class="ing-step-num">2</span> Tree</button>
+    <button class="ing-step" data-ing-tab="3" role="tab" aria-selected="false"><span class="ing-step-num">3</span> Edit File</button>
+    <button class="ing-step" data-ing-tab="4" role="tab" aria-selected="false"><span class="ing-step-num">4</span> Columns</button>
+    <button class="ing-step" data-ing-tab="5" role="tab" aria-selected="false"><span class="ing-step-num">5</span> Run</button>
+  </div>
+
+  <!-- (a) upload zip + session list -->
+  <div class="card ing-pane is-active" id="ing-pane-1" role="tabpanel">
+    <h3>1 - Upload zip</h3>
+    <form id="ing-upload-form" class="ing-toolbar" onsubmit="return false;">
+      <input type="file" id="ing-zip-input" name="zip" accept=".zip" required class="form-control">
+      <button type="submit" id="ing-upload-btn" class="btn btn-primary">Upload</button>
+      <span style="color:var(--text-muted);font-size:.85rem">Max 200MB - Persian filenames preserved</span>
+    </form>
+    <h3 style="margin-top:1.2rem">Load from server local path</h3>
+    <form id="ing-local-form" class="ing-toolbar" onsubmit="return false;">
+      <input id="ing-local-path" class="form-control" dir="ltr" style="text-align:left" placeholder="D:/data/my_kb or ./kb-source/KB_9.7.2026 (folder, file or zip)">
+      <input id="ing-local-name" class="form-control" style="max-width:220px" placeholder="Session name (optional)">
+      <button type="submit" id="ing-local-btn" class="btn btn-secondary">Load path</button>
+    </form>
+    <h3 style="margin-top:1.2rem">Sessions</h3>
+    <div class="toolbar ing-toolbar">
+      <button id="ing-refresh-sessions" class="btn btn-secondary btn-sm">Refresh</button>
+      <span id="ing-session-current" style="color:var(--text-secondary);font-size:.85rem">No active session</span>
+    </div>
+    <div class="table-container">
+      <table class="data-table" id="ing-session-table">
+        <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody id="ing-session-list"><tr><td colspan="4" style="color:var(--text-muted)">No sessions yet</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- (b) folder hierarchy tree -->
+  <div class="card ing-pane" id="ing-pane-2" role="tabpanel" hidden>
+    <h3>2 — Folder tree</h3>
+    <div class="ing-toolbar">
+      <button id="ing-refresh-tree" class="btn btn-secondary btn-sm">Refresh tree</button>
+      <input id="ing-mkdir-name" class="form-control" placeholder="New folder name">
+      <button id="ing-mkdir-root" class="btn btn-secondary btn-sm">New folder at root</button>
+    </div>
+    <div id="ing-tree" class="ing-tree ing-tree-ltr" dir="ltr" lang="en" aria-label="File hierarchy">
+      <p style="color:var(--text-muted)">Select a session first</p>
+    </div>
+  </div>
+
+  <!-- (c) file editor pane -->
+  <div class="card ing-pane" id="ing-pane-3" role="tabpanel" hidden>
+    <h3>3 - File editor</h3>
+    <p style="color:var(--text-secondary);font-size:.85rem">Selected file: <code id="ing-file-path" dir="ltr">-</code></p>
+    <div class="ing-toolbar" id="ing-review-bar">
+      <span id="ing-review-progress" style="color:var(--text-secondary);font-size:.85rem">Review: -</span>
+      <button id="ing-mark-reviewed" class="btn btn-success btn-sm">Mark current file as reviewed</button>
+      <button id="ing-unmark-reviewed" class="btn btn-secondary btn-sm">Unmark</button>
+    </div>
+    <div class="ing-toolbar">
+      <label>Schema override:
+        <select id="ing-schema-override" class="filter-select">
+          <option value="">auto</option>
+          <option value="crm_qa">crm_qa</option>
+          <option value="reason_codes">reason_codes</option>
+          <option value="articles">articles</option>
+          <option value="generic">generic</option>
+        </select>
+      </label>
+      <button id="ing-file-save" class="btn btn-primary btn-sm">Save file</button>
+      <button id="ing-chunking-view-btn" class="btn btn-secondary btn-sm" style="display:none">Chunking View</button>
+    </div>
+    <div id="ing-sheet-tabs" class="ing-toolbar" style="display:none"></div>
+    <div id="ing-header-chips" class="ing-toolbar" aria-label="Target columns per sheet"></div>
+    <div id="ing-editor" class="ing-editor table-container">
+      <p style="color:var(--text-muted)">Click a file in the tree</p>
+    </div>
+    <div id="ing-chunking-view" class="ing-chunking-view" style="display:none"></div>
+  </div>
+
+  <!-- (d) target columns summary + save config -->
+  <div class="card ing-pane" id="ing-pane-4" role="tabpanel" hidden>
+    <h3>4 — Target columns</h3>
+    <div id="ing-target-summary" class="keywords-list">
+      <span style="color:var(--text-muted)">No target columns yet</span>
+    </div>
+    <div class="form-actions">
+      <button id="ing-save-config" class="btn btn-success">Save config</button>
+      <button id="ing-load-config" class="btn btn-secondary">Load config</button>
+    </div>
+  </div>
+
+  <!-- (e) save-zip + ingest form + job status poll -->
+  <div class="card ing-pane" id="ing-pane-5" role="tabpanel" hidden>
+    <h3>5 — Save &amp; ingest</h3>
+    <div class="form-actions" style="margin-top:0">
+      <button id="ing-save-zip" class="btn btn-secondary">Save zip</button>
+      <span id="ing-save-zip-result" style="color:var(--text-secondary);font-size:.85rem"></span>
+    </div>
+    <h3 style="margin-top:1.2rem">Write to server local path</h3>
+    <form id="ing-export-form" class="ing-toolbar" onsubmit="return false;">
+      <input id="ing-export-path" class="form-control" dir="ltr" style="text-align:left" placeholder="D:/data/out_kb">
+      <button type="submit" id="ing-export-btn" class="btn btn-secondary">Export to path</button>
+      <span id="ing-export-result" style="color:var(--text-secondary);font-size:.85rem"></span>
+    </form>
+    <form id="ing-ingest-form" class="edit-form" onsubmit="return false;" style="margin-top:1rem">
+      <div class="form-group">
+        <label for="ing-db-name">Database name</label>
+        <input id="ing-db-name" class="form-control" value="kb_articles" dir="ltr" style="text-align:left">
+      </div>
+      <div class="form-group">
+        <label for="ing-parent-scope">Parent scope</label>
+        <input id="ing-parent-scope" class="form-control" value="/" dir="ltr" style="text-align:left">
+      </div>
+      <div class="form-group">
+        <label for="ing-job-type">Job type</label>
+        <select id="ing-job-type" class="filter-select">
+          <option value="full">Full</option>
+          <option value="selected_only">Selected only</option>
+          <option value="dry_run">Dry run</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" id="ing-start" class="btn btn-primary">Start ingest</button>
+      </div>
+    </form>
+    <h3 style="margin-top:1.2rem">Job status</h3>
+    <p style="color:var(--text-secondary);font-size:.85rem">Job ID: <code id="ing-job-id" dir="ltr">—</code></p>
+    <div class="progress-container"><div class="progress-bar"><div id="ing-job-bar" class="progress-fill" style="width:0%"></div></div>
+    <p id="ing-job-status">Waiting to start</p></div>
+  </div>
+
+  <!-- Sticky flow footer -->
+  <div class="ing-flowbar">
+    <button id="ing-prev" class="btn btn-secondary">Prev</button>
+    <span id="ing-step-label">Step 1 of 5</span>
+    <button id="ing-next" class="btn btn-primary">Next</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var state = { sessionId: null, tree: null, filePath: null, fileKind: null, sheets: null, activeSheet: 0, headers: [], targetCols: {}, jobTimer: null, review: { required: [], reviewed: {}, remaining: [], total: 0, reviewed_count: 0, done: false } };
+  function $(id) { return document.getElementById(id); }
+  function showError(msg) {
+    var box = $("ing-error"), t = $("ing-error-text");
+    if (!box || !t) return;
+    t.textContent = msg; box.style.display = "block";
+  }
+  function hideError() { var box = $("ing-error"); if (box) box.style.display = "none"; }
+  async function api(path, opts) {
+    var res;
+    try {
+      res = await fetch(path, opts);
+    } catch (e) {
+      showError("Server unreachable (" + path + "): " + e.message);
+      throw e;
+    }
+    if (!res.ok) {
+      var txt = "";
+      try { txt = await res.text(); } catch (e) { txt = res.statusText; }
+      showError("HTTP " + res.status + " @ " + path + ": " + txt.slice(0, 300));
+      throw new Error("HTTP " + res.status);
+    }
+    hideError();
+    var ct = res.headers.get("content-type") || "";
+    if (ct.indexOf("application/json") !== -1) return res.json();
+    try { return await res.json(); } catch (e) { return { raw: await res.text() }; }
+  }
+  function sid() { return state.sessionId; }
+  function sessBase() { return "/ingestion/sessions/" + encodeURIComponent(sid()); }
+
+  /* ---- (a) upload + sessions ---- */
+  async function refreshSessions() {
+    var data;
+    try { data = await api("/ingestion/sessions"); }
+    catch (e) { return; }
+    var list = data.sessions || data.items || data || [];
+    if (!Array.isArray(list)) list = [];
+    var tb = $("ing-session-list");
+    tb.innerHTML = "";
+    if (!list.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="color:var(--text-muted)">No sessions yet</td></tr>';
+      return;
+    }
+    list.forEach(function (s) {
+      var id = s.id || s.session_id || s.name, name = s.name || s.zip_name || id, st = s.status || s.state || "—";
+      var tr = document.createElement("tr");
+      var td1 = document.createElement("td"); td1.textContent = id; td1.dir = "ltr";
+      var td2 = document.createElement("td"); td2.textContent = name; td2.className = "fa-cell";
+      var td3 = document.createElement("td"); td3.textContent = st;
+      var td4 = document.createElement("td");
+      var b = document.createElement("button"); b.className = "btn btn-secondary btn-sm"; b.textContent = "Select";
+      b.onclick = function () { selectSession(id, name); };
+      td4.appendChild(b);
+      tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
+      tb.appendChild(tr);
+    });
+  }
+  function selectSession(id, name) {
+    state.sessionId = id;
+    $("ing-session-current").textContent = "Active session: " + (name || id);
+    refreshTree(); loadConfig(true); loadReview();
+  }
+  async function loadReview() {
+    if (!sid()) return;
+    try {
+      var data = await api(sessBase() + "/review");
+      state.review = data;
+      renderReview();
+      if (state.tree) renderTree();
+    } catch (e) { /* error shown by api() */ }
+  }
+  function renderReview() {
+    var el = $("ing-review-progress");
+    if (!el) return;
+    var r = state.review || {};
+    var total = r.total || 0, done = r.reviewed_count || 0;
+    var txt = "Review: " + done + "/" + total + " documents approved";
+    if ((r.remaining || []).length) {
+      var first = r.remaining.slice(0, 3).join(", ");
+      txt += " - remaining: " + first + (r.remaining.length > 3 ? " (+" + (r.remaining.length - 3) + " more)" : "");
+    } else if (total) {
+      txt += " - all approved, you can continue";
+    }
+    el.textContent = txt;
+    el.title = (r.remaining || []).join("\n");
+    var cur = state.filePath;
+    var marked = !!(cur && (r.reviewed || {})[cur]);
+    var mb = $("ing-mark-reviewed"), ub = $("ing-unmark-reviewed");
+    if (mb) mb.disabled = !cur || marked;
+    if (ub) ub.disabled = !cur || !marked;
+  }
+  async function markReviewed(approved) {
+    if (!sid() || !state.filePath) { showError("No file selected"); return; }
+    try {
+      var data = await api(sessBase() + "/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: state.filePath, approved: approved !== false }) });
+      state.review = data;
+      renderReview();
+      if (state.tree) renderTree();
+      if (data.done) showSaved("All documents reviewed - you can continue to the next step");
+    } catch (e) { /* error shown by api() */ }
+  }
+  async function uploadZip(ev) {
+    if (ev) ev.preventDefault();
+    var f = $("ing-zip-input").files[0];
+    if (!f) { showError("Please choose a zip file"); return false; }
+    var fd = new FormData(); fd.append("zip", f); fd.append("file", f);
+    var data;
+    try { data = await api("/ingestion/sessions", { method: "POST", body: fd }); }
+    catch (e) { return false; }
+    var id = data.session_id || data.id, name = data.name || f.name;
+    await refreshSessions();
+    if (id) selectSession(id, name);
+    return false;
+  }
+  async function loadLocalPath(ev) {
+    if (ev) ev.preventDefault();
+    var p = $("ing-local-path").value.trim();
+    console.log("[DEBUG] loadLocalPath called, path:", p);
+    if (!p) { showError("Enter a path"); return false; }
+    var payload = { path: p, name: $("ing-local-name").value.trim() || undefined };
+    console.log("[DEBUG] payload:", payload);
+    var data;
+    try { 
+      data = await api("/ingestion/sessions/from-path", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      console.log("[DEBUG] success:", data);
+    }
+    catch (e) { 
+      console.error("[DEBUG] error:", e);
+      showError("Load path failed: " + (e.message || e)); 
+      return false; 
+    }
+    await refreshSessions();
+    if (data.session_id) selectSession(data.session_id, data.name);
+    return false;
+  }
+  async function exportLocalPath(ev) {
+    if (ev) ev.preventDefault();
+    if (!sid()) { showError("Select a session first"); return false; }
+    var p = $("ing-export-path").value.trim();
+    if (!p) { showError("Enter destination path"); return false; }
+    try {
+      var data = await api(sessBase() + "/export-path", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: p }) });
+      $("ing-export-result").textContent = "Exported: " + (data.files != null ? data.files + " files" : "OK");
+    } catch (e) { /* shown */ }
+    return false;
+  }
+
+  /* ---- (b) tree ---- */
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  async function refreshTree() {
+    if (!sid()) { showError("Select a session first"); return; }
+    var data, urls = [sessBase() + "/tree", sessBase() + "/tree.json", "/ingestion/tree?session_id=" + encodeURIComponent(sid())];
+    for (var i = 0; i < urls.length; i++) {
+      try { data = await api(urls[i]); break; } catch (e) { if (i === urls.length - 1) return; }
+    }
+    state.tree = data.tree || data.root || data;
+    renderTree();
+  }
+  function renderTree() {
+    var host = $("ing-tree"); host.innerHTML = "";
+    var root = state.tree;
+    if (!root) { host.innerHTML = "<p>Empty tree</p>"; return; }
+    if (!state.collapsed) state.collapsed = {};
+    // Root itself is not shown as a row; render its children full-width.
+    var kids = root.children || [];
+    if (!kids.length && (root.type === "file" || root.path)) {
+      host.appendChild(renderNode(root, 0));
+      return;
+    }
+    kids.forEach(function (ch) { host.appendChild(renderNode(ch, 0)); });
+  }
+  function fileIcon(name, isDir) {
+    if (isDir) return "📁";
+    var n = String(name || "").toLowerCase();
+    if (n.endsWith(".xlsx") || n.endsWith(".xls")) return "🟩";
+    if (n.endsWith(".docx") || n.endsWith(".doc")) return "🟦";
+    if (n.endsWith(".pdf")) return "🟥";
+    if (n.endsWith(".zip")) return "🗜️";
+    if (n.endsWith(".txt") || n.endsWith(".md")) return "📝";
+    return "📄";
+  }
+  function renderNode(node, depth) {
+    var wrap = document.createElement("div");
+    wrap.className = "ing-frow-wrap";
+    var path = node.path || node.name || "", name = node.name || path;
+    var isDir = (node.type || "file") !== "file" || !!(node.children && node.children.length) || node.type === "dir";
+    if (!isDir && node.children && node.children.length) isDir = true;
+    var collapsed = !!state.collapsed[path];
+
+    var row = document.createElement("div");
+    row.className = "ing-frow";
+    row.style.setProperty("--ing-depth", depth);
+
+    // expander in front
+    var exp = document.createElement("button");
+    exp.className = "ing-exp";
+    if (isDir && node.children && node.children.length) {
+      exp.textContent = collapsed ? "▶" : "▼";
+      exp.title = collapsed ? "Expand" : "Collapse";
+      exp.onclick = function () {
+        state.collapsed[path] = !collapsed;
+        renderTree();
+      };
+    } else {
+      exp.textContent = isDir ? "•" : "·";
+      exp.disabled = true;
+    }
+    row.appendChild(exp);
+
+    var icon = document.createElement("span");
+    icon.className = "ing-ficon";
+    icon.textContent = fileIcon(name, isDir);
+    row.appendChild(icon);
+
+    // include checkbox in front
+    var cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = node.include !== false; cb.title = "Include in KB";
+    cb.onchange = function () { treeOp("include", path, { include: cb.checked, recursive: isDir }); };
+    row.appendChild(cb);
+
+    var nm = document.createElement(isDir ? "span" : "button");
+    nm.className = "ing-fname" + (isDir ? "" : " as-link");
+    nm.textContent = name; nm.title = path; nm.dir = "auto";
+    if (!isDir) nm.onclick = function () { previewFile(path); };
+    row.appendChild(nm);
+
+    if (!isDir && state.review && state.review.reviewed && state.review.reviewed[path]) {
+      var ok = document.createElement("span");
+      ok.className = "ing-reviewed";
+      ok.textContent = "✓ reviewed";
+      ok.title = "Chunking checked and headers approved";
+      row.appendChild(ok);
+    }
+
+    var meta = document.createElement("span");
+    meta.className = "ing-fmeta";
+    if (!isDir && node.size) meta.textContent = fmtSize(node.size);
+    else if (isDir && node.children) meta.textContent = node.children.length + " items";
+    row.appendChild(meta);
+
+    // controls in front-right of the row
+    var ctl = document.createElement("span");
+    ctl.className = "ing-fctl";
+    var rn = document.createElement("input");
+    rn.className = "form-control ing-rename"; rn.value = name; rn.title = "Rename"; rn.dir = "auto";
+    rn.onchange = function () { if (rn.value && rn.value !== name) treeOp("rename", path, { new_name: rn.value }); };
+    ctl.appendChild(rn);
+    var del = document.createElement("button");
+    del.className = "btn btn-danger btn-sm"; del.textContent = "Delete";
+    del.onclick = function () { if (confirm("Delete " + path + "?")) treeOp("delete", path, {}); };
+    ctl.appendChild(del);
+    var tag = document.createElement("input");
+    tag.className = "form-control ing-tag"; tag.placeholder = "tags (a,b)"; tag.dir = "ltr";
+    tag.value = (node.tags || []).join(",");
+    tag.onchange = function () { treeOp("tag", path, { tags: tag.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean) }); };
+    ctl.appendChild(tag);
+    if (isDir) {
+      var mk = document.createElement("button");
+      mk.className = "btn btn-secondary btn-sm"; mk.textContent = "+ Folder";
+      mk.onclick = function () {
+        var n = prompt("New folder name:");
+        if (n) treeOp("mkdir", (path ? path + "/" : "") + n, {});
+      };
+      ctl.appendChild(mk);
+    }
+    row.appendChild(ctl);
+    wrap.appendChild(row);
+
+    if (isDir && node.children && node.children.length && !collapsed) {
+      var kids = document.createElement("div");
+      kids.className = "ing-fkids";
+      node.children.forEach(function (ch) { kids.appendChild(renderNode(ch, depth + 1)); });
+      wrap.appendChild(kids);
+    }
+    return wrap;
+  }
+  function fmtSize(n) {
+    n = Number(n) || 0;
+    if (n < 1024) return n + " B";
+    if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
+    return (n / 1048576).toFixed(1) + " MB";
+  }
+  async function treeOp(op, path, extra) {
+    if (!sid()) return;
+    var ops = ["rename", "delete", "mkdir", "tag", "include"];
+    if (ops.indexOf(op) === -1) { showError("Unknown tree op: " + op); return; }
+    // mkdir payload is a full new-folder path
+    var body = Object.assign({ path: path }, extra || {});
+    try {
+      await api(sessBase() + "/tree/" + op, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      // keep mkdir text box in sync
+      if (op === "mkdir" && $("ing-mkdir-name")) $("ing-mkdir-name").value = "";
+      await refreshTree();
+      await loadReview();
+    } catch (e) { /* error shown by api() */ }
+  }
+
+  /* ---- (c) file editor ---- */
+  async function previewFile(path) {
+    if (!sid()) return;
+    state.filePath = path;
+    $("ing-file-path").textContent = path;
+    renderReview();
+    var q = "?path=" + encodeURIComponent(path);
+    var data, urls = [sessBase() + "/file" + q, sessBase() + "/file/preview" + q, "/ingestion/file/preview?session_id=" + encodeURIComponent(sid()) + "&path=" + encodeURIComponent(path)];
+    for (var i = 0; i < urls.length; i++) {
+      try { data = await api(urls[i]); break; } catch (e) { if (i === urls.length - 1) return; }
+    }
+    var kind = (data.kind || data.type || guessKind(path)).toLowerCase();
+    state.fileKind = kind;
+    var isXlsx = kind.indexOf("xlsx") !== -1 || kind === "excel" || !!data.sheets;
+    var cvBtn0 = $("ing-chunking-view-btn");
+    if (cvBtn0) cvBtn0.style.display = isXlsx ? "inline-block" : "none";
+    if (isXlsx) renderXlsx(data);
+    else if (kind.indexOf("docx") !== -1 || kind === "word" || data.sections) renderDocx(data);
+    else if (kind === "pdf") renderPdf(data);
+    else renderText(data);
+    if (data.schema_override) $("ing-schema-override").value = data.schema_override;
+    if (data.target_columns) { state.targetCols[state.activeSheet] = data.target_columns; renderTargetSummary(); }
+  }
+  function guessKind(p) { p = p.toLowerCase(); if (p.endsWith(".xlsx")) return "xlsx"; if (p.endsWith(".docx")) return "docx"; if (p.endsWith(".pdf")) return "pdf"; return "text"; }
+  function renderXlsx(data) {
+    state.sheets = data.sheets || [{ name: "Sheet1", headers: data.headers || [], rows: data.rows_preview || data.rows || [] }];
+    state.activeSheet = 0;
+    var tabs = $("ing-sheet-tabs"); tabs.style.display = "flex"; tabs.innerHTML = "";
+    state.sheets.forEach(function (sh, i) {
+      var b = document.createElement("button");
+      b.className = "btn btn-sm " + (i === 0 ? "btn-primary" : "btn-secondary");
+      b.textContent = sh.name || ("Sheet " + (i + 1));
+      b.onclick = function () { state.activeSheet = i; renderXlsxSheet(); };
+      tabs.appendChild(b);
+    });
+    renderXlsxSheet();
+  }
+  function renderXlsxSheet() {
+    var sh = state.sheets[state.activeSheet] || { headers: [], rows_preview: [] };
+    state.headers = sh.headers || [];
+    var rows = sh.rows_preview || sh.rows || [];
+    if (!state.targetCols[state.activeSheet]) state.targetCols[state.activeSheet] = (sh.target_columns || []).slice();
+    var chips = $("ing-header-chips"); chips.innerHTML = "";
+    var lbl = document.createElement("span"); lbl.textContent = "Headers (click to toggle):"; chips.appendChild(lbl);
+    state.headers.forEach(function (h) {
+      var on = state.targetCols[state.activeSheet].indexOf(h) !== -1;
+      var c = document.createElement("button");
+      c.className = "ing-chip" + (on ? " on" : ""); c.textContent = h; c.title = "toggle target column";
+      c.onclick = function () {
+        var arr = state.targetCols[state.activeSheet], ix = arr.indexOf(h);
+        if (ix === -1) arr.push(h); else arr.splice(ix, 1);
+        renderXlsxSheet(); renderTargetSummary();
+      };
+      chips.appendChild(c);
+    });
+    var ed = $("ing-editor"); ed.innerHTML = "";
+    var tbl = document.createElement("table"); tbl.className = "ing-table fa-table";
+    var thead = document.createElement("thead"), tr = document.createElement("tr");
+    // Columns parsed into chunks: explicit selection, or all when nothing toggled yet
+    var sel = state.targetCols[state.activeSheet] || [];
+    var parsedSet = {};
+    (sel.length ? sel : state.headers).forEach(function (h) { parsedSet[h] = true; });
+    state.headers.forEach(function (h) {
+      var th = document.createElement("th"); th.textContent = h; th.className = "fa-cell" + (parsedSet[h] ? " ing-parsed" : "");
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr); tbl.appendChild(thead);
+    var tb = document.createElement("tbody");
+    rows.slice(0, 20).forEach(function (row) {
+      var r = document.createElement("tr");
+      state.headers.forEach(function (h, j) {
+        var td = document.createElement("td");
+        td.contentEditable = "true"; td.className = "fa-cell" + (parsedSet[h] ? " ing-parsed" : "");
+        td.title = parsedSet[h] ? "Parsed into chunks" : "Excluded from chunks";
+        td.textContent = row[j] != null ? row[j] : (row[state.headers[j]] != null ? row[state.headers[j]] : "");
+        r.appendChild(td);
+      });
+      tb.appendChild(r);
+    });
+    tbl.appendChild(tb); ed.appendChild(tbl);
+    var note = document.createElement("p");
+    note.style.cssText = "color:var(--text-muted);font-size:.8rem";
+    note.textContent = "Only first 20 rows editable. Highlighted cells are parsed into chunks.";
+    ed.appendChild(note);
+  }
+  function renderDocx(data) {
+    $("ing-sheet-tabs").style.display = "none"; $("ing-header-chips").innerHTML = "";
+    var ed = $("ing-editor"); ed.innerHTML = "";
+    (data.sections || [{ text: data.text || "" }]).forEach(function (sec, i) {
+      var lab = document.createElement("label"); lab.textContent = "Section " + (i + 1);
+      var ta = document.createElement("textarea"); ta.className = "form-control persian"; ta.rows = 6; ta.dataset.section = i;
+      ta.value = sec.text || sec;
+      ed.appendChild(lab); ed.appendChild(ta);
+    });
+  }
+  function renderPdf(data) {
+    $("ing-sheet-tabs").style.display = "none"; $("ing-header-chips").innerHTML = "";
+    var ed = $("ing-editor"); ed.innerHTML = "";
+    var p = document.createElement("p");
+    p.className = "persian"; p.textContent = "This PDF is read-only (showing extracted text).";
+    ed.appendChild(p);
+    // Show extracted text from pages_preview or text_preview
+    var text = "";
+    if (data.pages_preview && data.pages_preview.length) {
+      text = data.pages_preview.join("\n\n");
+    } else if (data.text_preview) {
+      text = data.text_preview;
+    } else if (data.sections_preview && data.sections_preview.length) {
+      text = data.sections_preview.map(function(s) { return s.text || s; }).join("\n\n");
+    }
+    if (text) {
+      var pre = document.createElement("pre");
+      pre.className = "content-preview persian";
+      pre.textContent = text.slice(0, 8000);
+      ed.appendChild(pre);
+    }
+  }
+  function renderText(data) {
+    $("ing-sheet-tabs").style.display = "none"; $("ing-header-chips").innerHTML = "";
+    var ed = $("ing-editor"); ed.innerHTML = "";
+    var ta = document.createElement("textarea"); ta.className = "form-control"; ta.rows = 12; ta.id = "ing-text-area";
+    ta.value = data.text || data.content || JSON.stringify(data).slice(0, 8000);
+    ed.appendChild(ta);
+  }
+  function collectEditorPayload() {
+    var kind = state.fileKind || "";
+    var payload = { path: state.filePath, schema_override: $("ing-schema-override").value || null };
+    if (kind.indexOf("xlsx") !== -1 || state.sheets) {
+      var tbl = document.querySelector("#ing-editor table");
+      var rows = [];
+      if (tbl) {
+        tbl.querySelectorAll("tbody tr").forEach(function (tr) {
+          var r = []; tr.querySelectorAll("td").forEach(function (td) { r.push(td.textContent); }); rows.push(r);
+        });
+      }
+      payload.sheet = (state.sheets[state.activeSheet] || {}).name;
+      payload.headers = state.headers;
+      payload.rows = rows;
+      payload.target_columns = state.targetCols[state.activeSheet] || [];
+    } else if (kind.indexOf("docx") !== -1 || document.querySelector("#ing-editor textarea[data-section]")) {
+      var secs = [];
+      document.querySelectorAll("#ing-editor textarea[data-section]").forEach(function (ta) { secs.push({ text: ta.value }); });
+      payload.sections = secs;
+    } else {
+      var ta2 = $("ing-text-area"); payload.text = ta2 ? ta2.value : "";
+    }
+    return payload;
+  }
+  async function saveFile() {
+    if (!sid() || !state.filePath) { showError("No file selected"); return; }
+    var payload = collectEditorPayload();
+    var urls = [sessBase() + "/file", sessBase() + "/file?path=" + encodeURIComponent(state.filePath)];
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        await api(urls[i], { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        showSaved("File saved"); return;
+      } catch (e) { if (i === urls.length - 1) return; }
+    }
+  }
+  function showSaved(msg) { hideError(); var el = $("ing-job-status"); if (el) el.textContent = msg; }
+
+  /* ---- (d) target columns + config ---- */
+  function renderTargetSummary() {
+    var host = $("ing-target-summary"); host.innerHTML = "";
+    var keys = Object.keys(state.targetCols);
+    var any = false;
+    keys.forEach(function (k) {
+      (state.targetCols[k] || []).forEach(function (c) {
+        any = true;
+        var s = document.createElement("span"); s.className = "ing-chip on"; s.textContent = "Sheet " + k + ": " + c;
+        host.appendChild(s);
+      });
+    });
+    if (!any) host.innerHTML = "<span>No target columns yet</span>";
+  }
+  async function loadConfig(silent) {
+    if (!sid()) return;
+    try {
+      var data = await api(sessBase() + "/config");
+      if (data.schema_override) $("ing-schema-override").value = data.schema_override;
+      if (data.target_columns) { state.targetCols = { 0: data.target_columns }; renderTargetSummary(); }
+    } catch (e) { if (!silent) throw e; }
+  }
+  async function saveConfig() {
+    if (!sid()) { showError("Select a session first"); return; }
+    var payload = {
+      schema_override: $("ing-schema-override").value || null,
+      target_columns: state.targetCols[state.activeSheet] || [],
+      all_target_columns: state.targetCols
+    };
+    try { await api(sessBase() + "/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); showSaved("Config saved"); }
+    catch (e) { /* error shown */ }
+  }
+
+  /* ---- (e) save-zip + ingest + poll ---- */
+  async function saveZip() {
+    if (!sid()) { showError("Select a session first"); return; }
+    try {
+      var data = await api(sessBase() + "/save-zip", { method: "POST" });
+      $("ing-save-zip-result").textContent = "Saved: " + (data.zip_path || data.path || data.url || "OK");
+    } catch (e) { /* shown */ }
+  }
+  async function startIngest(ev) {
+    if (ev) ev.preventDefault();
+    if (!sid()) { showError("Select a session first"); return false; }
+    var payload = {
+      db_name: $("ing-db-name").value, parent_scope: $("ing-parent-scope").value, job_type: $("ing-job-type").value
+    };
+    try {
+      var data = await api(sessBase() + "/ingest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      var jid = data.job_id || data.id;
+      $("ing-job-id").textContent = jid || "—";
+      pollJob(jid);
+    } catch (e) { /* shown */ }
+    return false;
+  }
+  function pollJob(jid) {
+    if (state.jobTimer) clearInterval(state.jobTimer);
+    if (!jid) return;
+    var urls = ["/pipeline/jobs/" + encodeURIComponent(jid), "/ingestion/jobs/" + encodeURIComponent(jid), sessBase() + "/job"];
+    async function tick() {
+      for (var i = 0; i < urls.length; i++) {
+        try {
+          var d = await api(urls[i]);
+          var st = d.status || d.state || "running", pct = d.progress != null ? d.progress : (d.percent != null ? d.percent : null);
+          $("ing-job-status").textContent = "Status: " + st + (d.message ? " — " + d.message : "");
+          if (pct != null) $("ing-job-bar").style.width = Math.max(0, Math.min(100, pct)) + "%";
+          else if (st === "completed" || st === "done") $("ing-job-bar").style.width = "100%";
+          if (st === "completed" || st === "done" || st === "failed" || st === "error") clearInterval(state.jobTimer);
+          return;
+        } catch (e) { /* try next url */ }
+      }
+      $("ing-job-status").textContent = "Polling… (backend job endpoint missing?)";
+    }
+    tick();
+    state.jobTimer = setInterval(tick, 3000);
+  }
+
+  /* ---- (f) chunking visualization ---- */
+  async function loadChunkingView() {
+    if (!sid() || !state.filePath) { showError("No file selected"); return; }
+    if (!state.fileKind || state.fileKind.indexOf("xlsx") === -1) { showError("Chunking view only for XLSX"); return; }
+    var btn = $("ing-chunking-view-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Loading..."; }
+    try {
+      var data = await api(sessBase() + "/file/chunking?path=" + encodeURIComponent(state.filePath), { method: "GET" });
+      renderChunkingView(data);
+      var view = $("ing-chunking-view");
+      if (view) view.style.display = "block";
+      if (btn) { btn.disabled = false; btn.textContent = "Chunking View"; }
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = "Chunking View"; }
+    }
+  }
+  function renderChunkingView(data) {
+    var host = $("ing-chunking-view");
+    if (!host) return;
+    host.innerHTML = "";
+    var legend = document.createElement("div");
+    legend.className = "ing-chunk-legend";
+    legend.innerHTML = "<strong>Chunk Color Legend:</strong>";
+    (data.color_legend || []).forEach(function (leg) {
+      var s = document.createElement("span");
+      s.style.cssText = "display:inline-block;width:1.2rem;height:1.2rem;border-radius:4px;margin:0 .4rem .4rem 0;border:1px solid var(--border-color);background:" + leg.color;
+      s.title = leg.label;
+      legend.appendChild(s);
+    });
+    host.appendChild(legend);
+    if (!data.sheets || !data.sheets.length) {
+      host.appendChild(document.createTextNode("No sheets to display"));
+      return;
+    }
+    data.sheets.forEach(function (sheet) {
+      var sheetDiv = document.createElement("div");
+      sheetDiv.className = "ing-chunk-sheet";
+      var h = document.createElement("h4");
+      h.textContent = sheet.name + " (" + sheet.schema + " / " + sheet.doc_type + ") - " + sheet.total_rows + " rows";
+      h.style.marginBottom = ".5rem";
+      sheetDiv.appendChild(h);
+      if (!sheet.is_tabular) {
+        var p = document.createElement("p");
+        p.style.color = "var(--text-muted)";
+        p.textContent = "Flowing-text type (doc_type=" + sheet.doc_type + ") - rows merge into text and split into " + (sheet.structural_chunks || "?") + " structural chunks (see Chunk Preview column)";
+        sheetDiv.appendChild(p);
+      }
+      // Header -> chunk label mappings
+      if (sheet.field_mappings && sheet.field_mappings.length) {
+        var maps = document.createElement("div");
+        maps.className = "ing-map-row";
+        var mlab = document.createElement("span");
+        mlab.className = "ing-map-title";
+        mlab.textContent = "Header mappings:";
+        maps.appendChild(mlab);
+        sheet.field_mappings.forEach(function (m) {
+          var chip = document.createElement("span");
+          chip.className = "ing-map-chip";
+          chip.textContent = m.header + " -> " + m.label;
+          chip.title = "Column '" + m.header + "' appears in chunks as '" + m.label + "'";
+          maps.appendChild(chip);
+        });
+        sheetDiv.appendChild(maps);
+      }
+      var tbl = document.createElement("table");
+      tbl.className = "ing-chunk-table";
+      var thead = document.createElement("thead"), trh = document.createElement("tr");
+      ["Row", "Skipped", "Reason", "Fields", "Chunk Preview", "Tokens"].forEach(function (h) {
+        var th = document.createElement("th"); th.textContent = h; th.className = "fa-cell"; trh.appendChild(th);
+      });
+      thead.appendChild(trh); tbl.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      (sheet.chunks || []).forEach(function (chunk) {
+        var tr = document.createElement("tr");
+        if (chunk.skipped) tr.className = "ing-skipped-row";
+        var tdRow = document.createElement("td"); tdRow.textContent = chunk.row_index; tdRow.style.textAlign = "right"; tr.appendChild(tdRow);
+        var tdSk = document.createElement("td"); tdSk.textContent = chunk.skipped ? "Yes" : "No"; tr.appendChild(tdSk);
+        var tdR = document.createElement("td"); tdR.textContent = chunk.skip_reason || ""; tr.appendChild(tdR);
+        var tdF = document.createElement("td"); tdF.textContent = JSON.stringify(chunk.fields).slice(0, 300); tr.appendChild(tdF);
+        var tdC = document.createElement("td");
+        tdC.className = "ing-chunk-cell";
+        tdC.style.borderLeft = "5px solid " + chunk.color;
+        tdC.style.background = chunk.color + "26";
+        tdC.textContent = chunk.content_preview;
+        tr.appendChild(tdC);
+        var tdT = document.createElement("td"); tdT.textContent = Math.round(chunk.token_estimate); tdT.style.textAlign = "right"; tr.appendChild(tdT);
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody);
+      sheetDiv.appendChild(tbl);
+      if (sheet.skipped_rows) {
+        var p = document.createElement("p");
+        p.style.color = "var(--danger)";
+        p.textContent = "Skipped " + sheet.skipped_rows + " fully-empty rows (all selected columns empty)";
+        sheetDiv.appendChild(p);
+      }
+      host.appendChild(sheetDiv);
+    });
+  }
+  /* wire up */
+  $("ing-upload-form").addEventListener("submit", uploadZip);
+  $("ing-local-form").addEventListener("submit", loadLocalPath);
+  $("ing-export-form").addEventListener("submit", exportLocalPath);
+  $("ing-refresh-sessions").onclick = refreshSessions;
+  $("ing-refresh-tree").onclick = refreshTree;
+  $("ing-mkdir-root").onclick = function () {
+    var n = ($("ing-mkdir-name").value || "").trim() || prompt("New folder name:");
+    if (n) treeOp("mkdir", String(n).replace(/^\/+/, ""), {});
+  };
+  $("ing-file-save").onclick = saveFile;
+  $("ing-chunking-view-btn").onclick = function () { loadChunkingView(); };
+  $("ing-mark-reviewed").onclick = function () { markReviewed(true); };
+  $("ing-unmark-reviewed").onclick = function () { markReviewed(false); };
+  $("ing-save-config").onclick = saveConfig;
+  $("ing-load-config").onclick = function () { loadConfig(false); };
+  $("ing-save-zip").onclick = saveZip;
+  $("ing-ingest-form").addEventListener("submit", startIngest);
+  refreshSessions();
+
+  /* ---- stepped tab flow: one pane at a time ---- */
+  var ING_TOTAL = 5, ingCurrent = 1;
+  function ingShow(n) {
+    if (n < 1) n = 1;
+    if (n > ING_TOTAL) n = ING_TOTAL;
+    // Review gate: steps 4-5 require every selected document reviewed
+    if (n > 3 && ingCurrent <= 3 && sid()) {
+      var r = state.review || {};
+      if (!r.done) {
+        var rem = r.remaining || [];
+        var msg = "Review all selected documents before continuing (" + (r.reviewed_count || 0) + "/" + (r.total || 0) + " approved)";
+        if (rem.length) msg += ". Remaining: " + rem.slice(0, 3).join(", ") + (rem.length > 3 ? " (+" + (rem.length - 3) + " more)" : "");
+        showError(msg);
+        loadReview();
+        return;
+      }
+    }
+    ingCurrent = n;
+    for (var i = 1; i <= ING_TOTAL; i++) {
+      var pane = $("ing-pane-" + i);
+      if (pane) pane.hidden = (i !== n);
+    }
+    var tabs = document.querySelectorAll("[data-ing-tab]");
+    for (var t = 0; t < tabs.length; t++) {
+      var tn = parseInt(tabs[t].getAttribute("data-ing-tab"), 10);
+      var active = (tn === n);
+      tabs[t].classList.toggle("is-active", active);
+      tabs[t].setAttribute("aria-selected", active ? "true" : "false");
+      tabs[t].classList.toggle("is-done", tn < n);
+    }
+    var label = $("ing-step-label");
+    if (label) label.textContent = "Step " + n + " of " + ING_TOTAL;
+    var prev = $("ing-prev"), next = $("ing-next");
+    if (prev) prev.disabled = (n === 1);
+    if (next) next.disabled = (n === ING_TOTAL);
+    if (n === 2) refreshTree();
+    if (n === 3) loadReview();
+  }
+  document.querySelectorAll("[data-ing-tab]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      ingShow(parseInt(b.getAttribute("data-ing-tab"), 10));
+    });
+  });
+  var ingPrev = $("ing-prev"), ingNext = $("ing-next");
+  if (ingPrev) ingPrev.onclick = function () { ingShow(ingCurrent - 1); };
+  if (ingNext) ingNext.onclick = function () { ingShow(ingCurrent + 1); };
+  var _selectSession = selectSession;
+  selectSession = function (id, name) {
+    _selectSession(id, name);
+    ingShow(2);
+  };
+  var _previewFile = previewFile;
+  previewFile = function (path) {
+    _previewFile(path);
+    ingShow(3);
+  };
+  ingShow(1);
+})();
+</script>
+{% endblock %}

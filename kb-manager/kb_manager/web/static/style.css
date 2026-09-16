@@ -704,6 +704,70 @@ textarea.form-control {
     line-height: 1.9;
 }
 
+/* Ingestion Suite (Persian RTL) — reuses .persian helpers above */
+.ing-root { font-family: 'Vazirmatn', 'IBM Plex Sans Arabic', Tahoma, sans-serif; }
+.ing-tree {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    padding: 0.75rem 1rem;
+    max-height: 480px;
+    overflow: auto;
+    direction: rtl;
+    text-align: right;
+}
+.ing-node { padding: 0.15rem 0; border-bottom: 1px dashed var(--border-color); }
+.ing-node:last-child { border-bottom: none; }
+.ing-node .ing-toolbar { margin-bottom: 0.3rem; }
+.ing-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    direction: rtl;
+}
+.ing-toolbar .form-control { width: auto; }
+.ing-toolbar .persian-ltr, .ing-toolbar [dir="ltr"] { direction: ltr; }
+.ing-chip {
+    display: inline-block;
+    padding: 0.25rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+    direction: rtl;
+}
+.ing-chip.on {
+    background: rgba(34, 197, 94, 0.18);
+    color: var(--success);
+    border-color: rgba(34, 197, 94, 0.4);
+}
+.ing-chip:not(.on):hover { border-color: var(--accent); color: var(--text-primary); }
+.ing-editor table.ing-table,
+.ing-editor .ing-table {
+    width: 100%;
+    border-collapse: collapse;
+    direction: rtl;
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+}
+.ing-editor .ing-table th,
+.ing-editor .ing-table td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.7rem;
+    text-align: right;
+    font-size: 0.85rem;
+}
+.ing-editor .ing-table th { background: var(--bg-secondary); font-weight: 700; white-space: nowrap; }
+.ing-editor .ing-table td[contenteditable="true"] { background: var(--bg-card); }
+.ing-editor .ing-table td[contenteditable="true"]:focus { outline: 2px solid var(--accent); background: var(--bg-secondary); }
+.ing-editor textarea { direction: rtl; text-align: right; font-family: 'Vazirmatn', Tahoma, sans-serif; line-height: 1.9; }
+[dir="rtl"] .ing-toolbar input[dir="ltr"],
+[dir="rtl"] .ing-toolbar code { direction: ltr; unicode-bidi: embed; }
+
 /* Responsive */
 @media (max-width: 768px) {
     .sidebar {
@@ -735,3 +799,64 @@ textarea.form-control {
         flex-direction: column;
     }
 }
+
+/* Ingestion Suite: stepped tab flow (one pane visible, not stacked cards) */
+.ing-steps{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;direction:rtl}
+.ing-step{flex:1 1 0;min-width:140px;padding:.6rem .8rem;border-radius:10px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-secondary);font-family:inherit;cursor:pointer;text-align:right}
+.ing-step .ing-step-num{display:inline-block;min-width:1.6rem;text-align:center;border-radius:999px;background:var(--bg-secondary);margin-left:.5rem;padding:.1rem .4rem}
+.ing-step.is-active{border-color:var(--accent);color:var(--text-primary);background:var(--bg-card)}
+.ing-step.is-active .ing-step-num{background:var(--accent);color:#fff}
+.ing-step.is-done{border-color:rgba(34,197,94,.45)}
+.ing-pane[hidden]{display:none!important}
+.ing-flowbar{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:1rem;padding:.7rem 1rem;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-card);direction:rtl}
+#ing-step-label{color:var(--text-secondary);font-size:.85rem}
+
+/* Ingestion Suite: full-width panes (override small-box constraints) */
+.ing-root{width:100%;max-width:none}
+.ing-root .card.ing-pane{width:100%;max-width:none;margin-bottom:1rem}
+.ing-root .form-control{max-width:none!important}
+#ing-zip-input,#ing-mkdir-name,#ing-local-path,#ing-export-path{flex:1 1 auto;max-width:none!important;min-width:280px}
+.ing-root .ing-toolbar{width:100%}
+.ing-root .table-container,.ing-root .data-table{width:100%}
+#ing-tree{width:100%;min-height:320px}
+.ing-root .ing-editor{width:100%}
+.ing-root .edit-form{max-width:none;width:100%}
+
+/* Ingestion Suite: LTR full-width file explorer */
+.ing-tree-ltr{direction:ltr;text-align:left;width:100%;max-width:none}
+.ing-frow-wrap{width:100%}
+.ing-frow{display:flex;align-items:center;gap:.5rem;width:100%;padding:.35rem .5rem;border-bottom:1px solid var(--border-color);direction:ltr;text-align:left;padding-left:calc(.5rem + var(--ing-depth,0)*22px)}
+.ing-frow:hover{background:var(--bg-primary)}
+.ing-exp{width:1.6rem;border:none;background:none;cursor:pointer;color:var(--text-secondary);font-size:.8rem}
+.ing-exp:disabled{cursor:default;opacity:.4}
+.ing-ficon{width:1.6rem;text-align:center}
+.ing-fname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;background:none;border:none;color:var(--text-primary);font:inherit;padding:0}
+.ing-fname.as-link{cursor:pointer;color:var(--accent)}
+.ing-fname.as-link:hover{text-decoration:underline}
+.ing-fmeta{flex:0 0 auto;color:var(--text-muted);font-size:.75rem;min-width:70px;text-align:right}
+.ing-fctl{display:flex;align-items:center;gap:.4rem;flex:0 0 auto}
+.ing-rename{width:140px}
+.ing-tag{width:130px}
+.ing-fkids{width:100%}
+
+/* Chunking visualization */
+.ing-chunking-view{margin-top:1rem;padding:1rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);max-height:60vh;overflow:auto}
+.ing-chunk-legend{margin-bottom:.8rem;padding:.5rem;background:var(--bg-card);border-radius:6px}
+.ing-chunk-sheet{margin-bottom:1.5rem}
+.ing-chunk-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.ing-chunk-table th,.ing-chunk-table td{border:1px solid var(--border-color);padding:.4rem .5rem;text-align:right;vertical-align:top}
+.ing-chunk-table th{background:var(--bg-secondary);font-weight:700;position:sticky;top:0}
+.ing-chunk-table td{background:var(--bg-card)}
+.ing-chunk-table td:nth-child(5){white-space:pre-wrap;max-width:300px;min-width:200px}
+.ing-chunk-table tr:hover td{background:var(--bg-primary)}
+
+/* Ingestion Suite: parsed-column highlight + review + readable chunk cells */
+.ing-table th.ing-parsed, .ing-table td.ing-parsed{background:rgba(34,197,94,.14)}
+.ing-table th.ing-parsed{border-bottom:2px solid rgba(34,197,94,.55)}
+.ing-reviewed{display:inline-block;margin-left:.4rem;padding:.05rem .5rem;border-radius:999px;font-size:.72rem;background:rgba(34,197,94,.16);color:var(--success);border:1px solid rgba(34,197,94,.4);white-space:nowrap}
+.ing-chunk-cell{color:#1f2937;border-radius:4px;padding:.35rem .5rem;white-space:pre-wrap}
+.ing-skipped-row td{background:rgba(239,68,68,.07)}
+.ing-map-row{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin:.4rem 0 .7rem}
+.ing-map-title{font-size:.78rem;color:var(--text-secondary);font-weight:600}
+.ing-map-chip{display:inline-block;padding:.15rem .6rem;border-radius:999px;font-size:.75rem;background:var(--bg-secondary);border:1px solid var(--border-color);color:var(--text-primary);direction:ltr}
+#ing-review-bar{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:.5rem .8rem}

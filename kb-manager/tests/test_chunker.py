@@ -31,7 +31,7 @@ class TestSemanticChunker:
 
 
 class TestIncompleteQaFiltering:
-    """Option A: incomplete QA rows (missing question or answer) are skipped."""
+    """Only fully-empty rows are skipped; partial rows are always kept."""
 
     @staticmethod
     def _sheets(headers: list[str], rows: list[list[str]]) -> list[dict]:
@@ -44,13 +44,14 @@ class TestIncompleteQaFiltering:
             }
         ]
 
-    def test_incomplete_qa_rows_are_skipped(self, chunker: SemanticChunker):
+    def test_partial_rows_are_kept_only_fully_empty_skipped(self, chunker: SemanticChunker):
         sheets = self._sheets(
             ["question", "answer", "keyword"],
             [
                 ["سوال کامل", "پاسخ کامل", "کلیدواژه"],
                 ["سوال بدون پاسخ", "", ""],
                 ["", "پاسخ بدون سوال", ""],
+                ["", "", ""],
             ],
         )
         chunks = chunker.chunk(
@@ -59,15 +60,16 @@ class TestIncompleteQaFiltering:
         )
         contents = [c.content for c in chunks if not c.metadata.get("is_parent", False)]
 
-        # Complete row retained; both incomplete rows skipped.
-        assert len(contents) == 1
+        # Complete + partial rows retained; only the fully-empty row skipped.
+        assert len(contents) == 3
         assert "سوال کامل" in contents[0]
-        assert "پاسخ بدون سوال" not in chunks[0].content if chunks else True
+        assert "سوال بدون پاسخ" in contents[1]
+        assert "پاسخ بدون سوال" in contents[2]
 
-    def test_all_incomplete_rows_yield_no_child_chunks(self, chunker: SemanticChunker):
+    def test_all_empty_rows_yield_no_child_chunks(self, chunker: SemanticChunker):
         sheets = self._sheets(
             ["question", "answer"],
-            [["سربرگ بدون سوال", ""], ["", "بدون پاسخ"]],
+            [["", ""], ["", ""]],
         )
         chunks = chunker.chunk(
             "",
@@ -88,6 +90,30 @@ class TestIncompleteQaFiltering:
         children = [c for c in chunks if not c.metadata.get("is_parent", False)]
         assert len(children) == 1
         assert "سوال" in children[0].content
+
+
+class TestArticleRowsChunkedRowWise:
+    """Articles sheets chunk one row per chunk (selected columns honored)."""
+
+    def test_articles_rows_become_individual_chunks(self, chunker: SemanticChunker):
+        sheets = [
+            {
+                "name": "Sheet1",
+                "schema": "articles",
+                "headers": ["title", "content", "keywords"],
+                "rows": [["t1", "c1", "k1"], ["t2", "", "k2"], ["", "", ""]],
+            }
+        ]
+        chunks = chunker.chunk(
+            "",
+            metadata={"doc_type": "article", "sheets": sheets},
+        )
+        children = [c for c in chunks if not c.metadata.get("is_parent", False)]
+        # partial second row kept; fully-empty third row skipped
+        assert len(children) == 2
+        assert "t1" in children[0].content
+        assert "t2" in children[1].content
+        assert children[0].chunk_type == "article"
 
 
 class TestContentFormat:
@@ -229,6 +255,78 @@ class TestParentScope:
         assert "q1" in s1_parent.content
         assert "q2" in s1_parent.content
         assert "q3" not in s1_parent.content
+
+
+class TestKvPair:
+    """kv_pair sheets chunk 2-col rows as Key/Value with summary + raw_json."""
+
+    @staticmethod
+    def _sheets(rows: list[list[str]]) -> list[dict]:
+        return [
+            {
+                "name": "KV1",
+                "schema": "kv_pair",
+                "headers": ["key", "value"],
+                "rows": rows,
+            }
+        ]
+
+    def test_two_col_rows_become_kv_pair_children_with_summary(self, chunker: SemanticChunker):
+        chunker.overlap_tokens = 0
+        long_value = (
+            "This is the first sentence about loans. "
+            "This is the second sentence with more details about interest rates "
+            "and repayment terms and additional words to exceed twenty five words total count here."
+        )
+        assert len(long_value.split()) > 25
+        sheets = self._sheets(
+            [
+                ["loan rate", long_value],
+                ["short key", "brief value"],
+                ["", ""],
+            ]
+        )
+        chunks = chunker.chunk("", metadata={"doc_type": "kv_pair", "sheets": sheets})
+        children = [c for c in chunks if not c.metadata.get("is_parent", False)]
+
+        # 2-col rows become children; empty row skipped
+        assert len(children) == 2
+        assert all(c.chunk_type == "kv_pair" for c in children)
+        assert children[0].content.startswith("Key: loan rate | Value:")
+        assert "Summary:" in children[0].content
+        assert "This is the first sentence about loans." in children[0].content
+        # Short value gets no summary line
+        assert children[1].content == "Key: short key | Value: brief value"
+        assert "Summary:" not in children[1].content
+
+    def test_raw_json_present_and_keywords_from_col0(self, chunker: SemanticChunker):
+        import json
+
+        chunker.overlap_tokens = 0
+        sheets = self._sheets([["loan interest rate loan", "some value here"]])
+        chunks = chunker.chunk("", metadata={"doc_type": "kv_pair", "sheets": sheets})
+        children = [c for c in chunks if not c.metadata.get("is_parent", False)]
+        assert len(children) == 1
+        child = children[0]
+        assert "raw_json" in child.metadata
+        raw = json.loads(child.metadata["raw_json"])
+        assert raw[0] == "loan interest rate loan"
+        assert raw[1] == "some value here"
+        # keywords = col0 tokens split on whitespace, deduped, max 10
+        assert child.keywords == ["loan", "interest", "rate"]
+
+    def test_empty_rows_skipped_and_parent_created(self, chunker: SemanticChunker):
+        chunker.overlap_tokens = 0
+        chunker.parent_scope = "sheet"
+        sheets = self._sheets([["k1", "v1"], ["", ""], ["k2", "v2"]])
+        chunks = chunker.chunk("", metadata={"doc_type": "kv_pair", "sheets": sheets})
+        children = [c for c in chunks if not c.metadata.get("is_parent", False)]
+        parents = [c for c in chunks if c.metadata.get("is_parent", False)]
+        assert len(children) == 2
+        assert len(parents) == 1
+        assert parents[0].chunk_type == "kv_pair_parent"
+        assert parents[0].metadata["parent_key"] == "KV1"
+        assert all(c.metadata["parent_key"] == "KV1" for c in children)
 
 
 class TestFixedChunker:
