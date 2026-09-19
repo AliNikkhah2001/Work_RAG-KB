@@ -258,6 +258,25 @@ Artifacts: `artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl
 
 Not an apples-to-apples regression: v10 is a **larger and harder corpus** (714 vs 511 gold-mapped; 35 docs/2,282 chunks vs 21/1,084; adds `PublicQuestions` and `Company_CRM_Questions` which dominate the A failures). **C reranker failures stayed flat at 2 across both runs.**
 
+#### Root-cause analysis (all 54 failures, sample-by-sample)
+
+Full report: **[`docs/retrieval_training/RCA_v10_README.md`](docs/retrieval_training/RCA_v10_README.md)**. Every failure was dumped with its full gold text + actual retrieved text at each stage and judged on lexical (words) and semantic (answerhood) axes by independent passes. Artifacts: `artifacts/retrieval_training/rca/` (stage dumps), `rca_judge/` (gold-vs-winner full text + Jaccard), `retrieval_failures_v10_1405-06-23.jsonl` (per-stage top-k).
+
+**Headline defect — the dense embedding prefix.** QA chunks are embedded with a contextual prefix (`kb_manager/dense.py:57-76`): `Title: <file name>` + `Heading: Sheet: <name>` + `Type: Q&A` + content. The `Title:` line injects the **source file name** into the vector (e.g. `ChequeQuestions`), creating a "cheque-document gravity" that pulls cheque chunks together and away from their content. Removing the prefix, measured over all 714 queries with the same model:
+
+| Dense gold recall | @1 | @5 | @10 | @100 |
+|---|---:|---:|---:|---:|
+| WITH prefix (current) | 0.2115 | 0.4132 | 0.5070 | 0.8221 |
+| **CONTENT ONLY** | **0.5924** | **0.7927** | **0.8473** | **0.9622** |
+| Δ | **+0.381** | +0.380 | +0.340 | **+0.140** |
+
+Ablation: NO TITLE alone lifts @100 0.822→0.891; CONTENT ONLY lifts it to 0.958. Worst docs recover most (PublicQuestions +0.345, categorized +0.200). The pgvector ingestion path already embeds content-only, so the two dense backends are inconsistent — the `.npz` search-time index is the one with the harmful prefix.
+
+**Failure mechanisms (54 samples):** RERANK/LEXICAL-BIAS 27 (winner topically adjacent but answers a neighbouring question) · RETRIEVAL-MISS 8 · GOLD-MALFORMED 6 (question present, no answer body) · GOLD-LABEL-WRONG 6 (winner is a better answer than the labelled gold) · FUSION-BIAS 5 (single-leg exact-match gold loses to dual-leg adjacent chunk) · RERANK-BIAS 2 (query-string echo beats answerhood). **≈1 in 4 "failures" is a label/data problem, not a ranking problem.**
+
+**Prioritised fixes:** **P0** remove the embedding prefix (measured +0.14 recall@100) · **P1** per-question QA re-chunking (kills the multi-QA "distractor prefix") · **P2** weighted/normalised RRF (k=60→10) + leg-top-3 union + widen rerank cut 5→10 · **P3** reranker hard-negative training on non-answering twins · **P4** gold/benchmark hygiene · **P5** colloquial→formal query rewriting + Arabic-presentation-form normalisation.
+
+
 ### v9 — reranker shootout, wave-1 full-800 CPU (2026-09-12/13, measured)
 
 Dataset: 800 Persian QA, answer-grounded golds remapped to the live 2077-chunk PG KB (threshold 0.6, 772/800 covered, ~7 gold/query), top_k=5. In-process parallel workers (`bench_backbone.py`, one persistent event loop per worker — `asyncio.run()` per query breaks the asyncpg pool).

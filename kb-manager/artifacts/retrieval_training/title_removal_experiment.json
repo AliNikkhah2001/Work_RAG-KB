@@ -1,0 +1,4314 @@
+{
+  "recall": {
+    "1": {
+      "context": 0.211484593837535,
+      "content_only": 0.592436974789916
+    },
+    "5": {
+      "context": 0.41316526610644255,
+      "content_only": 0.7927170868347339
+    },
+    "10": {
+      "context": 0.5070028011204482,
+      "content_only": 0.8473389355742297
+    },
+    "20": {
+      "context": 0.6288515406162465,
+      "content_only": 0.8893557422969187
+    },
+    "50": {
+      "context": 0.7464985994397759,
+      "content_only": 0.9299719887955182
+    },
+    "100": {
+      "context": 0.8221288515406162,
+      "content_only": 0.9621848739495799
+    }
+  },
+  "per_query": [
+    {
+      "query_id": "Company_CRM_Questions#0",
+      "failure_type": "D",
+      "rank_ctx": 34,
+      "rank_raw": 25
+    },
+    {
+      "query_id": "Company_CRM_Questions#1",
+      "failure_type": "D",
+      "rank_ctx": 36,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#2",
+      "failure_type": "D",
+      "rank_ctx": 76,
+      "rank_raw": 74
+    },
+    {
+      "query_id": "Company_CRM_Questions#3",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#4",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#5",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#6",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#7",
+      "failure_type": "D",
+      "rank_ctx": 13,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#8",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#9",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#10",
+      "failure_type": "D",
+      "rank_ctx": 135,
+      "rank_raw": 17
+    },
+    {
+      "query_id": "Company_CRM_Questions#11",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#12",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#13",
+      "failure_type": "A",
+      "rank_ctx": 351,
+      "rank_raw": 68
+    },
+    {
+      "query_id": "Company_CRM_Questions#14",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 11
+    },
+    {
+      "query_id": "Company_CRM_Questions#15",
+      "failure_type": "D",
+      "rank_ctx": 35,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#16",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#17",
+      "failure_type": "A",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#18",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#19",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#20",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#21",
+      "failure_type": "D",
+      "rank_ctx": 154,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#22",
+      "failure_type": "D",
+      "rank_ctx": 44,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#23",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#24",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#25",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#26",
+      "failure_type": "D",
+      "rank_ctx": 52,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#27",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#28",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#29",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#30",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#31",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#32",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#33",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 99
+    },
+    {
+      "query_id": "Company_CRM_Questions#34",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#35",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "Company_CRM_Questions#36",
+      "failure_type": "D",
+      "rank_ctx": 24,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#37",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#38",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#39",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#40",
+      "failure_type": "D",
+      "rank_ctx": 39,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#41",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#42",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#43",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 25
+    },
+    {
+      "query_id": "Company_CRM_Questions#44",
+      "failure_type": "A",
+      "rank_ctx": 254,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#45",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#46",
+      "failure_type": "D",
+      "rank_ctx": 44,
+      "rank_raw": 21
+    },
+    {
+      "query_id": "Company_CRM_Questions#47",
+      "failure_type": "A",
+      "rank_ctx": 62,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#48",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#49",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#50",
+      "failure_type": "D",
+      "rank_ctx": 90,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#51",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#52",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#53",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#54",
+      "failure_type": "D",
+      "rank_ctx": 32,
+      "rank_raw": 67
+    },
+    {
+      "query_id": "Company_CRM_Questions#55",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#56",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#57",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#58",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#59",
+      "failure_type": "D",
+      "rank_ctx": 101,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "Company_CRM_Questions#60",
+      "failure_type": "D",
+      "rank_ctx": 323,
+      "rank_raw": 22
+    },
+    {
+      "query_id": "Company_CRM_Questions#61",
+      "failure_type": "D",
+      "rank_ctx": 77,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#62",
+      "failure_type": "D",
+      "rank_ctx": 21,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#63",
+      "failure_type": "D",
+      "rank_ctx": 23,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#64",
+      "failure_type": "D",
+      "rank_ctx": 86,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#65",
+      "failure_type": "D",
+      "rank_ctx": 22,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#66",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#67",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#68",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#69",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "Company_CRM_Questions#70",
+      "failure_type": "D",
+      "rank_ctx": 59,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#71",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#72",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#73",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#74",
+      "failure_type": "D",
+      "rank_ctx": 54,
+      "rank_raw": 13
+    },
+    {
+      "query_id": "Company_CRM_Questions#75",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#76",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#77",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#78",
+      "failure_type": "D",
+      "rank_ctx": 259,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#79",
+      "failure_type": "D",
+      "rank_ctx": 40,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#80",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#81",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#82",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 29
+    },
+    {
+      "query_id": "Company_CRM_Questions#83",
+      "failure_type": "D",
+      "rank_ctx": 32,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#84",
+      "failure_type": "A",
+      "rank_ctx": 23,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "Company_CRM_Questions#85",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#86",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#87",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#88",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#89",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#90",
+      "failure_type": "D",
+      "rank_ctx": 50,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#91",
+      "failure_type": "D",
+      "rank_ctx": 125,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#92",
+      "failure_type": "D",
+      "rank_ctx": 42,
+      "rank_raw": 13
+    },
+    {
+      "query_id": "Company_CRM_Questions#93",
+      "failure_type": "D",
+      "rank_ctx": 95,
+      "rank_raw": 25
+    },
+    {
+      "query_id": "Company_CRM_Questions#94",
+      "failure_type": "D",
+      "rank_ctx": 150,
+      "rank_raw": 11
+    },
+    {
+      "query_id": "Company_CRM_Questions#95",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#96",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#97",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#98",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#99",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#100",
+      "failure_type": "D",
+      "rank_ctx": 22,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#101",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#102",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#103",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#104",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#105",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#106",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#107",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#108",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#109",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#110",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#111",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#112",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#113",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#114",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#115",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#116",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#117",
+      "failure_type": "D",
+      "rank_ctx": 164,
+      "rank_raw": 83
+    },
+    {
+      "query_id": "Company_CRM_Questions#118",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#119",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#120",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#121",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#122",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#123",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#124",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#125",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#126",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#127",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#128",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#129",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "Company_CRM_Questions#130",
+      "failure_type": "A",
+      "rank_ctx": 48,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#131",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#132",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#133",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#134",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#135",
+      "failure_type": "D",
+      "rank_ctx": 80,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#136",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#137",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#138",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#139",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#140",
+      "failure_type": "D",
+      "rank_ctx": 98,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#141",
+      "failure_type": "B",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#142",
+      "failure_type": "A",
+      "rank_ctx": 1455,
+      "rank_raw": 18
+    },
+    {
+      "query_id": "Company_CRM_Questions#143",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#144",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#145",
+      "failure_type": "D",
+      "rank_ctx": 23,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#146",
+      "failure_type": "D",
+      "rank_ctx": 25,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#147",
+      "failure_type": "D",
+      "rank_ctx": 39,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#148",
+      "failure_type": "A",
+      "rank_ctx": 292,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#149",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#150",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#151",
+      "failure_type": "C",
+      "rank_ctx": 59,
+      "rank_raw": 44
+    },
+    {
+      "query_id": "Company_CRM_Questions#152",
+      "failure_type": "D",
+      "rank_ctx": 241,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#153",
+      "failure_type": "A",
+      "rank_ctx": 57,
+      "rank_raw": 57
+    },
+    {
+      "query_id": "Company_CRM_Questions#154",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#155",
+      "failure_type": "A",
+      "rank_ctx": 31,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#156",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#157",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#158",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#159",
+      "failure_type": "D",
+      "rank_ctx": 36,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "Company_CRM_Questions#160",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 37
+    },
+    {
+      "query_id": "Company_CRM_Questions#161",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#162",
+      "failure_type": "D",
+      "rank_ctx": 24,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#163",
+      "failure_type": "D",
+      "rank_ctx": 35,
+      "rank_raw": 8
+    },
+    {
+      "query_id": "Company_CRM_Questions#164",
+      "failure_type": "D",
+      "rank_ctx": 62,
+      "rank_raw": 10
+    },
+    {
+      "query_id": "Company_CRM_Questions#165",
+      "failure_type": "D",
+      "rank_ctx": 59,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#166",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#167",
+      "failure_type": "A",
+      "rank_ctx": 181,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#168",
+      "failure_type": "D",
+      "rank_ctx": 40,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#169",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#170",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#171",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#172",
+      "failure_type": "D",
+      "rank_ctx": 120,
+      "rank_raw": 76
+    },
+    {
+      "query_id": "Company_CRM_Questions#173",
+      "failure_type": "D",
+      "rank_ctx": 24,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#174",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#175",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "Company_CRM_Questions#176",
+      "failure_type": "D",
+      "rank_ctx": 39,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#177",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#178",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 19
+    },
+    {
+      "query_id": "Company_CRM_Questions#179",
+      "failure_type": "D",
+      "rank_ctx": 41,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#180",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#181",
+      "failure_type": "A",
+      "rank_ctx": 207,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#182",
+      "failure_type": "D",
+      "rank_ctx": 109,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#183",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#184",
+      "failure_type": "D",
+      "rank_ctx": 533,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#185",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 14
+    },
+    {
+      "query_id": "Company_CRM_Questions#186",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#187",
+      "failure_type": "D",
+      "rank_ctx": 28,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#188",
+      "failure_type": "D",
+      "rank_ctx": 23,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#189",
+      "failure_type": "D",
+      "rank_ctx": 23,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#190",
+      "failure_type": "D",
+      "rank_ctx": 111,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#191",
+      "failure_type": "D",
+      "rank_ctx": 124,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#192",
+      "failure_type": "A",
+      "rank_ctx": 250,
+      "rank_raw": 72
+    },
+    {
+      "query_id": "Company_CRM_Questions#193",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#194",
+      "failure_type": "A",
+      "rank_ctx": 127,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#195",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "Company_CRM_Questions#196",
+      "failure_type": "D",
+      "rank_ctx": 93,
+      "rank_raw": 12
+    },
+    {
+      "query_id": "Company_CRM_Questions#197",
+      "failure_type": "D",
+      "rank_ctx": 18,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#198",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#199",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 13
+    },
+    {
+      "query_id": "Company_CRM_Questions#200",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#201",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#202",
+      "failure_type": "B",
+      "rank_ctx": 72,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#203",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#204",
+      "failure_type": "A",
+      "rank_ctx": 194,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#205",
+      "failure_type": "A",
+      "rank_ctx": 144,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#206",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#207",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#208",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#209",
+      "failure_type": "D",
+      "rank_ctx": 126,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "Company_CRM_Questions#210",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#211",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#212",
+      "failure_type": "D",
+      "rank_ctx": 458,
+      "rank_raw": 18
+    },
+    {
+      "query_id": "Company_CRM_Questions#213",
+      "failure_type": "D",
+      "rank_ctx": 107,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#214",
+      "failure_type": "D",
+      "rank_ctx": 25,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#215",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#216",
+      "failure_type": "D",
+      "rank_ctx": 64,
+      "rank_raw": 20
+    },
+    {
+      "query_id": "Company_CRM_Questions#217",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#218",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#219",
+      "failure_type": "D",
+      "rank_ctx": 66,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "Company_CRM_Questions#220",
+      "failure_type": "D",
+      "rank_ctx": 95,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#221",
+      "failure_type": "D",
+      "rank_ctx": 80,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#222",
+      "failure_type": "D",
+      "rank_ctx": 24,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#223",
+      "failure_type": "D",
+      "rank_ctx": 46,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#224",
+      "failure_type": "D",
+      "rank_ctx": 463,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#225",
+      "failure_type": "D",
+      "rank_ctx": 114,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#226",
+      "failure_type": "D",
+      "rank_ctx": 48,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "Company_CRM_Questions#227",
+      "failure_type": "D",
+      "rank_ctx": 25,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#228",
+      "failure_type": "A",
+      "rank_ctx": 412,
+      "rank_raw": 12
+    },
+    {
+      "query_id": "Company_CRM_Questions#229",
+      "failure_type": "D",
+      "rank_ctx": 735,
+      "rank_raw": 179
+    },
+    {
+      "query_id": "Company_CRM_Questions#230",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#231",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#232",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "Company_CRM_Questions#233",
+      "failure_type": "D",
+      "rank_ctx": 450,
+      "rank_raw": 164
+    },
+    {
+      "query_id": "Company_CRM_Questions#234",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "Company_CRM_Questions#235",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#236",
+      "failure_type": "D",
+      "rank_ctx": 132,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#237",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "Company_CRM_Questions#238",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#239",
+      "failure_type": "D",
+      "rank_ctx": 37,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#240",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#241",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#242",
+      "failure_type": "D",
+      "rank_ctx": 787,
+      "rank_raw": 1241
+    },
+    {
+      "query_id": "Company_CRM_Questions#243",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#244",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#245",
+      "failure_type": "D",
+      "rank_ctx": 34,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#246",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#247",
+      "failure_type": "D",
+      "rank_ctx": 27,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#248",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#249",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#250",
+      "failure_type": "D",
+      "rank_ctx": 110,
+      "rank_raw": 25
+    },
+    {
+      "query_id": "Company_CRM_Questions#251",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#252",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#253",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#254",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#255",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#256",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#257",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#258",
+      "failure_type": "D",
+      "rank_ctx": 400,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#259",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 11
+    },
+    {
+      "query_id": "Company_CRM_Questions#260",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#261",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#262",
+      "failure_type": "D",
+      "rank_ctx": 121,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#263",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#264",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#265",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#266",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#267",
+      "failure_type": "D",
+      "rank_ctx": 466,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#268",
+      "failure_type": "D",
+      "rank_ctx": 41,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#269",
+      "failure_type": "D",
+      "rank_ctx": 58,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#270",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#271",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#272",
+      "failure_type": "D",
+      "rank_ctx": 30,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "Company_CRM_Questions#273",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "Company_CRM_Questions#274",
+      "failure_type": "A",
+      "rank_ctx": 259,
+      "rank_raw": 126
+    },
+    {
+      "query_id": "Company_CRM_Questions#275",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#276",
+      "failure_type": "D",
+      "rank_ctx": 1108,
+      "rank_raw": 146
+    },
+    {
+      "query_id": "Company_CRM_Questions#277",
+      "failure_type": "D",
+      "rank_ctx": 35,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#278",
+      "failure_type": "D",
+      "rank_ctx": 13,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#279",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#280",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#281",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#282",
+      "failure_type": "D",
+      "rank_ctx": 221,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#283",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#284",
+      "failure_type": "D",
+      "rank_ctx": 73,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#285",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#286",
+      "failure_type": "D",
+      "rank_ctx": 92,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#287",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#288",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#289",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#290",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#291",
+      "failure_type": "D",
+      "rank_ctx": 171,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#292",
+      "failure_type": "D",
+      "rank_ctx": 46,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#293",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#294",
+      "failure_type": "D",
+      "rank_ctx": 117,
+      "rank_raw": 77
+    },
+    {
+      "query_id": "Company_CRM_Questions#295",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#296",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#297",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#298",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#299",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#300",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#301",
+      "failure_type": "D",
+      "rank_ctx": 31,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#302",
+      "failure_type": "D",
+      "rank_ctx": 29,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "Company_CRM_Questions#303",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#304",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#305",
+      "failure_type": "D",
+      "rank_ctx": 44,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#306",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#307",
+      "failure_type": "D",
+      "rank_ctx": 222,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "Company_CRM_Questions#308",
+      "failure_type": "D",
+      "rank_ctx": 892,
+      "rank_raw": 726
+    },
+    {
+      "query_id": "Company_CRM_Questions#309",
+      "failure_type": "D",
+      "rank_ctx": 240,
+      "rank_raw": 156
+    },
+    {
+      "query_id": "Company_CRM_Questions#310",
+      "failure_type": "A",
+      "rank_ctx": 249,
+      "rank_raw": 30
+    },
+    {
+      "query_id": "Company_CRM_Questions#311",
+      "failure_type": "D",
+      "rank_ctx": 674,
+      "rank_raw": 390
+    },
+    {
+      "query_id": "Company_CRM_Questions#312",
+      "failure_type": "D",
+      "rank_ctx": 215,
+      "rank_raw": 138
+    },
+    {
+      "query_id": "Company_CRM_Questions#313",
+      "failure_type": "D",
+      "rank_ctx": 268,
+      "rank_raw": 194
+    },
+    {
+      "query_id": "Company_CRM_Questions#314",
+      "failure_type": "D",
+      "rank_ctx": 363,
+      "rank_raw": 70
+    },
+    {
+      "query_id": "Company_CRM_Questions#315",
+      "failure_type": "D",
+      "rank_ctx": 139,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#316",
+      "failure_type": "A",
+      "rank_ctx": 331,
+      "rank_raw": 55
+    },
+    {
+      "query_id": "Company_CRM_Questions#317",
+      "failure_type": "A",
+      "rank_ctx": 273,
+      "rank_raw": 66
+    },
+    {
+      "query_id": "Company_CRM_Questions#318",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#319",
+      "failure_type": "A",
+      "rank_ctx": 198,
+      "rank_raw": 53
+    },
+    {
+      "query_id": "Company_CRM_Questions#320",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Company_CRM_Questions#321",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#322",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#323",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#324",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#325",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#326",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#327",
+      "failure_type": "D",
+      "rank_ctx": 113,
+      "rank_raw": 77
+    },
+    {
+      "query_id": "Company_CRM_Questions#328",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#329",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#330",
+      "failure_type": "A",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Company_CRM_Questions#331",
+      "failure_type": "A",
+      "rank_ctx": 33,
+      "rank_raw": 22
+    },
+    {
+      "query_id": "DisputeQuestions#0",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "DisputeQuestions#1",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "DisputeQuestions#2",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "DisputeQuestions#3",
+      "failure_type": "D",
+      "rank_ctx": 63,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "DisputeQuestions#4",
+      "failure_type": "D",
+      "rank_ctx": 244,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "DisputeQuestions#5",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "DisputeQuestions#6",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "DisputeQuestions#7",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#0",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#1",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#2",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#3",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#4",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#5",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#6",
+      "failure_type": "D",
+      "rank_ctx": 48,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#7",
+      "failure_type": "D",
+      "rank_ctx": 21,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#8",
+      "failure_type": "D",
+      "rank_ctx": 69,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#9",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "EtebaritoProblems#10",
+      "failure_type": "D",
+      "rank_ctx": 18,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#0",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#1",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#2",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#3",
+      "failure_type": "A",
+      "rank_ctx": 140,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#4",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#5",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#6",
+      "failure_type": "D",
+      "rank_ctx": 182,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#7",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#8",
+      "failure_type": "D",
+      "rank_ctx": 108,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#9",
+      "failure_type": "D",
+      "rank_ctx": 48,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#10",
+      "failure_type": "D",
+      "rank_ctx": 720,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#11",
+      "failure_type": "D",
+      "rank_ctx": 85,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#12",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#13",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#14",
+      "failure_type": "D",
+      "rank_ctx": 466,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#15",
+      "failure_type": "D",
+      "rank_ctx": 102,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#16",
+      "failure_type": "A",
+      "rank_ctx": 326,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#17",
+      "failure_type": "D",
+      "rank_ctx": 89,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#18",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#19",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#21",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#22",
+      "failure_type": "D",
+      "rank_ctx": 73,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#23",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#24",
+      "failure_type": "B",
+      "rank_ctx": 1590,
+      "rank_raw": 1696
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#25",
+      "failure_type": "D",
+      "rank_ctx": 57,
+      "rank_raw": 215
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#26",
+      "failure_type": "A",
+      "rank_ctx": 1097,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#27",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#28",
+      "failure_type": "D",
+      "rank_ctx": 565,
+      "rank_raw": 52
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#29",
+      "failure_type": "D",
+      "rank_ctx": 103,
+      "rank_raw": 8
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#32",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#33",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#34",
+      "failure_type": "D",
+      "rank_ctx": 13,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#35",
+      "failure_type": "D",
+      "rank_ctx": 190,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#36",
+      "failure_type": "D",
+      "rank_ctx": 22,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#37",
+      "failure_type": "D",
+      "rank_ctx": 535,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#38",
+      "failure_type": "A",
+      "rank_ctx": 855,
+      "rank_raw": 13
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#39",
+      "failure_type": "A",
+      "rank_ctx": 681,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#40",
+      "failure_type": "D",
+      "rank_ctx": 586,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#41",
+      "failure_type": "D",
+      "rank_ctx": 935,
+      "rank_raw": 2194
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#42",
+      "failure_type": "D",
+      "rank_ctx": 195,
+      "rank_raw": 246
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#43",
+      "failure_type": "D",
+      "rank_ctx": 180,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#45",
+      "failure_type": "A",
+      "rank_ctx": 74,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#47",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#48",
+      "failure_type": "A",
+      "rank_ctx": 666,
+      "rank_raw": 122
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#49",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#50",
+      "failure_type": "D",
+      "rank_ctx": 103,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#51",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#52",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#54",
+      "failure_type": "D",
+      "rank_ctx": 48,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#55",
+      "failure_type": "A",
+      "rank_ctx": 729,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#56",
+      "failure_type": "D",
+      "rank_ctx": 44,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#57",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#58",
+      "failure_type": "A",
+      "rank_ctx": 580,
+      "rank_raw": 22
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#59",
+      "failure_type": "D",
+      "rank_ctx": 130,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "PublicQuestions.xlsx#60",
+      "failure_type": "D",
+      "rank_ctx": 399,
+      "rank_raw": 334
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#6",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#9",
+      "failure_type": "D",
+      "rank_ctx": 39,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#20",
+      "failure_type": "D",
+      "rank_ctx": 216,
+      "rank_raw": 55
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#81",
+      "failure_type": "D",
+      "rank_ctx": 1337,
+      "rank_raw": 593
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#91",
+      "failure_type": "D",
+      "rank_ctx": 26,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#159",
+      "failure_type": "D",
+      "rank_ctx": 25,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#241",
+      "failure_type": "D",
+      "rank_ctx": 40,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#244",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 37
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#327",
+      "failure_type": "D",
+      "rank_ctx": 260,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "Individual_CRM_Questions_categorized#328",
+      "failure_type": "D",
+      "rank_ctx": 68,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "مباحثی که در آن گیجوویجیم#0",
+      "failure_type": "D",
+      "rank_ctx": 160,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "مباحثی که در آن گیجوویجیم#1",
+      "failure_type": "D",
+      "rank_ctx": 160,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#3",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#4",
+      "failure_type": "D",
+      "rank_ctx": 171,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#5",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#7",
+      "failure_type": "D",
+      "rank_ctx": 280,
+      "rank_raw": 38
+    },
+    {
+      "query_id": "IndividualCRMQuestions#12",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#13",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#14",
+      "failure_type": "D",
+      "rank_ctx": 55,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#18",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#20",
+      "failure_type": "D",
+      "rank_ctx": 13,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#21",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#22",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#26",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#27",
+      "failure_type": "D",
+      "rank_ctx": 20,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#28",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#29",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#31",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#34",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#52",
+      "failure_type": "D",
+      "rank_ctx": 41,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#53",
+      "failure_type": "D",
+      "rank_ctx": 65,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#54",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#55",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#59",
+      "failure_type": "A",
+      "rank_ctx": 263,
+      "rank_raw": 25
+    },
+    {
+      "query_id": "IndividualCRMQuestions#60",
+      "failure_type": "D",
+      "rank_ctx": 91,
+      "rank_raw": 17
+    },
+    {
+      "query_id": "IndividualCRMQuestions#61",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#62",
+      "failure_type": "D",
+      "rank_ctx": 183,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "IndividualCRMQuestions#63",
+      "failure_type": "B",
+      "rank_ctx": 415,
+      "rank_raw": 19
+    },
+    {
+      "query_id": "IndividualCRMQuestions#65",
+      "failure_type": "D",
+      "rank_ctx": 126,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "IndividualCRMQuestions#66",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#67",
+      "failure_type": "D",
+      "rank_ctx": 31,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#68",
+      "failure_type": "D",
+      "rank_ctx": 58,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#69",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#70",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#71",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#73",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#74",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#75",
+      "failure_type": "D",
+      "rank_ctx": 73,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#76",
+      "failure_type": "D",
+      "rank_ctx": 217,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "IndividualCRMQuestions#77",
+      "failure_type": "D",
+      "rank_ctx": 106,
+      "rank_raw": 69
+    },
+    {
+      "query_id": "IndividualCRMQuestions#78",
+      "failure_type": "D",
+      "rank_ctx": 119,
+      "rank_raw": 12
+    },
+    {
+      "query_id": "IndividualCRMQuestions#79",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 13
+    },
+    {
+      "query_id": "IndividualCRMQuestions#80",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#81",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#82",
+      "failure_type": "D",
+      "rank_ctx": 17,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#83",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#84",
+      "failure_type": "D",
+      "rank_ctx": 45,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#85",
+      "failure_type": "D",
+      "rank_ctx": 18,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#95",
+      "failure_type": "D",
+      "rank_ctx": 33,
+      "rank_raw": 18
+    },
+    {
+      "query_id": "IndividualCRMQuestions#96",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#97",
+      "failure_type": "D",
+      "rank_ctx": 59,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "IndividualCRMQuestions#99",
+      "failure_type": "D",
+      "rank_ctx": 44,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#101",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#102",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#103",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#104",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "IndividualCRMQuestions#105",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#106",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#115",
+      "failure_type": "D",
+      "rank_ctx": 13,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "IndividualCRMQuestions#116",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#117",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#118",
+      "failure_type": "D",
+      "rank_ctx": 337,
+      "rank_raw": 14
+    },
+    {
+      "query_id": "IndividualCRMQuestions#119",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#120",
+      "failure_type": "D",
+      "rank_ctx": 57,
+      "rank_raw": 96
+    },
+    {
+      "query_id": "IndividualCRMQuestions#121",
+      "failure_type": "D",
+      "rank_ctx": 28,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "IndividualCRMQuestions#124",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#125",
+      "failure_type": "D",
+      "rank_ctx": 161,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#127",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#128",
+      "failure_type": "D",
+      "rank_ctx": 36,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#130",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#132",
+      "failure_type": "D",
+      "rank_ctx": 77,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "IndividualCRMQuestions#133",
+      "failure_type": "D",
+      "rank_ctx": 130,
+      "rank_raw": 8
+    },
+    {
+      "query_id": "IndividualCRMQuestions#134",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#135",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#136",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#137",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#138",
+      "failure_type": "D",
+      "rank_ctx": 147,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#139",
+      "failure_type": "D",
+      "rank_ctx": 23,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "IndividualCRMQuestions#140",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#141",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#156",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#157",
+      "failure_type": "D",
+      "rank_ctx": 82,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#158",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#161",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#163",
+      "failure_type": "D",
+      "rank_ctx": 176,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "IndividualCRMQuestions#164",
+      "failure_type": "D",
+      "rank_ctx": 23,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#166",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#168",
+      "failure_type": "D",
+      "rank_ctx": 18,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#191",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#193",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#194",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 33
+    },
+    {
+      "query_id": "IndividualCRMQuestions#195",
+      "failure_type": "D",
+      "rank_ctx": 10,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "IndividualCRMQuestions#196",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 8
+    },
+    {
+      "query_id": "IndividualCRMQuestions#199",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#200",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 12
+    },
+    {
+      "query_id": "IndividualCRMQuestions#207",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#210",
+      "failure_type": "D",
+      "rank_ctx": 182,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#211",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#212",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#213",
+      "failure_type": "D",
+      "rank_ctx": 57,
+      "rank_raw": 11
+    },
+    {
+      "query_id": "IndividualCRMQuestions#214",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#215",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#219",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#220",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#224",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 22
+    },
+    {
+      "query_id": "IndividualCRMQuestions#225",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#226",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#228",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#229",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#230",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#231",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#234",
+      "failure_type": "D",
+      "rank_ctx": 181,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "IndividualCRMQuestions#241",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#243",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#251",
+      "failure_type": "D",
+      "rank_ctx": 90,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#252",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#254",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "IndividualCRMQuestions#258",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#259",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#260",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#261",
+      "failure_type": "B",
+      "rank_ctx": 129,
+      "rank_raw": 49
+    },
+    {
+      "query_id": "IndividualCRMQuestions#265",
+      "failure_type": "D",
+      "rank_ctx": 432,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#266",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#270",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#272",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#275",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#276",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#279",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#282",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#289",
+      "failure_type": "D",
+      "rank_ctx": 87,
+      "rank_raw": 323
+    },
+    {
+      "query_id": "IndividualCRMQuestions#290",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#291",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "IndividualCRMQuestions#292",
+      "failure_type": "A",
+      "rank_ctx": 483,
+      "rank_raw": 35
+    },
+    {
+      "query_id": "IndividualCRMQuestions#293",
+      "failure_type": "D",
+      "rank_ctx": 90,
+      "rank_raw": 11
+    },
+    {
+      "query_id": "IndividualCRMQuestions#294",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#295",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#296",
+      "failure_type": "D",
+      "rank_ctx": 84,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#297",
+      "failure_type": "D",
+      "rank_ctx": 13,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#298",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#299",
+      "failure_type": "D",
+      "rank_ctx": 92,
+      "rank_raw": 53
+    },
+    {
+      "query_id": "IndividualCRMQuestions#300",
+      "failure_type": "D",
+      "rank_ctx": 294,
+      "rank_raw": 166
+    },
+    {
+      "query_id": "IndividualCRMQuestions#315",
+      "failure_type": "A",
+      "rank_ctx": 352,
+      "rank_raw": 96
+    },
+    {
+      "query_id": "IndividualCRMQuestions#336",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#337",
+      "failure_type": "D",
+      "rank_ctx": 48,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "IndividualCRMQuestions#338",
+      "failure_type": "B",
+      "rank_ctx": 40,
+      "rank_raw": 19
+    },
+    {
+      "query_id": "IndividualCRMQuestions#339",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#340",
+      "failure_type": "A",
+      "rank_ctx": 136,
+      "rank_raw": 145
+    },
+    {
+      "query_id": "IndividualCRMQuestions#341",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#342",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#344",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#345",
+      "failure_type": "D",
+      "rank_ctx": 18,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#346",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#347",
+      "failure_type": "A",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#348",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "IndividualCRMQuestions#349",
+      "failure_type": "D",
+      "rank_ctx": 21,
+      "rank_raw": 41
+    },
+    {
+      "query_id": "IndividualCRMQuestions#350",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#352",
+      "failure_type": "A",
+      "rank_ctx": 1232,
+      "rank_raw": 87
+    },
+    {
+      "query_id": "IndividualCRMQuestions#353",
+      "failure_type": "A",
+      "rank_ctx": 357,
+      "rank_raw": 364
+    },
+    {
+      "query_id": "IndividualCRMQuestions#354",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#355",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "IndividualCRMQuestions#356",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#357",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#358",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#359",
+      "failure_type": "D",
+      "rank_ctx": 86,
+      "rank_raw": 23
+    },
+    {
+      "query_id": "IndividualCRMQuestions#360",
+      "failure_type": "D",
+      "rank_ctx": 67,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#361",
+      "failure_type": "A",
+      "rank_ctx": 329,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#362",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 12
+    },
+    {
+      "query_id": "IndividualCRMQuestions#363",
+      "failure_type": "D",
+      "rank_ctx": 212,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#364",
+      "failure_type": "D",
+      "rank_ctx": 29,
+      "rank_raw": 22
+    },
+    {
+      "query_id": "IndividualCRMQuestions#365",
+      "failure_type": "A",
+      "rank_ctx": 1932,
+      "rank_raw": 1022
+    },
+    {
+      "query_id": "IndividualCRMQuestions#366",
+      "failure_type": "A",
+      "rank_ctx": 1564,
+      "rank_raw": 2085
+    },
+    {
+      "query_id": "IndividualCRMQuestions#367",
+      "failure_type": "D",
+      "rank_ctx": 1590,
+      "rank_raw": 338
+    },
+    {
+      "query_id": "IndividualCRMQuestions#368",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#369",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#370",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#371",
+      "failure_type": "D",
+      "rank_ctx": 12,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#372",
+      "failure_type": "D",
+      "rank_ctx": 34,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#373",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#374",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "IndividualCRMQuestions#375",
+      "failure_type": "A",
+      "rank_ctx": 216,
+      "rank_raw": 41
+    },
+    {
+      "query_id": "IndividualCRMQuestions#376",
+      "failure_type": "A",
+      "rank_ctx": 205,
+      "rank_raw": 186
+    },
+    {
+      "query_id": "ChequeQuestions#0",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#1",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#2",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#3",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#4",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "ChequeQuestions#5",
+      "failure_type": "D",
+      "rank_ctx": 23,
+      "rank_raw": 25
+    },
+    {
+      "query_id": "ChequeQuestions#6",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#7",
+      "failure_type": "D",
+      "rank_ctx": 32,
+      "rank_raw": 40
+    },
+    {
+      "query_id": "ChequeQuestions#8",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "ChequeQuestions#9",
+      "failure_type": "D",
+      "rank_ctx": 31,
+      "rank_raw": 46
+    },
+    {
+      "query_id": "ChequeQuestions#10",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#11",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "ChequeQuestions#12",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#13",
+      "failure_type": "D",
+      "rank_ctx": 16,
+      "rank_raw": 9
+    },
+    {
+      "query_id": "ChequeQuestions#14",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#15",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#16",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#17",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#18",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#21",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#22",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "ChequeQuestions#23",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#24",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#25",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#26",
+      "failure_type": "D",
+      "rank_ctx": 15,
+      "rank_raw": 62
+    },
+    {
+      "query_id": "ChequeQuestions#27",
+      "failure_type": "D",
+      "rank_ctx": 66,
+      "rank_raw": 40
+    },
+    {
+      "query_id": "ChequeQuestions#28",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#29",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#30",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#31",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#32",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#33",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#34",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "ChequeQuestions#35",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 5
+    },
+    {
+      "query_id": "ChequeQuestions#36",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#37",
+      "failure_type": "D",
+      "rank_ctx": 44,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#38",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#39",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#40",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#41",
+      "failure_type": "D",
+      "rank_ctx": 20,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#42",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#43",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#44",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#45",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 12
+    },
+    {
+      "query_id": "ChequeQuestions#46",
+      "failure_type": "D",
+      "rank_ctx": 304,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#47",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#48",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#49",
+      "failure_type": "D",
+      "rank_ctx": 37,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#50",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#51",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#52",
+      "failure_type": "D",
+      "rank_ctx": 13,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#53",
+      "failure_type": "D",
+      "rank_ctx": 51,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#54",
+      "failure_type": "D",
+      "rank_ctx": 25,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "ChequeQuestions#55",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#56",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#57",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#58",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#59",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#60",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#61",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 12
+    },
+    {
+      "query_id": "ChequeQuestions#62",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#63",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#64",
+      "failure_type": "D",
+      "rank_ctx": 14,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#65",
+      "failure_type": "D",
+      "rank_ctx": 187,
+      "rank_raw": 61
+    },
+    {
+      "query_id": "ChequeQuestions#66",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#67",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#68",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#69",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#70",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#71",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#72",
+      "failure_type": "D",
+      "rank_ctx": 6,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#73",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#74",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#75",
+      "failure_type": "D",
+      "rank_ctx": 38,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "ChequeQuestions#76",
+      "failure_type": "D",
+      "rank_ctx": 7,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#77",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#78",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#79",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "ChequeQuestions#80",
+      "failure_type": "D",
+      "rank_ctx": 51,
+      "rank_raw": 35
+    },
+    {
+      "query_id": "ChequeQuestions#81",
+      "failure_type": "D",
+      "rank_ctx": 143,
+      "rank_raw": 31
+    },
+    {
+      "query_id": "ChequeQuestions#82",
+      "failure_type": "D",
+      "rank_ctx": 27,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#83",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#84",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#85",
+      "failure_type": "D",
+      "rank_ctx": 59,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#86",
+      "failure_type": "D",
+      "rank_ctx": 29,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "ChequeQuestions#87",
+      "failure_type": "D",
+      "rank_ctx": 1003,
+      "rank_raw": 757
+    },
+    {
+      "query_id": "ChequeQuestions#88",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 11
+    },
+    {
+      "query_id": "ChequeQuestions#89",
+      "failure_type": "D",
+      "rank_ctx": 278,
+      "rank_raw": 7
+    },
+    {
+      "query_id": "ChequeQuestions#90",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#91",
+      "failure_type": "D",
+      "rank_ctx": 33,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "ChequeQuestions#92",
+      "failure_type": "D",
+      "rank_ctx": 143,
+      "rank_raw": 3
+    },
+    {
+      "query_id": "ChequeQuestions#93",
+      "failure_type": "D",
+      "rank_ctx": 297,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "ChequeQuestions#94",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#95",
+      "failure_type": "D",
+      "rank_ctx": 5,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#96",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#97",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "ChequeQuestions#98",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#99",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#100",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#101",
+      "failure_type": "D",
+      "rank_ctx": 193,
+      "rank_raw": 6
+    },
+    {
+      "query_id": "ChequeQuestions#103",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#104",
+      "failure_type": "D",
+      "rank_ctx": 47,
+      "rank_raw": 19
+    },
+    {
+      "query_id": "ChequeQuestions#105",
+      "failure_type": "D",
+      "rank_ctx": 4,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "ChequeQuestions#106",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#107",
+      "failure_type": "D",
+      "rank_ctx": 1,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#108",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#109",
+      "failure_type": "D",
+      "rank_ctx": 11,
+      "rank_raw": 10
+    },
+    {
+      "query_id": "ChequeQuestions#110",
+      "failure_type": "D",
+      "rank_ctx": 2,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#111",
+      "failure_type": "D",
+      "rank_ctx": 18,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "ChequeQuestions#116",
+      "failure_type": "A",
+      "rank_ctx": 355,
+      "rank_raw": 179
+    },
+    {
+      "query_id": "ChequeQuestions#117",
+      "failure_type": "D",
+      "rank_ctx": 8,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#139",
+      "failure_type": "D",
+      "rank_ctx": 19,
+      "rank_raw": 4
+    },
+    {
+      "query_id": "ChequeQuestions#140",
+      "failure_type": "C",
+      "rank_ctx": 12,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#141",
+      "failure_type": "D",
+      "rank_ctx": 3,
+      "rank_raw": 2
+    },
+    {
+      "query_id": "ChequeQuestions#142",
+      "failure_type": "D",
+      "rank_ctx": 9,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#143",
+      "failure_type": "D",
+      "rank_ctx": 24,
+      "rank_raw": 1
+    },
+    {
+      "query_id": "ChequeQuestions#144",
+      "failure_type": "D",
+      "rank_ctx": 98,
+      "rank_raw": 1
+    }
+  ]
+}
