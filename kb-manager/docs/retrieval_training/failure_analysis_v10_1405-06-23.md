@@ -1,0 +1,1021 @@
+# Retrieval failure analysis (Agent 2 — v10_1405-06-23 corpus)
+
+## Header / determinism
+- code HEAD: 325ef64aeb3cd67a3bac83100bf8b9da50c9fd2c
+- corpus: v10_1405-06-23
+- kb_manager/ status clean: True (status='')
+- db: data/kb_1405_06_23.db sha256=7147948bff2c53f0586122dff15d89d334860699a227759f3edca73a12af08a0
+- npz: data/dense_embeddings.npz sha256=4d76039659133c775c1bf09f2ed8a7592524e0e895dde54b012dc00b694a66bb
+- models: dense=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 reranker=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
+- retrieval config: rrf_k=60 rerank_top_k=100 keyword_boost=3.0 synonym_beam=5 fusion_alpha=0.7
+- env: KB_DB_URL=sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_1405_06_23.db KB_SOURCE_DIR=D:/Code/KB/kb-manager/data/v10_source/1405-06-23
+- run at (UTC): 2026-09-19T13:55:38.238616+00:00 top_k=100 per-query-timeout=600s
+- elapsed: 0.4 min; pipeline deterministic (CPU), single run
+
+## Method (replica of benchmarks.py::_run_massive)
+- QA files: rglob *.xlsx minus ~$/TestQuestion/واژگان معادل/محدودیت ها stems, first dir with crm_qa sheets; GT 3-step: metadata.fields.question==q → content startswith/in 'سوال: {q}' → q[:30] in content.
+- Ranks: first-index match over steps.bm25_results / dense_results / merged_candidates / final_results (each ≤100 since top_k=100).
+- Classes (D checked first so Hit@5 == D rate): D final≤5; else A merged None; else B merged>20 (gold in ≥1 exposed leg top-100 verified below); else C (merged≤20, final>5 or absent).
+
+## Counts
+- total QA rows: 1659
+- evaluated (gold-mapped): 714 (= jsonl lines)
+- skipped: 945 (empty-question=2 no-gold-chunk=943 file-not-indexed=0)
+- A retriever_failure (gold not in merged top-100): 46
+- B fusion_failure (leg top-100 → merged>20): 6 (with gold in ≥1 exposed leg top-100: 6/6)
+- C reranker_failure (merged≤20 → final>5/absent): 2
+- D success (final≤5): 660
+- error (timeout/exception): 0
+
+## Aggregate (over evaluated non-error rows)
+- N=714 Hit@1=0.7703 (550/714) Hit@5=0.9244 MRR=0.8369
+- Stage Hit@5:  bm25=403/714 (0.5644) dense=245/714 (0.3431) merged=430/714 (0.6022) final=660/714 (0.9244)
+- Stage recall@100: bm25=615/714 (0.8613) dense=543/714 (0.7605) merged=668/714 (0.9356)
+
+## Comparison vs frozen v10 baseline (retrieval_failures.jsonl: 573 total, 489 pass)
+- overlap_rows=0 baseline_hit5=0 ours_hit5=0 newly_fixed=0 newly_broken=0
+- newly fixed ids: []
+- newly broken ids: []
+
+## Examples: A — retriever_failure
+- Company_CRM_Questions#13 bm25=None dense=None merged=None final=None
+  - Q: منابع داده گزارش اعتباری اشخاص حقوقی از کجاست؟
+  - gold: 7f99735d-8538-4f08-a5e0-eaccb8255752
+- Company_CRM_Questions#17 bm25=None dense=88 merged=None final=None
+  - Q: بدهی مالیاتی روی امتیاز موثره؟
+  - gold: d9ff4737-f7ff-4245-814b-550980441fb0
+- Company_CRM_Questions#44 bm25=None dense=None merged=None final=None
+  - Q: آیا یک شرکت پس از منحل شدن همچنان دارای گزارش اعتباری و امتیاز اعتباری است؟
+  - gold: 850c30c6-04ed-44d8-b413-8f48e723f60a
+- Company_CRM_Questions#47 bm25=None dense=None merged=None final=None
+  - Q: کدام دلایل برگشت چک در امتیاز کسب و کار اثرگذار است؟
+  - gold: ede6874e-e886-492e-8ed2-edaa955c27f2
+
+## Examples: B — fusion_failure
+- Company_CRM_Questions#141 bm25=None dense=15 merged=62 final=11
+  - Q: آیا رتبه اعتباری یا امتیاز اعتباری‌ اعضای یک شرکت، بر رتبه اعتباری یا امتیاز اعتباری شرکت تاثیر می‌گذارد؟
+  - gold: 2fcd88e5-a164-4fe3-bbde-3a524167879c
+- Company_CRM_Questions#202 bm25=None dense=80 merged=94 final=43
+  - Q: چه زمانی باید برای بهبود امتیاز اعتباری خود اقدام کنم؟
+  - gold: a38e0b96-c619-439e-9db2-8b2cf597e88e
+- PublicQuestions.xlsx#24 bm25=3 dense=None merged=39 final=10
+  - Q: امتیازم (مثال امتیاز) عوض شده ولی رتبم (مثال رتبه) عوض نشده. چرا؟
+  - gold: 4eea0b86-6a13-4a97-94f9-b59dab23e77d
+- IndividualCRMQuestions#63 bm25=31 dense=None merged=78 final=11
+  - Q: چک  شرکتم برگشت خورد، رتبه اعتباری من کم میشه؟
+  - gold: 09a98a64-7722-4767-a5b7-527728f0d7d0
+
+## Examples: C — reranker_failure
+- Company_CRM_Questions#151 bm25=28 dense=78 merged=14 final=20
+  - Q: چقدر طول می‌کشد تا گزارش اعتباری من به‌روز شود؟
+  - gold: c872d126-7ba7-41e2-83b8-976f55c86d22
+- ChequeQuestions#140 bm25=14 dense=14 merged=13 final=9
+  - Q: توی گزارش چک نوشته «میانگین موجودی حسابهای بانکی فرد در سال گذشته بسیار کم بوده است.». بسیار کم برای شما چقدره؟
+  - gold: 340a239e-7522-4ab0-8398-e98942a5c56c
+
+## Skipped log (query_id, reason)
+- PublicQuestions.xlsx#20 no-gold-chunk :: PublicQuestions.xlsx.xlsx :: مهمترین درسی که باید در مورد اعتبارسنجی بدانم چیست؟
+- PublicQuestions.xlsx#30 no-gold-chunk :: PublicQuestions.xlsx.xlsx :: اعتبارسنجی چیست؟
+- PublicQuestions.xlsx#31 no-gold-chunk :: PublicQuestions.xlsx.xlsx :: هدف از اعتبارسنجی چیست؟
+- PublicQuestions.xlsx#44 no-gold-chunk :: PublicQuestions.xlsx.xlsx :: رتبم چنده؟
+- PublicQuestions.xlsx#46 no-gold-chunk :: PublicQuestions.xlsx.xlsx :: امتیازم چنده؟
+- PublicQuestions.xlsx#53 no-gold-chunk :: PublicQuestions.xlsx.xlsx :: آیا امکان دریافت گزارش اعتباری از طریق اپلیکیشن موبایل وجود دارد؟
+- Individual_CRM_Questions_categorized#0 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان تغییر امتیاز اعتباری و رتبه اعتباری بلافاصله پس از پرداخت بدهی وجود دا
+- Individual_CRM_Questions_categorized#1 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا گزارش اعتباری من شامل اطلاعات حساب‌های پس‌انداز یا جاری بدون تسهیلات هم می‌ش
+- Individual_CRM_Questions_categorized#2 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم گزارش اعتباری شخصی دیگر یا یک شرکت را دریافت کنم؟
+- Individual_CRM_Questions_categorized#3 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر در یک بانک خاص سابقه بدی داشته باشم، آیا این موضوع بر دریافت تسهیلات از سایر
+- Individual_CRM_Questions_categorized#4 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر فکر می کنم اطلاعات گزارش اعتباری من نادرست است، چه کار باید بکنم؟
+- Individual_CRM_Questions_categorized#5 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا برای دریافت گزارش اعتباری نیاز به حضور فیزیکی در جایی است؟
+- Individual_CRM_Questions_categorized#7 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم از شرکت اعتبارسنجی درخواست کنم که اطلاعات من را سریعا به‌روز کند؟
+- Individual_CRM_Questions_categorized#8 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سابقه اعتباری فقط مختص افراد حقیقی است یا اشخاص حقوقی (شرکت‌ها) هم اعتبارسنج
+- Individual_CRM_Questions_categorized#10 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم رتبه اعتباری خود را به صورت رایگان استعلام کنم؟
+- Individual_CRM_Questions_categorized#11 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر هیچ سابقه اعتباری  نداشته باشم، چگونه می‌توانم برای خود سابقه اعتباری بسازم؟
+- Individual_CRM_Questions_categorized#12 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا وضعیت تأهل یا تعداد فرزندان بر رتبه اعتباری تاثیر دارد؟
+- Individual_CRM_Questions_categorized#13 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تغییر شغل یا محل سکونت بر رتبه اعتباری تاثیر دارد؟
+- Individual_CRM_Questions_categorized#14 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا بانک می‌تواند در خصوص تغییر امتیاز اعتباری و رتبه اعتباری من کاری انجام دهد؟
+- Individual_CRM_Questions_categorized#15 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چرا امتیاز اعتباری و رتبه اعتباری من مهم است؟
+- Individual_CRM_Questions_categorized#16 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چقدر طول می‌کشد تا گزارش اعتباری من به‌روز شود؟
+- Individual_CRM_Questions_categorized#17 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا اشخاص حقوقی نیز اعتبارسنجی می شوند؟
+- Individual_CRM_Questions_categorized#18 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه عواملی امتیاز اعتباری من را کاهش می‌دهد؟
+- Individual_CRM_Questions_categorized#19 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا درآمد بالا به تنهایی رتبه اعتباری من را بالا می‌برد؟
+- Individual_CRM_Questions_categorized#21 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: ایرانی نیستم. گزارش اعتباری دارم؟
+- Individual_CRM_Questions_categorized#22 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا درخواست‌های زیاد برای وام و رد شدن آن‌ها به رتبه من آسیب می‌زند؟
+- Individual_CRM_Questions_categorized#23 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا رتبه اعتباری در بانک‌های مختلف یکسان است؟
+- Individual_CRM_Questions_categorized#24 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا گزارش اعتباری، امتیاز اعتباری و رتبه اعتباری من با همسرم (یا اعضای خانواده‌ا
+- Individual_CRM_Questions_categorized#25 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا اطلاعات شخصی من در گزارش اعتباری نمایش داده می‌شود؟
+- Individual_CRM_Questions_categorized#26 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تعداد کارت‌های بانکی فعال بر رتبه اعتباری من تاثیر دارد؟
+- Individual_CRM_Questions_categorized#27 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا رتبه اعتباری من با تغییر محل زندگی یا شغل تغییر می‌کند؟
+- Individual_CRM_Questions_categorized#28 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا بدهی‌های معوق قدیمی که فراموش کرده‌ام، می‌توانند رتبه من را پایین نگه دارند؟
+- Individual_CRM_Questions_categorized#29 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا وضعیت تاهل بر رتبه اعتباری تاثیر دارد؟
+- Individual_CRM_Questions_categorized#30 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم درخواست بدهم تا اطلاعات خاصی از گزارش اعتباری‌ام حذف شود؟
+- Individual_CRM_Questions_categorized#31 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سابقه بانکی در خارج از ایران (خارجی/اسم شهر/کشور) بر رتبه اعتباری من در ایرا
+- Individual_CRM_Questions_categorized#32 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: مهمترین درسی که باید در مورد اعتبارسنجی بدانم چیست؟
+- Individual_CRM_Questions_categorized#33 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم با داشتن بدهی معوق و رتبه پایین، باز هم وام بگیرم؟ تحت چه شرایطی؟
+- Individual_CRM_Questions_categorized#34 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه (امتیاز)‌م E2  (یا هر رتبه‌ای)ه، ملی (اسم بانک) بهم وام می‌ده؟
+- Individual_CRM_Questions_categorized#35 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تأخیر در بازپرداخت بدهی‌های غیربانکی (مثل بدهی به شرکت‌های خصوصی) در اعتبارس
+- Individual_CRM_Questions_categorized#36 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تأخیر در پس دادن  قسط دیجی پی/وام دیجی کالا/اسنپ/اسنپ پی/تارا در اعتبارسنجی 
+- Individual_CRM_Questions_categorized#37 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا بانک‌ها برای ارائه دسته چک، اعتبارسنجی می‌کنند؟
+- Individual_CRM_Questions_categorized#38 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا استخدام در شرکت‌های دولتی یا خصوصی و یا مقام کاری روی امتیاز اعتباری تاثیر د
+- Individual_CRM_Questions_categorized#39 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من کارمند بانکم (کارمند آموزش و پرورشم یا فلان) چرا امتیاز (رتبه)م C1 (یا هر رتب
+- Individual_CRM_Questions_categorized#40 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان داره که یک وام‌گیرنده، امتیاز اعتباری خودش رو به شخص دیگری منتقل کنه؟
+- Individual_CRM_Questions_categorized#41 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من رتبه (امتیاز)‌م B2 (یا هر رتبه2ای) ه پسرم (یا عروسم/ همسرم یا همکارم) میتونه 
+- Individual_CRM_Questions_categorized#42 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه مدت طول می‌کشد تا تاثیر منفی یک چک برگشتی از روی سابقه اعتباری پاک شود؟
+- Individual_CRM_Questions_categorized#43 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من چکم پارسال (یا چار سال پیش یا ده سال قبل) برگشت خورده هنوز تو رتبه (امتیاز)م 
+- Individual_CRM_Questions_categorized#44 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا مشتریان می‌توانند از بانک‌ها درخواست کنند که اطلاعات منفی از سابقه اعتباری آ
+- Individual_CRM_Questions_categorized#45 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: نمی‌خوام این چکم که برگشت خورده تو سابقه‌م بیاد، چه طوری حذفش کنم؟
+- Individual_CRM_Questions_categorized#46 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من یه بار فقط جریمه مالیاتی برام بریدن، چه طوری حذفش کنم؟
+- Individual_CRM_Questions_categorized#47 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من کلا دو روز موجودی حسابم کمتر از 200 بود که چکم برگشت خورده بود، بعدش درستش کر
+- Individual_CRM_Questions_categorized#48 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من فقط یه بار قسط ملیم (یا هر بانکی) رو دیر دادم، چه طوری حذفش کنم؟
+- Individual_CRM_Questions_categorized#49 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: توی گزارش امتیاز اعتباری من نوشته “دارای وضعیت منفی (معوق/ مشکوک‌الوصول)  در تسه
+- Individual_CRM_Questions_categorized#50 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: توی گزارش امتیاز اعتباری من نوشته “دلایل کاهش امتیاز: فرد، دارای بدهی مالیاتی اس
+- Individual_CRM_Questions_categorized#51 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگه اقساطم رو به موقع پرداخت نکنم، روی امتیاز اعتباریم و رتبه اعتباریم اثر منفی 
+- Individual_CRM_Questions_categorized#52 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: “آیا ضمانت فردی که دارای بدهی است، تأثیر منفی قابل توجهی بر رتبه اعتباری بنده خو
+- Individual_CRM_Questions_categorized#53 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا ممکنه یک نفر اصلاً امتیاز اعتباری و رتبه اعتباری نداشته باشه؟
+- Individual_CRM_Questions_categorized#54 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سوابق چک برگشتی روی امتیاز اعتباری اثر داره؟
+- Individual_CRM_Questions_categorized#55 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگه بدهی مالیاتیم تو گزارشم باشه و پرداختش کنم، بازم سوابق منفی‌اش رو رتبه‌ام اث
+- Individual_CRM_Questions_categorized#56 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من یه چک برگشتی داشتم، الان رفع سوءاثر شده. می‌خوام بدونم کی رتبه‌م درست می‌شه؟
+- Individual_CRM_Questions_categorized#57 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: می‌خواستم بدونم اگه چک برگشتی داشته باشم، رتبه اعتباریم چی میشه؟
+- Individual_CRM_Questions_categorized#58 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر بدهی مالیاتی داشته باشم، رتبه اعتباری و امتیازم به چه صورت تغییر می‌کنه؟
+- Individual_CRM_Questions_categorized#59 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: شرکتم بدهی مالیاتی داره، رتبه اعتباری من کم میشه؟
+- Individual_CRM_Questions_categorized#60 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چک  شرکتم برگشت خورد، رتبه اعتباری من کم میشه؟
+- Individual_CRM_Questions_categorized#61 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا بدهی قبوض آب و برق در گزارش اعتبارسنجی محاسبه میشه؟
+- Individual_CRM_Questions_categorized#62 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من قبض موبایلمو یادم رفت دیر پرداخت کردم تو رتبه‌م موثره؟
+- Individual_CRM_Questions_categorized#63 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر تو ۵ سال گذشته وام نگرفته باشم، باز هم رتبه اعتباری دارم؟
+- Individual_CRM_Questions_categorized#64 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من رتبه اعتباریم برام میخوره C2  (یا C1 یا C3) ولی قبلا وام ملت (یا هر وامی از ه
+- Individual_CRM_Questions_categorized#65 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اطلاعات تسهیلاتی تو گزارش اعتبارسنجی هر چند وقت یه بار بروز می‌شه؟
+- Individual_CRM_Questions_categorized#66 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا محکومیت‌های غیر مالی در گزارش اعتبارسنجی قرار می‌گیرن؟
+- Individual_CRM_Questions_categorized#67 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر محکومیت مالی از طرف قوه قضاییه اعلام شود، چه مبلغی باعث کاهش رتبه اعتباری می
+- Individual_CRM_Questions_categorized#68 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آدرس سایت رسمی شرکت اعتبارسنجی ایران جهت اخذ  گزارش اعتبارسنجی را بنویس.
+- Individual_CRM_Questions_categorized#69 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: برای اینکه امتیاز اعتباریم رو ببرم بالا، باید چیکار کنم؟
+- Individual_CRM_Questions_categorized#70 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: هزینه گرفتن گزارش اعتبارسنجی برای اشخاص حقیقی  چقدر هستش؟
+- Individual_CRM_Questions_categorized#71 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من در خصوص سامانه فرابانک ملت سوالی دارم  آیا شما می‌تونید کمکم کنید؟
+- Individual_CRM_Questions_categorized#72 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه وثیقه ای لازمه که بتونم وام 300 تومنی ملی رو بگیرم؟
+- Individual_CRM_Questions_categorized#73 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنتا ضامن لازمه برا وام بانک مهر اقتصاد؟
+- Individual_CRM_Questions_categorized#74 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: امتیاز اعتباری به چند دسته تقسیم می‌شود؟
+- Individual_CRM_Questions_categorized#75 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: گزارش اعتباری چیست؟
+- Individual_CRM_Questions_categorized#76 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: گزارش اعتباری شامل چه اطلاعاتی است؟
+- Individual_CRM_Questions_categorized#77 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: محدوده امتیاز اعتباری چقدر است و معنای آن چیست؟
+- Individual_CRM_Questions_categorized#78 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در صورتی که اقساط من معوق و یا مشکوک الوصول باشد چه مدت زمان باید از پرداخت بدهی
+- Individual_CRM_Questions_categorized#79 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من تا به حال هیچ وامی نداشته‌ام و اخیراً یک وام دریافت کردم. با پرداخت چند قسط ر
+- Individual_CRM_Questions_categorized#80 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: سلام و وقت بخیر اعتراض میکنم به سببب اینکه من برج 3رتبه اعتباری B3الان اعتبارسنج
+- Individual_CRM_Questions_categorized#82 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: نمره منفی برااقساط معوقمه ک 3 ماه از پرداختش گذشته و پرداخت کردم و برام نمره منف
+- Individual_CRM_Questions_categorized#83 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه اعتباری من کاهش یافته است، در حالی که قبلا بالاتر بوده و من تمام تسهیلات خو
+- Individual_CRM_Questions_categorized#84 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در طول ماه جاری تسهیلاتی را خاتمه داده‌ام. چه زمانی این موضوع در گزارش اعتبارسنج
+- Individual_CRM_Questions_categorized#85 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: جهت ارتباط با واحد امور مشتریان شرکت اعتبارسنجی با چه شماره‌ای می‌توان تماس گرفت
+- Individual_CRM_Questions_categorized#86 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در گزارش اعتبارسنجی، بدهی‌ای ثبت شده که من در همان ماهی که بدهی ثبت شد، با چند ر
+- Individual_CRM_Questions_categorized#87 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا ضمانت فردی که دارای بدهی سررسید شده پرداخت نشده است، تأثیر منفی بر رتبه اعتب
+- Individual_CRM_Questions_categorized#88 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من سابقه‌ی چک برگشتی داشته‌ام و اقدام به رفع اثر نموده‌ام، اما همچنان در گزارش ا
+- Individual_CRM_Questions_categorized#89 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا اطلاعات گزارش اعتبارسنجی که از طریق سایت شما دریافت می‌شود، با گزارشی که بان
+- Individual_CRM_Questions_categorized#90 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا شرکت اعتبارسنجی می‌تواند رتبه اعتباری مشتریان را تغییر دهد؟
+- Individual_CRM_Questions_categorized#92 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا پاس کردن به موقع چک‌های بیشتر، تاثیر مثبتی بر رتبه اعتباری من دارد؟
+- Individual_CRM_Questions_categorized#93 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اعتبارسنجی چیست؟
+- Individual_CRM_Questions_categorized#94 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: هدف از اعتبارسنجی چیست؟
+- Individual_CRM_Questions_categorized#95 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه کسانی از گزارش اعتباری استفاده می‌کنند؟
+- Individual_CRM_Questions_categorized#96 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: گزارش اعتبارسنجی تسهیلات شامل چه اطلاعاتی است؟
+- Individual_CRM_Questions_categorized#97 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه مدارکی برای دریافت گزارش اعتباری لازم است؟
+- Individual_CRM_Questions_categorized#98 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر هیچ وامی نگرفتم رتبه اعتباریم جند حساب میشه؟
+- Individual_CRM_Questions_categorized#99 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: هر چند وقت یک‌بار می‌توانم گزارش اعتباری خود را چک کنم؟
+- Individual_CRM_Questions_categorized#100 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه عواملی بر رتبه (امتیاز) اعتباری من تاثیر مثبت دارند؟
+- Individual_CRM_Questions_categorized#101 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟
+- Individual_CRM_Questions_categorized#102 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا رفع سوء اثر چک برگشتی باعث حذف آن از گزارش می‌شود؟
+- Individual_CRM_Questions_categorized#103 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا داشتن حساب‌های زیاد در بانک‌های مختلف تاثیری در امتیاز دارد؟
+- Individual_CRM_Questions_categorized#104 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: بلوکه شدن حساب بانکی یا موجودی بالا چه تاثیری دارد؟
+- Individual_CRM_Questions_categorized#105 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا حساب‌های قرض‌الحسنه در امتیاز اعتباری و رتبه اعتباری لحاظ می‌شوند؟
+- Individual_CRM_Questions_categorized#106 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم درخواست کنم اطلاعاتم سریع‌تر به‌روزرسانی شود؟
+- Individual_CRM_Questions_categorized#107 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا با پرداخت بدهی، سوابق منفی قبلی پاک می‌شوند؟
+- Individual_CRM_Questions_categorized#108 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه اعتباری پایین چه مشکلاتی ایجاد می‌کند؟
+- Individual_CRM_Questions_categorized#109 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا اطلاعات من محرمانه می ماند؟
+- Individual_CRM_Questions_categorized#110 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا شرکت‌های لیزینگ هم از اعتبارسنجی استفاده می‌کنند؟
+- Individual_CRM_Questions_categorized#111 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان تغییر رتبه اعتباری بلافاصله پس از پرداخت بدهی وجود دارد؟
+- Individual_CRM_Questions_categorized#112 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا چک‌هایی که در سامانه صیاد ثبت نشده‌اند، در اعتبارسنجی لحاظ می‌شوند؟
+- Individual_CRM_Questions_categorized#113 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا داشتن چک‌های پاس‌شده زیاد، تأثیر مثبتی روی امتیاز اعتباری من دارد؟
+- Individual_CRM_Questions_categorized#114 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا چک‌هایی که به دلیل کسری مبلغ اندک برگشت خورده‌اند، به همان اندازه چک‌های برگ
+- Individual_CRM_Questions_categorized#115 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: تفاوت تأثیر تأخیر یک روزه در پرداخت قسط با تأخیر یک ماهه چیه؟
+- Individual_CRM_Questions_categorized#116 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سابقه استفاده از کارت اعتباری و پرداخت به موقع اون، امتیازم رو بالا میبره؟
+- Individual_CRM_Questions_categorized#117 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر وام قرض‌الحسنه (سود 4 درصد یا کمتر) بگیرم و به موقع پرداخت کنم، تأثیرش مثل پ
+- Individual_CRM_Questions_categorized#118 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا معوق شدن یک قسط از وام خرد تأثیرش کمتر از معوق شدن قسط وام بزرگ هست؟
+- Individual_CRM_Questions_categorized#119 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر محکومیت مالی کمتر از 10 میلیارد تومان داشته باشم، چقدر رتبه‌ام کاهش پیدا میک
+- Individual_CRM_Questions_categorized#120 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر به عنوان وام‌گیرنده اصلی، ضامن هم داشته باشم و اقساط وام با تاخیر پرداخت بشه
+- Individual_CRM_Questions_categorized#121 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا درخواست تقسیط بدهی سررسید شده پرداخت نشده باعث بهبود رتبه و امتیاز اعتباری م
+- Individual_CRM_Questions_categorized#122 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا بدهی‌های مربوط به خرید اقساطی کالا از فروشگاه‌ها در گزارش اعتباری ثبت میشه؟
+- Individual_CRM_Questions_categorized#123 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: تعداد چک‌های برگشتی در محاسبه امتیاز اعتباری فرد تأثیر بیشتری داره یا مبلغ چک‌ها
+- Individual_CRM_Questions_categorized#124 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا چک ضمانتی که برگشت نخورده اما سررسیدش گذشته، در گزارش اعتباری ثبت میشه؟
+- Individual_CRM_Questions_categorized#125 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا چک ضمانتی که برگشت نخورده اما سررسیدش گذشته، در امتیاز اعتباری تاثیر داره؟
+- Individual_CRM_Questions_categorized#126 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا میتونم قبل از صدور چک، رتبه اعتباری صادرکننده چک رو بررسی کنم؟
+- Individual_CRM_Questions_categorized#127 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان دارد وامی که از آن بی‌خبر بوده‌ام، در گزارش اعتباری من ظاهر شود؟
+- Individual_CRM_Questions_categorized#128 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر وامی را به نام شخص دیگری ضمانت کرده باشم، آیا در گزارش من نشان داده می‌شود؟
+- Individual_CRM_Questions_categorized#129 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: تفاوت وام‌های بانکی و تسهیلات موسسات غیربانکی در اعتبارسنجی چیه؟
+- Individual_CRM_Questions_categorized#130 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر وام دریافت کنم اما ازش استفاده نکنم و زود تسویه کنم، تأثیرش در امتیاز و رتبه
+- Individual_CRM_Questions_categorized#131 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر نسبت به بدهی مالیاتی‌ام اعتراض داده باشم، آیا تا زمان رسیدگی، این بدهی در گز
+- Individual_CRM_Questions_categorized#132 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان دارد بدهی مالیاتی‌ام بدون اطلاع قبلی در گزارش اعتباری من ظاهر شود؟
+- Individual_CRM_Questions_categorized#133 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم گزارش اعتباری خود را برای یک دوره زمانی خاص درخواست کنم؟
+- Individual_CRM_Questions_categorized#134 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه زمانی باید برای بهبود امتیاز اعتباری خود اقدام کنم؟
+- Individual_CRM_Questions_categorized#135 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: تفاوت گزارش و امتیاز اعتباری شرکت سهامی خاص و شرکت با مسئولیت محدود یا شرکت تضام
+- Individual_CRM_Questions_categorized#136 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: برای دریافت گزارش اعتباری شرکت، آیا باید تمام شرکا موافقت کنند؟
+- Individual_CRM_Questions_categorized#137 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: برای دریافت گزارش اعتباری شرکت، آیا باید تمام صاحبان امضا موافقت کنند؟
+- Individual_CRM_Questions_categorized#138 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من مدیر عامل یه شرکتم. حالا که چک شرکت برگشت خورده امتیاز اعتباری من تحت تاثیر ق
+- Individual_CRM_Questions_categorized#139 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من مدیر عامل یه شرکتم. اگر تسهیلات شرکت معوق بشه امتیاز اعتباری من تحت تاثیر قرا
+- Individual_CRM_Questions_categorized#140 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر همزمان ضامن چند وام باشم، آیا این موضوع روی اعتبار من اثر منفی دارد؟
+- Individual_CRM_Questions_categorized#141 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر شخصی که ضامنش بوده‌ام، وامش را تسویه کرده باشد، آیا این ضمانت از گزارش من حذ
+- Individual_CRM_Questions_categorized#142 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر ضمانت من مربوط به شرکتی باشد که ورشکسته شده، آیا این موضوع روی اعتبار شخصی م
+- Individual_CRM_Questions_categorized#143 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم از ضمانت یک وام انصراف دهم و این موضوع در گزارش اعتباری من ثبت شود؟
+- Individual_CRM_Questions_categorized#144 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا در ایام تعطیلات رسمی، به‌روزرسانی گزارش اعتباری انجام میشه؟
+- Individual_CRM_Questions_categorized#145 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: کارفرمایان آیا حق دارن برای استخدام، گزارش اعتباری من رو بررسی کنن؟
+- Individual_CRM_Questions_categorized#146 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا پلتفرم‌های وام‌دهی آنلاین (فین‌تک‌ها) هم از اعتبارسنجی استفاده میکنن؟
+- Individual_CRM_Questions_categorized#147 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه می‌توانم از صحت اطلاعات مربوط به تاریخچه پرداخت‌های خود در گزارش اعتباری ا
+- Individual_CRM_Questions_categorized#148 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر کسی بدون اجازه من گزارش اعتباری‌ام رو بگیره، چه اقدام قانونی میتونم انجام بد
+- Individual_CRM_Questions_categorized#149 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چه کسانی غیر از خودم حق دسترسی به گزارش اعتباری من رو دارن؟
+- Individual_CRM_Questions_categorized#150 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا میتونم ببینم که چه کسانی تاکنون گزارش اعتباری من رو درخواست کردن؟
+- Individual_CRM_Questions_categorized#151 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر اطلاعات هویتی‌ام (کدملی، شماره تماس) تغییر کنه، چطور باید به شرکت اعتبارسنجی
+- Individual_CRM_Questions_categorized#152 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر به دلیل بیماری یا حادثه نتونستم قسط پرداخت کنم، آیا امکان توجیه این موضوع وج
+- Individual_CRM_Questions_categorized#153 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سربازان و افراد در خدمت وظیفه که نمیتونن قسط پرداخت کنن، در امتیاز اعتباریشو
+- Individual_CRM_Questions_categorized#154 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر در زمان زلزله یا بلایای طبیعی نتونستم بدهی پرداخت کنم، امتیاز و رتبه اعتباری
+- Individual_CRM_Questions_categorized#155 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم درخواست کنم که اطلاعات اعتباری‌ام کاملاً محرمانه بماند و حتی به بان
+- Individual_CRM_Questions_categorized#156 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم گزارش اعتباری همسرم را بدون اطلاع او دریافت کنم؟
+- Individual_CRM_Questions_categorized#157 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه می‌توانم از تأثیر مثبت بازپرداخت وام‌های خود بر امتیاز اعتباری خود مطلع شو
+- Individual_CRM_Questions_categorized#158 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا استعلام موسسات از گزارش اعتباری من، باعث کاهش امتیاز من می‌شود؟
+- Individual_CRM_Questions_categorized#160 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر وام دریافت کنم اما زود تسویه اش کنم، تأثیرش در رتبه اعتباری من چیست؟
+- Individual_CRM_Questions_categorized#161 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من سابقه تاخیر در بازپرداخت قسط و یا چک برگشتی داشته ام. چرا بعد از رفع آن ها هم
+- Individual_CRM_Questions_categorized#162 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه اعتباری من کاهش یافته است، در حالی که قبلا بالاتر بوده و من تمام تسهیلات خو
+- Individual_CRM_Questions_categorized#163 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چرا اطلاعات بعضی از وام های من در گزارش اعتباری ام نشان داده نمی شود؟
+- Individual_CRM_Questions_categorized#164 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در صورت رفع سو اثر چک، چه زمانی امتیاز من از ۲۵۰ خارج می شود؟
+- Individual_CRM_Questions_categorized#165 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من در دو زمان مختلف گزارش اعتباری خود را دریافت کرده ام و در این فاصله هیچ قسط ی
+- Individual_CRM_Questions_categorized#166 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه می‌توان گزارش اعتباری خود را با دیگران به اشتراک گذاشت؟
+- Individual_CRM_Questions_categorized#167 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: میتونم گزارش اعتباریمو برای بقیه بفرستم؟
+- Individual_CRM_Questions_categorized#168 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: با وجود بازپرداخت بدهی تسهیلاتی، علت عدم تغییر در امتیاز و گزارش اعتباری من چیست
+- Individual_CRM_Questions_categorized#169 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: پس از رفع سوءاثر چک برگشتی، چقدر طول می‌کشد تا امتیاز اعتباری تغییر کند ؟
+- Individual_CRM_Questions_categorized#170 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر وضعیت تسهیلات، معوق و یا مشکوک الوصول (بیش از ۶ ماه تاخیر در بازپرداخت اقساط
+- Individual_CRM_Questions_categorized#171 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اطلاعات گزارش اعتباری چند وقت یکبار به‌روزرسانی می‌شود؟
+- Individual_CRM_Questions_categorized#172 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: امتیاز من بدون هیچ دلیلی شدیدا افت کرده.
+- Individual_CRM_Questions_categorized#173 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من ضامن یک وام شدم. اگر شخص تاخیر زیادی در پرداخت قسط های وام داشته باشد، آیا ام
+- Individual_CRM_Questions_categorized#174 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من برخی از دلایل کاهش امتیاز خودم را که در  گزارشم درج شده نمی فهمم.
+- Individual_CRM_Questions_categorized#175 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من قسط وام (تسهیلات)‌ خود را پرداخت کردم، اما اطلاعاتم در گزارش اعتباری به روز ن
+- Individual_CRM_Questions_categorized#176 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من بدهی مالیاتی پرداخت نشده داشتم و رتبه ام E3 شده است. اگر آن را پرداخت کنم، چه
+- Individual_CRM_Questions_categorized#177 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من یک محکومیت مالی پرداخت نشده داشتم و رتبه ام به این دلیل E3 شده است. اگر آن را
+- Individual_CRM_Questions_categorized#178 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: بدهی عقب افتاده را پرداخت کردم، چرا امتیازم تغییر نمی کنه؟
+- Individual_CRM_Questions_categorized#179 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چرا گزارش اعتباری من هنوز وامی را نشان می‌دهد که ۲ ماه پیش تسویه کرده‌ام؟
+- Individual_CRM_Questions_categorized#180 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم درخواست کنم اطلاعاتم زودتر از موعد ماهانه به‌روزرسانی شود؟
+- Individual_CRM_Questions_categorized#181 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر اطلاعاتم در دو بانک متناقض باشد، کدام یک در گزارش اعتباری لحاظ می‌شود؟
+- Individual_CRM_Questions_categorized#182 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم درخواست کنم که فقط اطلاعات ۲ سال اخیرم در گزارش اعتباری نمایش داده 
+- Individual_CRM_Questions_categorized#183 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر چک برگشتی من رفع سوء اثر شده باشد، اما همچنان در گزارش اعتباری نمایش داده شو
+- Individual_CRM_Questions_categorized#184 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر فرد هیچ سابقه وامی نداشته باشد، اما چک‌های زیادی پاس کرده باشد، آیا این موضو
+- Individual_CRM_Questions_categorized#185 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا داشتن بیمه عمر یا بیمه تکمیلی، تأثیری در افزایش امتیاز اعتباری دارد؟
+- Individual_CRM_Questions_categorized#186 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان دارد امتیاز اعتباری من بدون هیچ تغییری در رفتار مالیم، کاهش یابد؟
+- Individual_CRM_Questions_categorized#187 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چند درصد از امتیاز اعتباری من وابسته به تاریخچه پرداخت اقساط است؟
+- Individual_CRM_Questions_categorized#188 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چند درصد از امتیاز اعتباری من وابسته به سابقه من در چک است؟
+- Individual_CRM_Questions_categorized#189 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چند درصد از امتیاز اعتباری من وابسته به سابقه من در  پرداخت مالیات است؟
+- Individual_CRM_Questions_categorized#190 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چند درصد از امتیاز اعتباری من وابسته به تراکنش ها و گردش حساب های من است؟
+- Individual_CRM_Questions_categorized#191 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چرا با وجود بازپرداخت به‌موقع اقساط، امتیاز اعتباری من هنوز افزایش نیافته است؟
+- Individual_CRM_Questions_categorized#192 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه می‌توانم درخواست اصلاح اطلاعات نادرست در گزارش اعتباری را پیگیری کنم؟
+- Individual_CRM_Questions_categorized#193 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا در آینده، امکان انتقال امتیاز اعتباری به اعضای درجه یک خانواده (پدر، مادر، ف
+- Individual_CRM_Questions_categorized#194 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه می‌توانم درخواست دسترسی به جزئیات محاسباتی رتبه اعتباری خود یا شرکتم را دا
+- Individual_CRM_Questions_categorized#195 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه می‌توانم درخواست بررسی مجدد رتبه اعتباری (و امتیاز اعتباری) خود را پس از ت
+- Individual_CRM_Questions_categorized#196 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر بدهی شرکت در سامانه سمات به اشتباه ثبت شده باشد، چه مدارکی برای اصلاح آن لاز
+- Individual_CRM_Questions_categorized#197 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: هزینه دریافت گزارش اعتباری برای افراد زیر ۱۸ سال که حساب بانکی دارند چقدر است؟
+- Individual_CRM_Questions_categorized#198 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه می‌توانم درخواست حذف سابقه منفی قدیمی از گزارش اعتباری شرکت را ثبت کنم؟
+- Individual_CRM_Questions_categorized#199 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر یک بانک اطلاعات بازپرداخت اقساط مرا به شرکت اعتبارسنجی ارسال نکند (اطلاعات ب
+- Individual_CRM_Questions_categorized#200 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا کارفرما یا سازمان‌های دولتی می‌توانند بدون رضایت صریح من، گزارش اعتباری‌ام ر
+- Individual_CRM_Questions_categorized#201 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من تعداد بسیار زیادی تسهیلات را بدون هیچ گونه تاخیری بازپرداخت کرده ام و همیشه ض
+- Individual_CRM_Questions_categorized#202 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در گزارش اعتباری من قید شده که به علت یک بدهی با مبلغ بسیار کم، مشکوک الوصول شده
+- Individual_CRM_Questions_categorized#203 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنانچه به عنوان فریلنسر یا شاغل آزاد درآمد نامنظم داشته باشم، آیا این موضوع بر ر
+- Individual_CRM_Questions_categorized#204 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تسویه بدهی‌های کوچک مانند جرائم رانندگی یا عوارض شهرداری در گزارش اعتباری ثب
+- Individual_CRM_Questions_categorized#205 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنانچه اطلاعات تماس خود (شماره موبایل یا آدرس) را تغییر دهم، آیا باید این موضوع 
+- Individual_CRM_Questions_categorized#206 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اطلاعات تسهیلاتی شرکت‌ها چند مرتبه در سیستم شما به‌روزرسانی می‌شود؟
+- Individual_CRM_Questions_categorized#207 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر یک بار در پرداخت قسطی تاخیر داشته باشم اما مبلغ را قبل از ارسال  ماهانه اطلا
+- Individual_CRM_Questions_categorized#208 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا شرکت‌های تازه تاسیس (کمتر از یک سال) می‌توانند امتیاز اعتباری دریافت کنند؟
+- Individual_CRM_Questions_categorized#209 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا داشتن چند ضامن برای یک وام، در مقابل یک ضامن، تاثیر متفاوتی بر رتبه اعتباری 
+- Individual_CRM_Questions_categorized#210 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا فسخ قرارداد یک تسهیلات بانکی، در گزارش اعتباری ثبت می‌شود؟
+- Individual_CRM_Questions_categorized#211 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تغییر نام یا نام خانوادگی بر سوابق اعتباری من تاثیر می‌گذارد؟
+- Individual_CRM_Questions_categorized#212 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنانچه حکم دادگاه برای پرداخت نفقه یا مهریه داشته باشم و آن را پرداخت نکنم، آیا 
+- Individual_CRM_Questions_categorized#213 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم درخواست مسدود کردن موقت دریافت گزارش اعتباری خود را داشته باشم؟
+- Individual_CRM_Questions_categorized#214 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: می تونم کاری کنم که کسی نتونه گزارشمو بگیره؟
+- Individual_CRM_Questions_categorized#215 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا دریافت تسهیلات با نرخ بهره پایین‌تر نسبت به وام‌های با نرخ بهره بالاتر تاثیر
+- Individual_CRM_Questions_categorized#216 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تاخیر در پرداخت عوارض شهرداری در گزارش اعتباری ثبت می‌شود و در امتیاز اثر گذ
+- Individual_CRM_Questions_categorized#217 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تاخیر در پرداخت قبوض در گزارش اعتباری ثبت می‌شود؟
+- Individual_CRM_Questions_categorized#218 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنانچه به دلیل بلایای طبیعی (زلزله، سیل و...) و یا شرایط بحرانی (جنگ و ...) قادر
+- Individual_CRM_Questions_categorized#219 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تعداد دفعات تغییر شغل یا جابجایی شغلی در گزارش اعتباری ثبت می‌شود و بر رتبه 
+- Individual_CRM_Questions_categorized#220 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا فروشگاه‌های اینترنتی می‌توانند از گزارش اعتباری من برای خرید اقساطی استفاده 
+- Individual_CRM_Questions_categorized#221 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا می‌توانم برای فرزند نابالغم که حساب بانکی دارد، گزارش اعتباری بگیرم؟
+- Individual_CRM_Questions_categorized#222 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا چک‌های برگشتی که مربوط به حساب مشترک باشد، روی امتیاز اعتباری من هم اثر می‌گ
+- Individual_CRM_Questions_categorized#223 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا پرداخت بخشی از یک قسط در موعد مقرر و تکمیل مانده آن در چند روز آینده (پس از 
+- Individual_CRM_Questions_categorized#224 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر چک تضمین‌شده (ضمانت) داشته باشم و برگشت بخورد، آیا بر رتبه اعتباری من تأثیر 
+- Individual_CRM_Questions_categorized#225 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: تفاوت اثر «تعهدات جاری در نقش ضامن» با «تعهدات خاتمه‌یافته در نقش ضامن» در محاسب
+- Individual_CRM_Questions_categorized#226 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سابقه سفته در سامانه اعتبارسنجی ثبت می‌شود و بر رتبه و امتیاز من اثر می‌گذار
+- Individual_CRM_Questions_categorized#227 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا گزارش اعتباری افراد شامل اطلاعات مربوط به وام‌های بانکی خاتمه‌یافته نیز می‌ش
+- Individual_CRM_Questions_categorized#228 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا جریمه دیرکرد اقساط در گزارش اعتباری من درج می‌شود؟
+- Individual_CRM_Questions_categorized#229 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: سابقه منفی در گزارش اعتباری با چه منطق و مبنایی درج می شود؟
+- Individual_CRM_Questions_categorized#230 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سابقه اعتباری من در شرکت‌های اعتبارسنجی دیگر کشورها می‌تواند برای دریافت تسه
+- Individual_CRM_Questions_categorized#231 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان دریافت گزارش اعتباری برای اتباع خارجی مقیم ایران فراهم است؟
+- Individual_CRM_Questions_categorized#232 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: ایرانی نیستم. گزارش اعتباری دارم؟
+- Individual_CRM_Questions_categorized#233 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر در پرداخت قسط یک وام، مبلغی کمتر از مبلغ قسط ماهانه را پرداخت کنم، وضعیت آن 
+- Individual_CRM_Questions_categorized#234 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: یه قسطو کمتر دادم. اثرش چیه؟
+- Individual_CRM_Questions_categorized#235 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر به دلیل اختلال بانکی برداشت خودکار قسط انجام نشود، وضعیت چگونه در گزارش ثبت 
+- Individual_CRM_Questions_categorized#236 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در صورت ثبت اشتباه یک چک برگشتی و سپس اصلاح آن توسط بانک، آیا ردپای این موضوع در
+- Individual_CRM_Questions_categorized#237 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا سرمایه‌گذاری در سهام می‌تواند به عنوان عاملی مثبت در سنجش اعتبار در نظر گرفت
+- Individual_CRM_Questions_categorized#238 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در صورت اختلال گسترده در سیستم بانکی که باعث تأخیر در بازپرداخت اقساط یا در ارائ
+- Individual_CRM_Questions_categorized#239 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر تسهیلات بیش از یک ضامن داشته باشد، آیا عدم بازپرداخت مناسب اقساط تسهیلات توس
+- Individual_CRM_Questions_categorized#240 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر یک چک برگشتی داشته باشم اما بلافاصله (ظرف ۲۴ ساعت) مبلغ را تأمین و چک را رفع
+- Individual_CRM_Questions_categorized#242 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا برای دریافت گزارش اعتباری، حتماً باید شماره همراه به نام خود شخص باشد؟
+- Individual_CRM_Questions_categorized#243 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: وقتی گفته می شود سابقه بازپرداخت تسهیلات در نقش ضامن دقیقا یعنی چی؟
+- Individual_CRM_Questions_categorized#245 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا استعلام بانک ها از گزارش اعتباری من توی گزارشم ثبت می شه؟
+- Individual_CRM_Questions_categorized#246 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا استعلام بانک ها از گزارش اعتباری من توی امتیازم تاثیر داره؟
+- Individual_CRM_Questions_categorized#247 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: وام‌های خرد دقیقاً چه نوع وام‌هایی هستند و چه تفاوتی با وام‌های بزرگ در محاسبه ا
+- Individual_CRM_Questions_categorized#248 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا رتبه اعتباری یک شرکت، بر رتبه اعتباری مدیرعامل یا اعضای هیئت مدیره آن تاثیر 
+- Individual_CRM_Questions_categorized#249 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان دریافت گزارش اعتباری از طریق اپلیکیشن موبایل وجود دارد؟
+- Individual_CRM_Questions_categorized#250 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: حداقل امتیاز اعتباری مورد نیاز برای دریافت وام بانکی چقدر است؟
+- Individual_CRM_Questions_categorized#251 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان مقایسه امتیاز اعتباری یک شخص با شخص دیگر وجود دارد؟
+- Individual_CRM_Questions_categorized#252 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در صورت ابطال چک قبل از سررسید، آیا این موضوع در گزارش اعتباری ثبت می‌شود؟
+- Individual_CRM_Questions_categorized#253 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنانچه شرکت من تسهیلات دریافت کند، آیا این موضوع بر رتبه اعتباری شخصی من به عنوا
+- Individual_CRM_Questions_categorized#254 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان دارد یک شرکت با سابقه منفی در گزارش اعتباری، پس از تغییر مدیریت و سهام
+- Individual_CRM_Questions_categorized#255 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنانچه وام خود را به شخص دیگری واگذار کنم (انتقال دهم)، آیا سابقه آن همچنان در گ
+- Individual_CRM_Questions_categorized#256 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا بانک‌ها موظف هستند قبل از گزارش اطلاعات منفی به شرکت اعتبارسنجی، به من اطلاع
+- Individual_CRM_Questions_categorized#257 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان درخواست تجدید نظر (تجدید محاسبه) در رتبه اعتباری و امتیاز اعتباری اختص
+- Individual_CRM_Questions_categorized#258 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا شرکت اعتبارسنجی ایران با شرکت‌های اعتبارسنجی بین‌المللی تبادل اطلاعات دارد؟
+- Individual_CRM_Questions_categorized#259 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان مشاهده تاریخچه تغییرات امتیاز اعتباری در طول زمان وجود دارد؟
+- Individual_CRM_Questions_categorized#260 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا تاخیر در پرداخت اقساط در دوران بحران‌های اقتصادی (جنگ، همه‌گیری بیماری و ...
+- Individual_CRM_Questions_categorized#261 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چنانچه وام مسکن خود را از طریق فروش ملک یا دارایی تسویه کنم، آیا این موضوع در گز
+- Individual_CRM_Questions_categorized#262 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در صورت انتقال ضمانت وام از یک شخص به شخص دیگر، آیا سابقه ضمانت از گزارش اعتباری
+- Individual_CRM_Questions_categorized#263 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر من به عنوان ضامن، در صورت تاخیر در بازپرداخت متقاضی اصلی، خودم اقساط وام او 
+- Individual_CRM_Questions_categorized#264 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر به عنوان دانشجو هیچ درآمدی نداشته باشم، آیا باز هم می‌توانم امتیاز اعتباری د
+- Individual_CRM_Questions_categorized#265 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اگر در یک روز از چندین بانک مختلف استعلام اعتباری بگیرم، آیا این موضوع به عنوان 
+- Individual_CRM_Questions_categorized#266 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: تفاوت بین رتبه اعتباری و امتیاز اعتباری چیست؟
+- Individual_CRM_Questions_categorized#267 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: در صورت فوت شخص، آیا بدهی‌های او بر رتبه اعتباری وراث تاثیر می‌گذارد؟
+- Individual_CRM_Questions_categorized#268 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا امکان دارد با داشتن رتبه اعتباری و امتیاز اعتباری عالی، همچنان درخواست وام م
+- Individual_CRM_Questions_categorized#269 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا اگر ضامن وام بزرگی شوم، تاثیر بیشتری بر امتیاز اعتباری من دارد، نسبت به حالت
+- Individual_CRM_Questions_categorized#270 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چرا فقط از یک سری داده های خاص در محاسبه امتیاز و رتبه استفاده می کنید، در حالی 
+- Individual_CRM_Questions_categorized#271 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: با وجود این که تاریخ انقضای گزارش اعتباری یک ماه است، اما امتیاز من در طول این ی
+- Individual_CRM_Questions_categorized#272 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چگونه به گزارش اعتباری شخصی دیگر دسترسی داشته باشم؟
+- Individual_CRM_Questions_categorized#273 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه من قرمز شده. چی کار کنم که سبز بشه؟
+- Individual_CRM_Questions_categorized#274 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: اعتبار ۴ قسطه (اسنپ یا دیجی پی یا ...) من در گزارش اعتباریم نیست.
+- Individual_CRM_Questions_categorized#275 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه من نارنجی شده. چی کار کنم که سبز بشه؟
+- Individual_CRM_Questions_categorized#276 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: وام و اعتبار کدوم بانک ها و اپلیکیشن ها توی گزارش هست؟
+- Individual_CRM_Questions_categorized#277 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: گزارش ۸۰۰۰ تومنی رو گرفتم و E3 شدم، باید چی کار کنم؟
+- Individual_CRM_Questions_categorized#278 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه من زرد شده. چی کار کنم که سبز شود؟
+- Individual_CRM_Questions_categorized#279 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چرا وقتی هیچ سابقه تاخیری ندارم، بالاترین امتیاز رو ندارم؟
+- Individual_CRM_Questions_categorized#280 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: شما جلوی وام گرفتن من را گرفتید. من رتبه C دارم و نمی توانم وام بگیرم.
+- Individual_CRM_Questions_categorized#281 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: شما با چه معیاری تصمیم می گیرید که چه کسی صلاحیت دریافت وام را دارد؟
+- Individual_CRM_Questions_categorized#282 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: آیا اگر رتبه D یا E داشته باشم، اصلا نمی توانم وام بگیرم؟
+- Individual_CRM_Questions_categorized#283 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چطوری اشتباه گزارشمو درست کنم؟
+- Individual_CRM_Questions_categorized#284 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: گزارش اعتباری چه شکلیه؟
+- Individual_CRM_Questions_categorized#285 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: تا چند سال توی امتیاز و رتبه مهمه؟
+- Individual_CRM_Questions_categorized#286 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: کدوم امتیازها خوبه؟
+- Individual_CRM_Questions_categorized#287 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: کدوم رتبه ها خوبه؟
+- Individual_CRM_Questions_categorized#288 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: کدوم رتبه ها بده؟
+- Individual_CRM_Questions_categorized#289 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: کدوم امتیازها بده؟
+- Individual_CRM_Questions_categorized#290 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبم چنده؟
+- Individual_CRM_Questions_categorized#291 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: امتیازم چنده؟
+- Individual_CRM_Questions_categorized#292 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من چند ماه پیش یه رتبه ای داشتم و از اون موقع تا الان قسطامو به موقع دادم. چرا ر
+- Individual_CRM_Questions_categorized#293 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: ۴۸۰ شدم. چرا؟
+- Individual_CRM_Questions_categorized#294 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: D1 شدم. چرا؟
+- Individual_CRM_Questions_categorized#295 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: ‌B1 شدم. چرا؟
+- Individual_CRM_Questions_categorized#296 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: C۲ شدم. چرا؟
+- Individual_CRM_Questions_categorized#297 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: A2 شدم. چرا A1 نشدم؟
+- Individual_CRM_Questions_categorized#298 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه من A شده، اما من سابقه چک برگشتی دارم، چطور ممکنه؟
+- Individual_CRM_Questions_categorized#299 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه من C شده و من تا حالا هیچ وامی نگرفتم،‌ چطور ممکنه؟
+- Individual_CRM_Questions_categorized#300 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه A یعنی چی؟
+- Individual_CRM_Questions_categorized#301 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه B یعنی چی؟
+- Individual_CRM_Questions_categorized#302 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه C یعنی چی؟
+- Individual_CRM_Questions_categorized#303 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه D یعنی چی؟
+- Individual_CRM_Questions_categorized#304 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه E یعنی چی؟
+- Individual_CRM_Questions_categorized#305 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه A1 یعنی چی؟
+- Individual_CRM_Questions_categorized#306 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه A2 یعنی چی؟
+- Individual_CRM_Questions_categorized#307 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه A3 یعنی چی؟
+- Individual_CRM_Questions_categorized#308 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه B1 یعنی چی؟
+- Individual_CRM_Questions_categorized#309 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه B2 یعنی چی؟
+- Individual_CRM_Questions_categorized#310 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه B3 یعنی چی؟
+- Individual_CRM_Questions_categorized#311 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه C1 یعنی چی؟
+- Individual_CRM_Questions_categorized#312 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه C2 یعنی چی؟
+- Individual_CRM_Questions_categorized#313 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه C3 یعنی چی؟
+- Individual_CRM_Questions_categorized#314 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه D1 یعنی چی؟
+- Individual_CRM_Questions_categorized#315 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه D2 یعنی چی؟
+- Individual_CRM_Questions_categorized#316 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه D3 یعنی چی؟
+- Individual_CRM_Questions_categorized#317 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه E1 یعنی چی؟
+- Individual_CRM_Questions_categorized#318 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه E2 یعنی چی؟
+- Individual_CRM_Questions_categorized#319 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه E3 یعنی چی؟
+- Individual_CRM_Questions_categorized#320 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چند درصد از امتیاز اعتباری وابسته به سابقه پرداخت اقساط است؟
+- Individual_CRM_Questions_categorized#321 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چند درصد از امتیاز اعتباری وابسته به مالیات است؟
+- Individual_CRM_Questions_categorized#322 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: چند درصد از امتیاز اعتباری وابسته به چک است؟
+- Individual_CRM_Questions_categorized#323 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: کدوم دلایل برگشت چک توی امتیاز مهمه؟
+- Individual_CRM_Questions_categorized#324 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: توی گزارشم نوشته «فرد در تعداد نسبتا کمی از ماه‌های 3 سال گذشته، بازپرداخت به مو
+- Individual_CRM_Questions_categorized#325 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: توی گزارشم نوشته  «فرد در 3 سال گذشته میانگین بدهی‌ بسیار زیادی داشته که در زمان
+- Individual_CRM_Questions_categorized#326 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من قسطمو دیر پرداخت کردم، ولی توی گزارش ثبت نشده. چرا؟
+- Individual_CRM_Questions_categorized#329 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: رتبه اعتباری من کاهش یافته است، علی رغم این که رفتار مالی مثبت داشتم. چرا؟
+- Individual_CRM_Questions_categorized#330 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من هیچ وامی نگرفته‌ام، ولی برای یک آشنا ضامن شده‌ام. آیا این روی امتیازم اثر دار
+- Individual_CRM_Questions_categorized#331 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: درآمد خانواده م به امتیاز اعتباری من ربط دارد؟
+- Individual_CRM_Questions_categorized#332 no-gold-chunk :: Individual_CRM_Questions_categorized.xlsx :: من فقط چند بار برای اطلاع از وضعیت اعتباری‌ام گزارش گرفته‌ام، چرا این روی امتیاز
+- IndividualCRMQuestions#0 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا امکان تغییر امتیاز اعتباری و رتبه اعتباری بلافاصله پس از پرداخت بدهی وجود دا
+- IndividualCRMQuestions#1 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا گزارش اعتباری من شامل اطلاعات حساب‌های پس‌انداز یا جاری بدون تسهیلات هم می‌ش
+- IndividualCRMQuestions#2 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم گزارش اعتباری شخصی دیگر یا یک شرکت را دریافت کنم؟
+- IndividualCRMQuestions#6 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چه مدت زمان طول می‌کشد تا بهبود در رفتار مالی من،امتیاز اعتباری و رتبه اعتباری‌ا
+- IndividualCRMQuestions#8 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم از شرکت اعتبارسنجی درخواست کنم که اطلاعات من را سریعا به‌روز کند؟
+- IndividualCRMQuestions#9 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا سابقه اعتباری فقط مختص افراد حقیقی است یا اشخاص حقوقی (شرکت‌ها) هم اعتبارسنج
+- IndividualCRMQuestions#10 no-gold-chunk :: IndividualCRMQuestions.xlsx :: برای دریافت وام‌های خرد و کوچک، آیا باز هم اعتبارسنجی ضروری است؟
+- IndividualCRMQuestions#11 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم رتبه اعتباری خود را به صورت رایگان استعلام کنم؟
+- IndividualCRMQuestions#15 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا بانک می‌تواند در خصوص تغییر امتیاز اعتباری و رتبه اعتباری من کاری انجام دهد؟
+- IndividualCRMQuestions#16 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چرا امتیاز اعتباری و رتبه اعتباری من مهم است؟
+- IndividualCRMQuestions#17 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چقدر طول می‌کشد تا گزارش اعتباری من به‌روز شود؟
+- IndividualCRMQuestions#19 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چه عواملی امتیاز اعتباری من را کاهش می‌دهد؟
+- IndividualCRMQuestions#23 no-gold-chunk :: IndividualCRMQuestions.xlsx :: ایرانی نیستم. گزارش اعتباری دارم؟
+- IndividualCRMQuestions#24 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا درخواست‌های زیاد برای وام و رد شدن آن‌ها به رتبه من آسیب می‌زند؟
+- IndividualCRMQuestions#25 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا رتبه اعتباری در بانک‌های مختلف یکسان است؟
+- IndividualCRMQuestions#30 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا بدهی‌های معوق قدیمی که فراموش کرده‌ام، می‌توانند رتبه من را پایین نگه دارند؟
+- IndividualCRMQuestions#32 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم درخواست بدهم تا اطلاعات خاصی از گزارش اعتباری‌ام حذف شود؟
+- IndividualCRMQuestions#33 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا سابقه بانکی در خارج از ایران (خارجی/اسم شهر/کشور) بر رتبه اعتباری من در ایرا
+- IndividualCRMQuestions#35 no-gold-chunk :: IndividualCRMQuestions.xlsx :: مهمترین درسی که باید در مورد اعتبارسنجی بدانم چیست؟
+- IndividualCRMQuestions#36 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم با داشتن بدهی معوق و رتبه پایین، باز هم وام بگیرم؟ تحت چه شرایطی؟
+- IndividualCRMQuestions#37 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه (امتیاز)‌م E2  (یا هر رتبه‌ای)ه، ملی (اسم بانک) بهم وام می‌ده؟
+- IndividualCRMQuestions#38 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا تأخیر در بازپرداخت بدهی‌های غیربانکی (مثل بدهی به شرکت‌های خصوصی) در اعتبارس
+- IndividualCRMQuestions#39 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا تأخیر در پس دادن  قسط دیجی پی/وام دیجی کالا/اسنپ/اسنپ پی/تارا در اعتبارسنجی 
+- IndividualCRMQuestions#40 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا بانک‌ها برای ارائه دسته چک، اعتبارسنجی می‌کنند؟
+- IndividualCRMQuestions#41 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا استخدام در شرکت‌های دولتی یا خصوصی و یا مقام کاری روی امتیاز اعتباری تاثیر د
+- IndividualCRMQuestions#42 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من کارمند بانکم (کارمند آموزش و پرورشم یا فلان) چرا امتیاز (رتبه)م C1 (یا هر رتب
+- IndividualCRMQuestions#43 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا امکان داره که یک وام‌گیرنده، امتیاز اعتباری خودش رو به شخص دیگری منتقل کنه؟
+- IndividualCRMQuestions#44 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من رتبه (امتیاز)‌م B2 (یا هر رتبه2ای) ه پسرم (یا عروسم/ همسرم یا همکارم) میتونه 
+- IndividualCRMQuestions#45 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چه مدت طول می‌کشد تا تاثیر منفی یک چک برگشتی از روی سابقه اعتباری پاک شود؟
+- IndividualCRMQuestions#46 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من چکم پارسال (یا چار سال پیش یا ده سال قبل) برگشت خورده هنوز تو رتبه (امتیاز)م 
+- IndividualCRMQuestions#47 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا مشتریان می‌توانند از بانک‌ها درخواست کنند که اطلاعات منفی از سابقه اعتباری آ
+- IndividualCRMQuestions#48 no-gold-chunk :: IndividualCRMQuestions.xlsx :: نمی‌خوام این چکم که برگشت خورده تو سابقه‌م بیاد، چه طوری حذفش کنم؟
+- IndividualCRMQuestions#49 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من یه بار فقط جریمه مالیاتی برام بریدن، چه طوری حذفش کنم؟
+- IndividualCRMQuestions#50 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من کلا دو روز موجودی حسابم کمتر از 200 بود که چکم برگشت خورده بود، بعدش درستش کر
+- IndividualCRMQuestions#51 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من فقط یه بار قسط ملیم (یا هر بانکی) رو دیر دادم، چه طوری حذفش کنم؟
+- IndividualCRMQuestions#56 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا ممکنه یک نفر اصلاً امتیاز اعتباری و رتبه اعتباری نداشته باشه؟
+- IndividualCRMQuestions#57 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا سوابق چک برگشتی روی امتیاز اعتباری اثر داره؟
+- IndividualCRMQuestions#58 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگه بدهی مالیاتیم تو گزارشم باشه و پرداختش کنم، بازم سوابق منفی‌اش رو رتبه‌ام اث
+- IndividualCRMQuestions#64 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا بدهی قبوض آب و برق در گزارش اعتبارسنجی محاسبه میشه؟
+- IndividualCRMQuestions#72 no-gold-chunk :: IndividualCRMQuestions.xlsx :: برای اینکه امتیاز اعتباریم رو ببرم بالا، باید چیکار کنم؟
+- IndividualCRMQuestions#86 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در طول ماه جاری تسهیلاتی را خاتمه داده‌ام. چه زمانی این موضوع در گزارش اعتبارسنج
+- IndividualCRMQuestions#87 no-gold-chunk :: IndividualCRMQuestions.xlsx :: جهت ارتباط با واحد امور مشتریان شرکت اعتبارسنجی با چه شماره‌ای می‌توان تماس گرفت
+- IndividualCRMQuestions#88 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در گزارش اعتبارسنجی، بدهی‌ای ثبت شده که من در همان ماهی که بدهی ثبت شد، با چند ر
+- IndividualCRMQuestions#89 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا ضمانت فردی که دارای بدهی سررسید شده پرداخت نشده است، تأثیر منفی بر رتبه اعتب
+- IndividualCRMQuestions#90 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من سابقه‌ی چک برگشتی داشته‌ام و اقدام به رفع اثر نموده‌ام، اما همچنان در گزارش ا
+- IndividualCRMQuestions#91 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا اطلاعات گزارش اعتبارسنجی که از طریق سایت شما دریافت می‌شود، با گزارشی که بان
+- IndividualCRMQuestions#92 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا شرکت اعتبارسنجی می‌تواند رتبه اعتباری مشتریان را تغییر دهد؟
+- IndividualCRMQuestions#93 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا گردش حساب بانکی من تأثیر مثبتی بر رتبه اعتباری‌ام دارد؟
+- IndividualCRMQuestions#94 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا پاس کردن به موقع چک‌های بیشتر، تاثیر مثبتی بر رتبه اعتباری من دارد؟
+- IndividualCRMQuestions#98 no-gold-chunk :: IndividualCRMQuestions.xlsx :: گزارش اعتبارسنجی تسهیلات شامل چه اطلاعاتی است؟
+- IndividualCRMQuestions#100 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر هیچ وامی نگرفتم رتبه اعتباریم جند حساب میشه؟
+- IndividualCRMQuestions#107 no-gold-chunk :: IndividualCRMQuestions.xlsx :: هر چند وقت یک‌بار می‌توانم گزارش اعتباری خود را چک کنم؟
+- IndividualCRMQuestions#108 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چه عواملی بر رتبه (امتیاز) اعتباری من تاثیر مثبت دارند؟
+- IndividualCRMQuestions#109 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟
+- IndividualCRMQuestions#110 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا رفع سوء اثر چک برگشتی باعث حذف آن از گزارش می‌شود؟
+- IndividualCRMQuestions#111 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا داشتن حساب‌های زیاد در بانک‌های مختلف تاثیری در امتیاز دارد؟
+- IndividualCRMQuestions#112 no-gold-chunk :: IndividualCRMQuestions.xlsx :: بلوکه شدن حساب بانکی یا موجودی بالا چه تاثیری دارد؟
+- IndividualCRMQuestions#113 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا حساب‌های قرض‌الحسنه در امتیاز اعتباری و رتبه اعتباری لحاظ می‌شوند؟
+- IndividualCRMQuestions#114 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم درخواست کنم اطلاعاتم سریع‌تر به‌روزرسانی شود؟
+- IndividualCRMQuestions#122 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا چک‌هایی که به دلیل کسری مبلغ اندک برگشت خورده‌اند، به همان اندازه چک‌های برگ
+- IndividualCRMQuestions#123 no-gold-chunk :: IndividualCRMQuestions.xlsx :: تفاوت تأثیر تأخیر یک روزه در پرداخت قسط با تأخیر یک ماهه چیه؟
+- IndividualCRMQuestions#126 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا معوق شدن یک قسط از وام خرد تأثیرش کمتر از معوق شدن قسط وام بزرگ هست؟
+- IndividualCRMQuestions#129 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا درخواست تقسیط بدهی سررسید شده پرداخت نشده باعث بهبود رتبه و امتیاز اعتباری م
+- IndividualCRMQuestions#131 no-gold-chunk :: IndividualCRMQuestions.xlsx :: تعداد چک‌های برگشتی در محاسبه امتیاز اعتباری فرد تأثیر بیشتری داره یا مبلغ چک‌ها
+- IndividualCRMQuestions#142 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چه زمانی باید برای بهبود امتیاز اعتباری خود اقدام کنم؟
+- IndividualCRMQuestions#143 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من مدیر عامل یه شرکتم. حالا که چک شرکت برگشت خورده امتیاز اعتباری من تحت تاثیر ق
+- IndividualCRMQuestions#144 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من مدیر عامل یه شرکتم. اگر تسهیلات شرکت معوق بشه امتیاز اعتباری من تحت تاثیر قرا
+- IndividualCRMQuestions#145 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر همزمان ضامن چند وام باشم، آیا این موضوع روی اعتبار من اثر منفی دارد؟
+- IndividualCRMQuestions#146 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر شخصی که ضامنش بوده‌ام، وامش را تسویه کرده باشد، آیا این ضمانت از گزارش من حذ
+- IndividualCRMQuestions#147 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر ضمانت من مربوط به شرکتی باشد که ورشکسته شده، آیا این موضوع روی اعتبار شخصی م
+- IndividualCRMQuestions#148 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم از ضمانت یک وام انصراف دهم و این موضوع در گزارش اعتباری من ثبت شود؟
+- IndividualCRMQuestions#149 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا در ایام تعطیلات رسمی، به‌روزرسانی گزارش اعتباری انجام میشه؟
+- IndividualCRMQuestions#150 no-gold-chunk :: IndividualCRMQuestions.xlsx :: کارفرمایان آیا حق دارن برای استخدام، گزارش اعتباری من رو بررسی کنن؟
+- IndividualCRMQuestions#151 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا پلتفرم‌های وام‌دهی آنلاین (فین‌تک‌ها) هم از اعتبارسنجی استفاده میکنن؟
+- IndividualCRMQuestions#152 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه می‌توانم از صحت اطلاعات مربوط به تاریخچه پرداخت‌های خود در گزارش اعتباری ا
+- IndividualCRMQuestions#153 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر کسی بدون اجازه من گزارش اعتباری‌ام رو بگیره، چه اقدام قانونی میتونم انجام بد
+- IndividualCRMQuestions#154 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چه کسانی غیر از خودم حق دسترسی به گزارش اعتباری من رو دارن؟
+- IndividualCRMQuestions#155 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا میتونم ببینم که چه کسانی تاکنون گزارش اعتباری من رو درخواست کردن؟
+- IndividualCRMQuestions#159 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر در زمان زلزله یا بلایای طبیعی نتونستم بدهی پرداخت کنم، امتیاز و رتبه اعتباری
+- IndividualCRMQuestions#160 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم درخواست کنم که اطلاعات اعتباری‌ام کاملاً محرمانه بماند و حتی به بان
+- IndividualCRMQuestions#162 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه می‌توانم از تأثیر مثبت بازپرداخت وام‌های خود بر امتیاز اعتباری خود مطلع شو
+- IndividualCRMQuestions#165 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر وام دریافت کنم اما زود تسویه اش کنم، تأثیرش در رتبه اعتباری من چیست؟
+- IndividualCRMQuestions#167 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من سابقه تاخیر در بازپرداخت قسط و یا چک برگشتی داشته ام. چرا بعد از رفع آن ها هم
+- IndividualCRMQuestions#169 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چرا اطلاعات بعضی از وام های من در گزارش اعتباری ام نشان داده نمی شود؟
+- IndividualCRMQuestions#170 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در صورت رفع سو اثر چک، چه زمانی امتیاز من از ۲۵۰ خارج می شود؟
+- IndividualCRMQuestions#171 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من در دو زمان مختلف گزارش اعتباری خود را دریافت کرده ام و در این فاصله هیچ قسط ی
+- IndividualCRMQuestions#172 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه می‌توان گزارش اعتباری خود را با دیگران به اشتراک گذاشت؟
+- IndividualCRMQuestions#173 no-gold-chunk :: IndividualCRMQuestions.xlsx :: میتونم گزارش اعتباریمو برای بقیه بفرستم؟
+- IndividualCRMQuestions#174 no-gold-chunk :: IndividualCRMQuestions.xlsx :: با وجود بازپرداخت بدهی تسهیلاتی، علت عدم تغییر در امتیاز و گزارش اعتباری من چیست
+- IndividualCRMQuestions#175 no-gold-chunk :: IndividualCRMQuestions.xlsx :: پس از رفع سوءاثر چک برگشتی، چقدر طول می‌کشد تا امتیاز اعتباری تغییر کند ؟
+- IndividualCRMQuestions#176 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر وضعیت تسهیلات، معوق و یا مشکوک الوصول (بیش از ۶ ماه تاخیر در بازپرداخت اقساط
+- IndividualCRMQuestions#177 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اطلاعات گزارش اعتباری چند وقت یکبار به‌روزرسانی می‌شود؟
+- IndividualCRMQuestions#178 no-gold-chunk :: IndividualCRMQuestions.xlsx :: امتیاز من بدون هیچ دلیلی شدیدا افت کرده.
+- IndividualCRMQuestions#179 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من ضامن یک وام شدم. اگر شخص تاخیر زیادی در پرداخت قسط های وام داشته باشد، آیا ام
+- IndividualCRMQuestions#180 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من برخی از دلایل کاهش امتیاز خودم را که در  گزارشم درج شده نمی فهمم.
+- IndividualCRMQuestions#181 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من قسط وام (تسهیلات)‌ خود را پرداخت کردم، اما اطلاعاتم در گزارش اعتباری به روز ن
+- IndividualCRMQuestions#182 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من بدهی مالیاتی پرداخت نشده داشتم و رتبه ام E3 شده است. اگر آن را پرداخت کنم، چه
+- IndividualCRMQuestions#183 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من یک محکومیت مالی پرداخت نشده داشتم و رتبه ام به این دلیل E3 شده است. اگر آن را
+- IndividualCRMQuestions#184 no-gold-chunk :: IndividualCRMQuestions.xlsx :: بدهی عقب افتاده را پرداخت کردم، چرا امتیازم تغییر نمی کنه؟
+- IndividualCRMQuestions#185 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چرا گزارش اعتباری من هنوز وامی را نشان می‌دهد که ۲ ماه پیش تسویه کرده‌ام؟
+- IndividualCRMQuestions#186 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم درخواست کنم اطلاعاتم زودتر از موعد ماهانه به‌روزرسانی شود؟
+- IndividualCRMQuestions#187 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر اطلاعاتم در دو بانک متناقض باشد، کدام یک در گزارش اعتباری لحاظ می‌شود؟
+- IndividualCRMQuestions#188 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم درخواست کنم که فقط اطلاعات ۲ سال اخیرم در گزارش اعتباری نمایش داده 
+- IndividualCRMQuestions#189 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر چک برگشتی من رفع سوء اثر شده باشد، اما همچنان در گزارش اعتباری نمایش داده شو
+- IndividualCRMQuestions#190 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر فرد هیچ سابقه وامی نداشته باشد، اما چک‌های زیادی پاس کرده باشد، آیا این موضو
+- IndividualCRMQuestions#192 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا امکان دارد امتیاز اعتباری من بدون هیچ تغییری در رفتار مالیم، کاهش یابد؟
+- IndividualCRMQuestions#197 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چرا با وجود بازپرداخت به‌موقع اقساط، امتیاز اعتباری من هنوز افزایش نیافته است؟
+- IndividualCRMQuestions#198 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه می‌توانم درخواست اصلاح اطلاعات نادرست در گزارش اعتباری را پیگیری کنم؟
+- IndividualCRMQuestions#201 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه می‌توانم درخواست دسترسی به جزئیات محاسباتی رتبه اعتباری خود یا شرکتم را دا
+- IndividualCRMQuestions#202 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه می‌توانم درخواست بررسی مجدد رتبه اعتباری (و امتیاز اعتباری) خود را پس از ت
+- IndividualCRMQuestions#203 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر بدهی شرکت در سامانه سمات به اشتباه ثبت شده باشد، چه مدارکی برای اصلاح آن لاز
+- IndividualCRMQuestions#204 no-gold-chunk :: IndividualCRMQuestions.xlsx :: هزینه دریافت گزارش اعتباری برای افراد زیر ۱۸ سال که حساب بانکی دارند چقدر است؟
+- IndividualCRMQuestions#205 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه می‌توانم درخواست حذف سابقه منفی قدیمی از گزارش اعتباری شرکت را ثبت کنم؟
+- IndividualCRMQuestions#206 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر یک بانک اطلاعات بازپرداخت اقساط مرا به شرکت اعتبارسنجی ارسال نکند (اطلاعات ب
+- IndividualCRMQuestions#208 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من تعداد بسیار زیادی تسهیلات را بدون هیچ گونه تاخیری بازپرداخت کرده ام و همیشه ض
+- IndividualCRMQuestions#209 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در گزارش اعتباری من قید شده که به علت یک بدهی با مبلغ بسیار کم، مشکوک الوصول شده
+- IndividualCRMQuestions#216 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر یک بار در پرداخت قسطی تاخیر داشته باشم اما مبلغ را قبل از ارسال  ماهانه اطلا
+- IndividualCRMQuestions#217 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا داشتن چند ضامن برای یک وام، در مقابل یک ضامن، تاثیر متفاوتی بر رتبه اعتباری 
+- IndividualCRMQuestions#218 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا فسخ قرارداد یک تسهیلات بانکی، در گزارش اعتباری ثبت می‌شود؟
+- IndividualCRMQuestions#221 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا می‌توانم درخواست مسدود کردن موقت دریافت گزارش اعتباری خود را داشته باشم؟
+- IndividualCRMQuestions#222 no-gold-chunk :: IndividualCRMQuestions.xlsx :: می تونم کاری کنم که کسی نتونه گزارشمو بگیره؟
+- IndividualCRMQuestions#223 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا دریافت تسهیلات با نرخ بهره پایین‌تر نسبت به وام‌های با نرخ بهره بالاتر تاثیر
+- IndividualCRMQuestions#227 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چنانچه به دلیل بلایای طبیعی (زلزله، سیل و...) و یا شرایط بحرانی (جنگ و ...) قادر
+- IndividualCRMQuestions#232 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا چک‌های برگشتی که مربوط به حساب مشترک باشد، روی امتیاز اعتباری من هم اثر می‌گ
+- IndividualCRMQuestions#233 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا پرداخت بخشی از یک قسط در موعد مقرر و تکمیل مانده آن در چند روز آینده (پس از 
+- IndividualCRMQuestions#235 no-gold-chunk :: IndividualCRMQuestions.xlsx :: تفاوت اثر «تعهدات جاری در نقش ضامن» با «تعهدات خاتمه‌یافته در نقش ضامن» در محاسب
+- IndividualCRMQuestions#236 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا سابقه سفته در سامانه اعتبارسنجی ثبت می‌شود و بر رتبه و امتیاز من اثر می‌گذار
+- IndividualCRMQuestions#237 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا گزارش اعتباری افراد شامل اطلاعات مربوط به وام‌های بانکی خاتمه‌یافته نیز می‌ش
+- IndividualCRMQuestions#238 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا جریمه دیرکرد اقساط در گزارش اعتباری من درج می‌شود؟
+- IndividualCRMQuestions#239 no-gold-chunk :: IndividualCRMQuestions.xlsx :: سابقه منفی در گزارش اعتباری با چه منطق و مبنایی درج می شود؟
+- IndividualCRMQuestions#240 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا سابقه اعتباری من در شرکت‌های اعتبارسنجی دیگر کشورها می‌تواند برای دریافت تسه
+- IndividualCRMQuestions#242 no-gold-chunk :: IndividualCRMQuestions.xlsx :: ایرانی نیستم. گزارش اعتباری دارم؟
+- IndividualCRMQuestions#244 no-gold-chunk :: IndividualCRMQuestions.xlsx :: یه قسطو کمتر دادم. اثرش چیه؟
+- IndividualCRMQuestions#245 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر به دلیل اختلال بانکی برداشت خودکار قسط انجام نشود، وضعیت چگونه در گزارش ثبت 
+- IndividualCRMQuestions#246 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در صورت ثبت اشتباه یک چک برگشتی و سپس اصلاح آن توسط بانک، آیا ردپای این موضوع در
+- IndividualCRMQuestions#247 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا سرمایه‌گذاری در سهام می‌تواند به عنوان عاملی مثبت در سنجش اعتبار در نظر گرفت
+- IndividualCRMQuestions#248 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در صورت اختلال گسترده در سیستم بانکی که باعث تأخیر در بازپرداخت اقساط یا در ارائ
+- IndividualCRMQuestions#249 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر تسهیلات بیش از یک ضامن داشته باشد، آیا عدم بازپرداخت مناسب اقساط تسهیلات توس
+- IndividualCRMQuestions#250 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر یک چک برگشتی داشته باشم اما بلافاصله (ظرف ۲۴ ساعت) مبلغ را تأمین و چک را رفع
+- IndividualCRMQuestions#253 no-gold-chunk :: IndividualCRMQuestions.xlsx :: وقتی گفته می شود سابقه بازپرداخت تسهیلات در نقش ضامن دقیقا یعنی چی؟
+- IndividualCRMQuestions#255 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا استعلام بانک ها از گزارش اعتباری من توی گزارشم ثبت می شه؟
+- IndividualCRMQuestions#256 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا استعلام بانک ها از گزارش اعتباری من توی امتیازم تاثیر داره؟
+- IndividualCRMQuestions#257 no-gold-chunk :: IndividualCRMQuestions.xlsx :: وام‌های خرد دقیقاً چه نوع وام‌هایی هستند و چه تفاوتی با وام‌های بزرگ در محاسبه ا
+- IndividualCRMQuestions#262 no-gold-chunk :: IndividualCRMQuestions.xlsx :: حداقل امتیاز اعتباری مورد نیاز برای دریافت وام بانکی چقدر است؟
+- IndividualCRMQuestions#263 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا امکان مقایسه امتیاز اعتباری یک شخص با شخص دیگر وجود دارد؟
+- IndividualCRMQuestions#264 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در صورت ابطال چک قبل از سررسید، آیا این موضوع در گزارش اعتباری ثبت می‌شود؟
+- IndividualCRMQuestions#267 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چنانچه وام خود را به شخص دیگری واگذار کنم (انتقال دهم)، آیا سابقه آن همچنان در گ
+- IndividualCRMQuestions#268 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا بانک‌ها موظف هستند قبل از گزارش اطلاعات منفی به شرکت اعتبارسنجی، به من اطلاع
+- IndividualCRMQuestions#269 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا امکان درخواست تجدید نظر (تجدید محاسبه) در رتبه اعتباری و امتیاز اعتباری اختص
+- IndividualCRMQuestions#271 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا شرکت اعتبارسنجی ایران با شرکت‌های اعتبارسنجی بین‌المللی تبادل اطلاعات دارد؟
+- IndividualCRMQuestions#273 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا امکان مشاهده تاریخچه تغییرات امتیاز اعتباری در طول زمان وجود دارد؟
+- IndividualCRMQuestions#274 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا تاخیر در پرداخت اقساط در دوران بحران‌های اقتصادی (جنگ، همه‌گیری بیماری و ...
+- IndividualCRMQuestions#277 no-gold-chunk :: IndividualCRMQuestions.xlsx :: در صورت انتقال ضمانت وام از یک شخص به شخص دیگر، آیا سابقه ضمانت از گزارش اعتباری
+- IndividualCRMQuestions#278 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر من به عنوان ضامن، در صورت تاخیر در بازپرداخت متقاضی اصلی، خودم اقساط وام او 
+- IndividualCRMQuestions#280 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر در یک روز از چندین بانک مختلف استعلام اعتباری بگیرم، آیا این موضوع به عنوان 
+- IndividualCRMQuestions#281 no-gold-chunk :: IndividualCRMQuestions.xlsx :: تفاوت بین رتبه اعتباری و امتیاز اعتباری چیست؟
+- IndividualCRMQuestions#283 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا امکان دارد با داشتن رتبه اعتباری و امتیاز اعتباری عالی، همچنان درخواست وام م
+- IndividualCRMQuestions#284 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا اگر ضامن وام بزرگی شوم، تاثیر بیشتری بر امتیاز اعتباری من دارد، نسبت به حالت
+- IndividualCRMQuestions#285 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چرا فقط از یک سری داده های خاص در محاسبه امتیاز و رتبه استفاده می کنید، در حالی 
+- IndividualCRMQuestions#286 no-gold-chunk :: IndividualCRMQuestions.xlsx :: با وجود این که تاریخ انقضای گزارش اعتباری یک ماه است، اما امتیاز من در طول این ی
+- IndividualCRMQuestions#287 no-gold-chunk :: IndividualCRMQuestions.xlsx :: چگونه به گزارش اعتباری شخصی دیگر دسترسی داشته باشم؟
+- IndividualCRMQuestions#288 empty-question :: IndividualCRMQuestions.xlsx :: 
+- IndividualCRMQuestions#301 no-gold-chunk :: IndividualCRMQuestions.xlsx :: تا چند سال توی امتیاز و رتبه مهمه؟
+- IndividualCRMQuestions#302 no-gold-chunk :: IndividualCRMQuestions.xlsx :: کدوم امتیازها خوبه؟
+- IndividualCRMQuestions#303 no-gold-chunk :: IndividualCRMQuestions.xlsx :: کدوم رتبه ها خوبه؟
+- IndividualCRMQuestions#304 no-gold-chunk :: IndividualCRMQuestions.xlsx :: کدوم رتبه ها بده؟
+- IndividualCRMQuestions#305 no-gold-chunk :: IndividualCRMQuestions.xlsx :: کدوم امتیازها بده؟
+- IndividualCRMQuestions#306 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبم چنده؟
+- IndividualCRMQuestions#307 no-gold-chunk :: IndividualCRMQuestions.xlsx :: امتیازم چنده؟
+- IndividualCRMQuestions#308 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من چند ماه پیش یه رتبه ای داشتم و از اون موقع تا الان قسطامو به موقع دادم. چرا ر
+- IndividualCRMQuestions#309 no-gold-chunk :: IndividualCRMQuestions.xlsx :: ۴۸۰ شدم. چرا؟
+- IndividualCRMQuestions#310 no-gold-chunk :: IndividualCRMQuestions.xlsx :: D1 شدم. چرا؟
+- IndividualCRMQuestions#311 no-gold-chunk :: IndividualCRMQuestions.xlsx :: ‌B1 شدم. چرا؟
+- IndividualCRMQuestions#312 no-gold-chunk :: IndividualCRMQuestions.xlsx :: C۲ شدم. چرا؟
+- IndividualCRMQuestions#313 no-gold-chunk :: IndividualCRMQuestions.xlsx :: A2 شدم. چرا A1 نشدم؟
+- IndividualCRMQuestions#314 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه من A شده، اما من سابقه چک برگشتی دارم، چطور ممکنه؟
+- IndividualCRMQuestions#316 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه A یعنی چی؟
+- IndividualCRMQuestions#317 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه B یعنی چی؟
+- IndividualCRMQuestions#318 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه C یعنی چی؟
+- IndividualCRMQuestions#319 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه D یعنی چی؟
+- IndividualCRMQuestions#320 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه E یعنی چی؟
+- IndividualCRMQuestions#321 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه A1 یعنی چی؟
+- IndividualCRMQuestions#322 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه A2 یعنی چی؟
+- IndividualCRMQuestions#323 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه A3 یعنی چی؟
+- IndividualCRMQuestions#324 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه B1 یعنی چی؟
+- IndividualCRMQuestions#325 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه B2 یعنی چی؟
+- IndividualCRMQuestions#326 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه B3 یعنی چی؟
+- IndividualCRMQuestions#327 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه C1 یعنی چی؟
+- IndividualCRMQuestions#328 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه C2 یعنی چی؟
+- IndividualCRMQuestions#329 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه C3 یعنی چی؟
+- IndividualCRMQuestions#330 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه D1 یعنی چی؟
+- IndividualCRMQuestions#331 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه D2 یعنی چی؟
+- IndividualCRMQuestions#332 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه D3 یعنی چی؟
+- IndividualCRMQuestions#333 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه E1 یعنی چی؟
+- IndividualCRMQuestions#334 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه E2 یعنی چی؟
+- IndividualCRMQuestions#335 no-gold-chunk :: IndividualCRMQuestions.xlsx :: رتبه E3 یعنی چی؟
+- IndividualCRMQuestions#343 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من قسطمو دیر پرداخت کردم، ولی توی گزارش ثبت نشده. چرا؟
+- IndividualCRMQuestions#351 no-gold-chunk :: IndividualCRMQuestions.xlsx :: خطوط قرمز چیه؟
+- IndividualCRMQuestions#377 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا بدهی‌های با مبلغ بسیار کم هم باعث کاهش شدید امتیاز می‌شوند؟
+- IndividualCRMQuestions#378 no-gold-chunk :: IndividualCRMQuestions.xlsx :: من یکمی بدهی دارم چرا امتیازم همچنان بالاست / رتبه E3 نشده‌ام؟
+- IndividualCRMQuestions#379 no-gold-chunk :: IndividualCRMQuestions.xlsx :: آیا این آستانه مبلغی (۲۵۰ هزار تومان) برای همه انواع بدهی یکسان است؟
+- IndividualCRMQuestions#380 no-gold-chunk :: IndividualCRMQuestions.xlsx :: اگر بدهی من دقیقاً ۲۵۰ هزار تومان یا کمی بیشتر باشد، وضعیت منفی محاسبه می‌شود؟
+- IndividualCRMQuestions#381 no-gold-chunk :: IndividualCRMQuestions.xlsx :: امتیاز تسهیلات من بالاست ولی چکم پایینه چرا؟
+- IndividualCRMQuestions#382 no-gold-chunk :: IndividualCRMQuestions.xlsx :: امتیاز تسهیلات من پایینه ولی چکم بالاست چرا؟
+- IndividualQuestions_V3#0 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان تغییر امتیاز اعتباری و رتبه اعتباری بلافاصله پس از پرداخت بدهی وجود دا
+- IndividualQuestions_V3#1 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا گزارش اعتباری من شامل اطلاعات حساب‌های پس‌انداز یا جاری بدون تسهیلات هم می‌ش
+- IndividualQuestions_V3#2 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم گزارش اعتباری شخصی دیگر یا یک شرکت را دریافت کنم؟
+- IndividualQuestions_V3#3 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر در یک بانک خاص سابقه بدی داشته باشم، آیا این موضوع بر دریافت تسهیلات از سایر
+- IndividualQuestions_V3#4 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر فکر می کنم اطلاعات گزارش اعتباری من نادرست است، چه کار باید بکنم؟
+- IndividualQuestions_V3#5 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا برای دریافت گزارش اعتباری نیاز به حضور فیزیکی در جایی است؟
+- IndividualQuestions_V3#6 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه مدت زمان طول می‌کشد تا بهبود در رفتار مالی من،امتیاز اعتباری و رتبه اعتباری‌ا
+- IndividualQuestions_V3#7 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا با وجود اینکه همه اقساط رو سرموقع پرداخت کردم، امتیازم بالاتر نرفته است؟
+- IndividualQuestions_V3#8 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم از شرکت اعتبارسنجی درخواست کنم که اطلاعات من را سریعا به‌روز کند؟
+- IndividualQuestions_V3#9 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سابقه اعتباری فقط مختص افراد حقیقی است یا اشخاص حقوقی (شرکت‌ها) هم اعتبارسنج
+- IndividualQuestions_V3#10 no-gold-chunk :: IndividualQuestions_V3.xlsx :: برای دریافت وام‌های خرد و کوچک، آیا باز هم اعتبارسنجی ضروری است؟
+- IndividualQuestions_V3#11 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم رتبه اعتباری خود را به صورت رایگان استعلام کنم؟
+- IndividualQuestions_V3#12 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر هیچ سابقه اعتباری  نداشته باشم، چگونه می‌توانم برای خود سابقه اعتباری بسازم؟
+- IndividualQuestions_V3#13 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا وضعیت تأهل یا تعداد فرزندان بر رتبه اعتباری تاثیر دارد؟
+- IndividualQuestions_V3#14 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تغییر شغل یا محل سکونت بر رتبه اعتباری تاثیر دارد؟
+- IndividualQuestions_V3#15 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا بانک می‌تواند در خصوص تغییر امتیاز اعتباری و رتبه اعتباری من کاری انجام دهد؟
+- IndividualQuestions_V3#16 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا امتیاز اعتباری و رتبه اعتباری من مهم است؟
+- IndividualQuestions_V3#17 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چقدر طول می‌کشد تا گزارش اعتباری من به‌روز شود؟
+- IndividualQuestions_V3#18 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا اشخاص حقوقی نیز اعتبارسنجی می شوند؟
+- IndividualQuestions_V3#19 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه عواملی امتیاز اعتباری من را کاهش می‌دهد؟
+- IndividualQuestions_V3#20 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا درآمد بالا به تنهایی رتبه اعتباری من را بالا می‌برد؟
+- IndividualQuestions_V3#21 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من درآمدم بالا هستش (n تومنه) چرا رتبه‌م B2 (یا هر رتبه‌ای) ه؟
+- IndividualQuestions_V3#22 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من درآمد پایینی دارم. چرا نتونم رتبه اعتباری بالایی داشته باشم؟
+- IndividualQuestions_V3#23 no-gold-chunk :: IndividualQuestions_V3.xlsx :: ایرانی نیستم. گزارش اعتباری دارم؟
+- IndividualQuestions_V3#24 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا درخواست‌های زیاد برای وام و رد شدن آن‌ها به رتبه من آسیب می‌زند؟
+- IndividualQuestions_V3#25 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا رتبه اعتباری در بانک‌های مختلف یکسان است؟
+- IndividualQuestions_V3#26 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا گزارش اعتباری، امتیاز اعتباری و رتبه اعتباری من با همسرم (یا اعضای خانواده‌ا
+- IndividualQuestions_V3#27 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا اطلاعات شخصی من در گزارش اعتباری نمایش داده می‌شود؟
+- IndividualQuestions_V3#28 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تعداد کارت‌های بانکی فعال بر رتبه اعتباری من تاثیر دارد؟
+- IndividualQuestions_V3#29 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا رتبه اعتباری من با تغییر محل زندگی یا شغل تغییر می‌کند؟
+- IndividualQuestions_V3#30 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا بدهی‌های معوق قدیمی که فراموش کرده‌ام، می‌توانند رتبه من را پایین نگه دارند؟
+- IndividualQuestions_V3#31 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا وضعیت تاهل بر رتبه اعتباری تاثیر دارد؟
+- IndividualQuestions_V3#32 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم درخواست بدهم تا اطلاعات خاصی از گزارش اعتباری‌ام حذف شود؟
+- IndividualQuestions_V3#33 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سابقه بانکی در خارج از ایران (خارجی/اسم شهر/کشور) بر رتبه اعتباری من در ایرا
+- IndividualQuestions_V3#34 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من سه سال پیش از ایران مهاجرت کردم و الان برگشتم. در این مدت هیچ سابقه داخلی ندا
+- IndividualQuestions_V3#35 no-gold-chunk :: IndividualQuestions_V3.xlsx :: مهمترین درسی که باید در مورد اعتبارسنجی بدانم چیست؟
+- IndividualQuestions_V3#36 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم با داشتن بدهی معوق و رتبه پایین، باز هم وام بگیرم؟ تحت چه شرایطی؟
+- IndividualQuestions_V3#37 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه (امتیاز)‌م E2  (یا هر رتبه‌ای)ه، ملی (اسم بانک) بهم وام می‌ده؟
+- IndividualQuestions_V3#38 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تأخیر در بازپرداخت بدهی‌های غیربانکی (مثل بدهی به شرکت‌های خصوصی) در اعتبارس
+- IndividualQuestions_V3#39 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تأخیر در پس دادن  قسط دیجی پی/وام دیجی کالا/اسنپ/اسنپ پی/تارا در اعتبارسنجی 
+- IndividualQuestions_V3#40 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا بانک‌ها برای ارائه دسته چک، اعتبارسنجی می‌کنند؟
+- IndividualQuestions_V3#41 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا استخدام در شرکت‌های دولتی یا خصوصی و یا مقام کاری روی امتیاز اعتباری تاثیر د
+- IndividualQuestions_V3#42 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من کارمند بانکم (کارمند آموزش و پرورشم یا فلان) چرا امتیاز (رتبه)م C1 (یا هر رتب
+- IndividualQuestions_V3#43 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان داره که یک وام‌گیرنده، امتیاز اعتباری خودش رو به شخص دیگری منتقل کنه؟
+- IndividualQuestions_V3#44 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من رتبه (امتیاز)‌م B2 (یا هر رتبه2ای) ه پسرم (یا عروسم/ همسرم یا همکارم) میتونه 
+- IndividualQuestions_V3#45 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه مدت طول می‌کشد تا تاثیر منفی یک چک برگشتی از روی سابقه اعتباری پاک شود؟
+- IndividualQuestions_V3#46 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من چکم پارسال (یا چار سال پیش یا ده سال قبل) برگشت خورده هنوز تو رتبه (امتیاز)م 
+- IndividualQuestions_V3#47 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا مشتریان می‌توانند از بانک‌ها درخواست کنند که اطلاعات منفی از سابقه اعتباری آ
+- IndividualQuestions_V3#48 no-gold-chunk :: IndividualQuestions_V3.xlsx :: نمی‌خوام این چکم که برگشت خورده تو سابقه‌م بیاد، چه طوری حذفش کنم؟
+- IndividualQuestions_V3#49 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من یه بار فقط جریمه مالیاتی برام بریدن، چه طوری حذفش کنم؟
+- IndividualQuestions_V3#50 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من کلا دو روز موجودی حسابم کمتر از 200 بود که چکم برگشت خورده بود، بعدش درستش کر
+- IndividualQuestions_V3#51 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من فقط یه بار قسط ملیم (یا هر بانکی) رو دیر دادم، چه طوری حذفش کنم؟
+- IndividualQuestions_V3#52 no-gold-chunk :: IndividualQuestions_V3.xlsx :: توی گزارش امتیاز اعتباری من نوشته “دارای وضعیت منفی (معوق/ مشکوک‌الوصول)  در تسه
+- IndividualQuestions_V3#53 no-gold-chunk :: IndividualQuestions_V3.xlsx :: توی گزارش امتیاز اعتباری من نوشته “دلایل کاهش امتیاز: فرد، دارای بدهی مالیاتی اس
+- IndividualQuestions_V3#54 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگه اقساطم رو به موقع پرداخت نکنم، روی امتیاز اعتباریم و رتبه اعتباریم اثر منفی 
+- IndividualQuestions_V3#55 no-gold-chunk :: IndividualQuestions_V3.xlsx :: “آیا ضمانت فردی که دارای بدهی است، تأثیر منفی قابل توجهی بر رتبه اعتباری بنده خو
+- IndividualQuestions_V3#56 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا ممکنه یک نفر اصلاً امتیاز اعتباری و رتبه اعتباری نداشته باشه؟
+- IndividualQuestions_V3#57 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سوابق چک برگشتی روی امتیاز اعتباری اثر داره؟
+- IndividualQuestions_V3#58 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگه بدهی مالیاتیم تو گزارشم باشه و پرداختش کنم، بازم سوابق منفی‌اش رو رتبه‌ام اث
+- IndividualQuestions_V3#59 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من یه چک برگشتی داشتم، الان رفع سوءاثر شده. می‌خوام بدونم کی رتبه‌م درست می‌شه؟
+- IndividualQuestions_V3#60 no-gold-chunk :: IndividualQuestions_V3.xlsx :: می‌خواستم بدونم اگه چک برگشتی داشته باشم، رتبه اعتباریم چی میشه؟
+- IndividualQuestions_V3#61 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر بدهی مالیاتی داشته باشم، رتبه اعتباری و امتیازم به چه صورت تغییر می‌کنه؟
+- IndividualQuestions_V3#62 no-gold-chunk :: IndividualQuestions_V3.xlsx :: شرکتم بدهی مالیاتی داره، رتبه اعتباری من کم میشه؟
+- IndividualQuestions_V3#63 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چک  شرکتم برگشت خورد، رتبه اعتباری من کم میشه؟
+- IndividualQuestions_V3#64 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا بدهی قبوض آب و برق در گزارش اعتبارسنجی محاسبه میشه؟
+- IndividualQuestions_V3#65 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من قبض موبایلمو یادم رفت دیر پرداخت کردم تو رتبه‌م موثره؟
+- IndividualQuestions_V3#66 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر تو ۵ سال گذشته وام نگرفته باشم، باز هم رتبه اعتباری دارم؟
+- IndividualQuestions_V3#67 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من رتبه اعتباریم برام میخوره C2  (یا C1 یا C3) ولی قبلا وام ملت (یا هر وامی از ه
+- IndividualQuestions_V3#68 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اطلاعات تسهیلاتی تو گزارش اعتبارسنجی هر چند وقت یه بار بروز می‌شه؟
+- IndividualQuestions_V3#69 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا محکومیت‌های غیر مالی در گزارش اعتبارسنجی قرار می‌گیرن؟
+- IndividualQuestions_V3#70 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر محکومیت مالی از طرف قوه قضاییه اعلام شود، چه مبلغی باعث کاهش رتبه اعتباری می
+- IndividualQuestions_V3#71 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آدرس سایت رسمی شرکت اعتبارسنجی ایران جهت اخذ  گزارش اعتبارسنجی را بنویس.
+- IndividualQuestions_V3#72 no-gold-chunk :: IndividualQuestions_V3.xlsx :: برای اینکه امتیاز اعتباریم رو ببرم بالا، باید چیکار کنم؟
+- IndividualQuestions_V3#73 no-gold-chunk :: IndividualQuestions_V3.xlsx :: هزینه گرفتن گزارش اعتبارسنجی برای اشخاص حقیقی  چقدر هستش؟
+- IndividualQuestions_V3#74 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من در خصوص سامانه فرابانک ملت سوالی دارم  آیا شما می‌تونید کمکم کنید؟
+- IndividualQuestions_V3#75 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه وثیقه ای لازمه که بتونم وام 300 تومنی ملی رو بگیرم؟
+- IndividualQuestions_V3#76 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنتا ضامن لازمه برا وام بانک مهر اقتصاد؟
+- IndividualQuestions_V3#77 no-gold-chunk :: IndividualQuestions_V3.xlsx :: امتیاز اعتباری به چند دسته تقسیم می‌شود؟
+- IndividualQuestions_V3#78 no-gold-chunk :: IndividualQuestions_V3.xlsx :: گزارش اعتباری چیست؟
+- IndividualQuestions_V3#79 no-gold-chunk :: IndividualQuestions_V3.xlsx :: گزارش اعتباری شامل چه اطلاعاتی است؟
+- IndividualQuestions_V3#80 no-gold-chunk :: IndividualQuestions_V3.xlsx :: محدوده امتیاز اعتباری چقدر است و معنای آن چیست؟
+- IndividualQuestions_V3#81 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در صورتی که اقساط من معوق و یا مشکوک الوصول باشد چه مدت زمان باید از پرداخت بدهی
+- IndividualQuestions_V3#82 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من تا به حال هیچ وامی نداشته‌ام و اخیراً یک وام دریافت کردم. با پرداخت چند قسط ر
+- IndividualQuestions_V3#83 no-gold-chunk :: IndividualQuestions_V3.xlsx :: سلام و وقت بخیر اعتراض میکنم به سببب اینکه من برج 3رتبه اعتباری B3الان اعتبارسنج
+- IndividualQuestions_V3#84 no-gold-chunk :: IndividualQuestions_V3.xlsx :: نمره منفی برااقساط معوقمه ک 3 ماه از پرداختش گذشته و پرداخت کردم و برام نمره منف
+- IndividualQuestions_V3#85 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه اعتباری من کاهش یافته است، در حالی که قبلا بالاتر بوده و من تمام تسهیلات خو
+- IndividualQuestions_V3#86 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در طول ماه جاری تسهیلاتی را خاتمه داده‌ام. چه زمانی این موضوع در گزارش اعتبارسنج
+- IndividualQuestions_V3#87 no-gold-chunk :: IndividualQuestions_V3.xlsx :: جهت ارتباط با واحد امور مشتریان شرکت اعتبارسنجی با چه شماره‌ای می‌توان تماس گرفت
+- IndividualQuestions_V3#88 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در گزارش اعتبارسنجی، بدهی‌ای ثبت شده که من در همان ماهی که بدهی ثبت شد، با چند ر
+- IndividualQuestions_V3#89 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا ضمانت فردی که دارای بدهی سررسید شده پرداخت نشده است، تأثیر منفی بر رتبه اعتب
+- IndividualQuestions_V3#90 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من سابقه‌ی چک برگشتی داشته‌ام و اقدام به رفع اثر نموده‌ام، اما همچنان در گزارش ا
+- IndividualQuestions_V3#91 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا اطلاعات گزارش اعتبارسنجی که از طریق سایت شما دریافت می‌شود، با گزارشی که بان
+- IndividualQuestions_V3#92 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا شرکت اعتبارسنجی می‌تواند رتبه اعتباری مشتریان را تغییر دهد؟
+- IndividualQuestions_V3#93 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا گردش حساب بانکی من تأثیر مثبتی بر رتبه اعتباری‌ام دارد؟
+- IndividualQuestions_V3#94 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا پاس کردن به موقع چک‌های بیشتر، تاثیر مثبتی بر رتبه اعتباری من دارد؟
+- IndividualQuestions_V3#95 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اعتبارسنجی چیست؟
+- IndividualQuestions_V3#96 no-gold-chunk :: IndividualQuestions_V3.xlsx :: هدف از اعتبارسنجی چیست؟
+- IndividualQuestions_V3#97 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه کسانی از گزارش اعتباری استفاده می‌کنند؟
+- IndividualQuestions_V3#98 no-gold-chunk :: IndividualQuestions_V3.xlsx :: گزارش اعتبارسنجی تسهیلات شامل چه اطلاعاتی است؟
+- IndividualQuestions_V3#99 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه مدارکی برای دریافت گزارش اعتباری لازم است؟
+- IndividualQuestions_V3#100 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر هیچ وامی نگرفتم رتبه اعتباریم جند حساب میشه؟
+- IndividualQuestions_V3#101 no-gold-chunk :: IndividualQuestions_V3.xlsx :: افراد بازنشسته منبع درآمد منظمی دارند ولی سابقه وام ندارند، ریسک بالا حساب می شو
+- IndividualQuestions_V3#102 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من سابقه اعتباری ندارم، آیا الگوی خریدهای اینترنتی(مثل تعداد و مبلغ تراکنش های د
+- IndividualQuestions_V3#103 no-gold-chunk :: IndividualQuestions_V3.xlsx :: فردی هیچ سابقه بانکی ندارد ولی ثبت شرکت با گردش مالی بالا دارد. آیا از داده های 
+- IndividualQuestions_V3#104 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر یک فرد بدون سابقه، ضامن معتبر معرفی کند، آیا مدل به جای امتیاز شخص، به امتیا
+- IndividualQuestions_V3#105 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا فردی که سابقه اعتباری ندارد، حق اعتراض به عدم امتیاز را دارد؟
+- IndividualQuestions_V3#106 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر من سابقه وام نداشته باشم، ولی سابقه اجاره ملک داشته باشم، آیا در مدل تاثیر م
+- IndividualQuestions_V3#107 no-gold-chunk :: IndividualQuestions_V3.xlsx :: هر چند وقت یک‌بار می‌توانم گزارش اعتباری خود را چک کنم؟
+- IndividualQuestions_V3#108 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه عواملی بر رتبه (امتیاز) اعتباری من تاثیر مثبت دارند؟
+- IndividualQuestions_V3#109 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سابقه ضمانت (ضامن بودن من) در گزارش اعتباری من ثبت می‌شود؟
+- IndividualQuestions_V3#110 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا رفع سوء اثر چک برگشتی باعث حذف آن از گزارش می‌شود؟
+- IndividualQuestions_V3#111 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا داشتن حساب‌های زیاد در بانک‌های مختلف تاثیری در امتیاز دارد؟
+- IndividualQuestions_V3#112 no-gold-chunk :: IndividualQuestions_V3.xlsx :: بلوکه شدن حساب بانکی یا موجودی بالا چه تاثیری دارد؟
+- IndividualQuestions_V3#113 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا حساب‌های قرض‌الحسنه در امتیاز اعتباری و رتبه اعتباری لحاظ می‌شوند؟
+- IndividualQuestions_V3#114 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم درخواست کنم اطلاعاتم سریع‌تر به‌روزرسانی شود؟
+- IndividualQuestions_V3#115 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا با پرداخت بدهی، سوابق منفی قبلی پاک می‌شوند؟
+- IndividualQuestions_V3#116 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه اعتباری پایین چه مشکلاتی ایجاد می‌کند؟
+- IndividualQuestions_V3#117 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا اطلاعات من محرمانه می ماند؟
+- IndividualQuestions_V3#118 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا شرکت‌های لیزینگ هم از اعتبارسنجی استفاده می‌کنند؟
+- IndividualQuestions_V3#119 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان تغییر رتبه اعتباری بلافاصله پس از پرداخت بدهی وجود دارد؟
+- IndividualQuestions_V3#120 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا چک‌هایی که در سامانه صیاد ثبت نشده‌اند، در اعتبارسنجی لحاظ می‌شوند؟
+- IndividualQuestions_V3#121 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا داشتن چک‌های پاس‌شده زیاد، تأثیر مثبتی روی امتیاز اعتباری من دارد؟
+- IndividualQuestions_V3#122 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا چک‌هایی که به دلیل کسری مبلغ اندک برگشت خورده‌اند، به همان اندازه چک‌های برگ
+- IndividualQuestions_V3#123 no-gold-chunk :: IndividualQuestions_V3.xlsx :: تفاوت تأثیر تأخیر یک روزه در پرداخت قسط با تأخیر یک ماهه چیه؟
+- IndividualQuestions_V3#124 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سابقه استفاده از کارت اعتباری و پرداخت به موقع اون، امتیازم رو بالا میبره؟
+- IndividualQuestions_V3#125 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر وام قرض‌الحسنه (سود 4 درصد یا کمتر) بگیرم و به موقع پرداخت کنم، تأثیرش مثل پ
+- IndividualQuestions_V3#126 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا معوق شدن یک قسط از وام خرد تأثیرش کمتر از معوق شدن قسط وام بزرگ هست؟
+- IndividualQuestions_V3#127 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر محکومیت مالی کمتر از 10 میلیارد تومان داشته باشم، چقدر رتبه‌ام کاهش پیدا میک
+- IndividualQuestions_V3#128 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر به عنوان وام‌گیرنده اصلی، ضامن هم داشته باشم و اقساط وام با تاخیر پرداخت بشه
+- IndividualQuestions_V3#129 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا درخواست تقسیط بدهی سررسید شده پرداخت نشده باعث بهبود رتبه و امتیاز اعتباری م
+- IndividualQuestions_V3#130 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا بدهی‌های مربوط به خرید اقساطی کالا از فروشگاه‌ها در گزارش اعتباری ثبت میشه؟
+- IndividualQuestions_V3#131 no-gold-chunk :: IndividualQuestions_V3.xlsx :: تعداد چک‌های برگشتی در محاسبه امتیاز اعتباری فرد تأثیر بیشتری داره یا مبلغ چک‌ها
+- IndividualQuestions_V3#132 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا چک ضمانتی که برگشت نخورده اما سررسیدش گذشته، در گزارش اعتباری ثبت میشه؟
+- IndividualQuestions_V3#133 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا چک ضمانتی که برگشت نخورده اما سررسیدش گذشته، در امتیاز اعتباری تاثیر داره؟
+- IndividualQuestions_V3#134 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا میتونم قبل از صدور چک، رتبه اعتباری صادرکننده چک رو بررسی کنم؟
+- IndividualQuestions_V3#135 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان دارد وامی که از آن بی‌خبر بوده‌ام، در گزارش اعتباری من ظاهر شود؟
+- IndividualQuestions_V3#136 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر وامی را به نام شخص دیگری ضمانت کرده باشم، آیا در گزارش من نشان داده می‌شود؟
+- IndividualQuestions_V3#137 no-gold-chunk :: IndividualQuestions_V3.xlsx :: تفاوت وام‌های بانکی و تسهیلات موسسات غیربانکی در اعتبارسنجی چیه؟
+- IndividualQuestions_V3#138 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر وام دریافت کنم اما ازش استفاده نکنم و زود تسویه کنم، تأثیرش در امتیاز و رتبه
+- IndividualQuestions_V3#139 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر نسبت به بدهی مالیاتی‌ام اعتراض داده باشم، آیا تا زمان رسیدگی، این بدهی در گز
+- IndividualQuestions_V3#140 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان دارد بدهی مالیاتی‌ام بدون اطلاع قبلی در گزارش اعتباری من ظاهر شود؟
+- IndividualQuestions_V3#141 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم گزارش اعتباری خود را برای یک دوره زمانی خاص درخواست کنم؟
+- IndividualQuestions_V3#142 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه زمانی باید برای بهبود امتیاز اعتباری خود اقدام کنم؟
+- IndividualQuestions_V3#143 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من مدیر عامل یه شرکتم. حالا که چک شرکت برگشت خورده امتیاز اعتباری من تحت تاثیر ق
+- IndividualQuestions_V3#144 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من مدیر عامل یه شرکتم. اگر تسهیلات شرکت معوق بشه امتیاز اعتباری من تحت تاثیر قرا
+- IndividualQuestions_V3#145 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر همزمان ضامن چند وام باشم، آیا این موضوع روی اعتبار من اثر منفی دارد؟
+- IndividualQuestions_V3#146 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر شخصی که ضامنش بوده‌ام، وامش را تسویه کرده باشد، آیا این ضمانت از گزارش من حذ
+- IndividualQuestions_V3#147 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر ضمانت من مربوط به شرکتی باشد که ورشکسته شده، آیا این موضوع روی اعتبار شخصی م
+- IndividualQuestions_V3#148 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم از ضمانت یک وام انصراف دهم و این موضوع در گزارش اعتباری من ثبت شود؟
+- IndividualQuestions_V3#149 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا در ایام تعطیلات رسمی، به‌روزرسانی گزارش اعتباری انجام میشه؟
+- IndividualQuestions_V3#150 no-gold-chunk :: IndividualQuestions_V3.xlsx :: کارفرمایان آیا حق دارن برای استخدام، گزارش اعتباری من رو بررسی کنن؟
+- IndividualQuestions_V3#151 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا پلتفرم‌های وام‌دهی آنلاین (فین‌تک‌ها) هم از اعتبارسنجی استفاده میکنن؟
+- IndividualQuestions_V3#152 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه می‌توانم از صحت اطلاعات مربوط به تاریخچه پرداخت‌های خود در گزارش اعتباری ا
+- IndividualQuestions_V3#153 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر کسی بدون اجازه من گزارش اعتباری‌ام رو بگیره، چه اقدام قانونی میتونم انجام بد
+- IndividualQuestions_V3#154 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه کسانی غیر از خودم حق دسترسی به گزارش اعتباری من رو دارن؟
+- IndividualQuestions_V3#155 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا میتونم ببینم که چه کسانی تاکنون گزارش اعتباری من رو درخواست کردن؟
+- IndividualQuestions_V3#156 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر اطلاعات هویتی‌ام (کدملی، شماره تماس) تغییر کنه، چطور باید به شرکت اعتبارسنجی
+- IndividualQuestions_V3#157 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر به دلیل بیماری یا حادثه نتونستم قسط پرداخت کنم، آیا امکان توجیه این موضوع وج
+- IndividualQuestions_V3#158 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سربازان و افراد در خدمت وظیفه که نمیتونن قسط پرداخت کنن، در امتیاز اعتباریشو
+- IndividualQuestions_V3#159 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر در زمان زلزله یا بلایای طبیعی نتونستم بدهی پرداخت کنم، امتیاز و رتبه اعتباری
+- IndividualQuestions_V3#160 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم درخواست کنم که اطلاعات اعتباری‌ام کاملاً محرمانه بماند و حتی به بان
+- IndividualQuestions_V3#161 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم گزارش اعتباری همسرم را بدون اطلاع او دریافت کنم؟
+- IndividualQuestions_V3#162 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه می‌توانم از تأثیر مثبت بازپرداخت وام‌های خود بر امتیاز اعتباری خود مطلع شو
+- IndividualQuestions_V3#163 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا استعلام موسسات از گزارش اعتباری من، باعث کاهش امتیاز من می‌شود؟
+- IndividualQuestions_V3#164 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا استعلام مکرر از گزارش اعتباری خودم در سامانه اعتباریتو، باعث کاهش امتیاز من 
+- IndividualQuestions_V3#165 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر وام دریافت کنم اما زود تسویه اش کنم، تأثیرش در رتبه اعتباری من چیست؟
+- IndividualQuestions_V3#166 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من یک وام 100 میلیونی با اقساط 60 ماهه از بانک ملی گرفتم و 30 قسط رو پرداخت کردم
+- IndividualQuestions_V3#167 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من سابقه تاخیر در بازپرداخت قسط و یا چک برگشتی داشته ام. چرا بعد از رفع آن ها هم
+- IndividualQuestions_V3#168 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه اعتباری من کاهش یافته است، در حالی که قبلا بالاتر بوده و من تمام تسهیلات خو
+- IndividualQuestions_V3#169 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا اطلاعات بعضی از وام های من در گزارش اعتباری ام نشان داده نمی شود؟
+- IndividualQuestions_V3#170 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در صورت رفع سو اثر چک، چه زمانی امتیاز من از ۲۵۰ خارج می شود؟
+- IndividualQuestions_V3#171 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من در دو زمان مختلف گزارش اعتباری خود را دریافت کرده ام و در این فاصله هیچ قسط ی
+- IndividualQuestions_V3#172 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه می‌توان گزارش اعتباری خود را با دیگران به اشتراک گذاشت؟
+- IndividualQuestions_V3#173 no-gold-chunk :: IndividualQuestions_V3.xlsx :: میتونم گزارش اعتباریمو برای بقیه بفرستم؟
+- IndividualQuestions_V3#174 no-gold-chunk :: IndividualQuestions_V3.xlsx :: با وجود بازپرداخت بدهی تسهیلاتی، علت عدم تغییر در امتیاز و گزارش اعتباری من چیست
+- IndividualQuestions_V3#175 no-gold-chunk :: IndividualQuestions_V3.xlsx :: پس از رفع سوءاثر چک برگشتی، چقدر طول می‌کشد تا امتیاز اعتباری تغییر کند ؟
+- IndividualQuestions_V3#176 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر وضعیت تسهیلات، معوق و یا مشکوک الوصول (بیش از ۶ ماه تاخیر در بازپرداخت اقساط
+- IndividualQuestions_V3#177 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اطلاعات گزارش اعتباری چند وقت یکبار به‌روزرسانی می‌شود؟
+- IndividualQuestions_V3#178 no-gold-chunk :: IndividualQuestions_V3.xlsx :: امتیاز من بدون هیچ دلیلی شدیدا افت کرده.
+- IndividualQuestions_V3#179 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من ضامن یک وام شدم. اگر شخص تاخیر زیادی در پرداخت قسط های وام داشته باشد، آیا ام
+- IndividualQuestions_V3#180 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من برخی از دلایل کاهش امتیاز خودم را که در  گزارشم درج شده نمی فهمم.
+- IndividualQuestions_V3#181 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من قسط وام (تسهیلات)‌ خود را پرداخت کردم، اما اطلاعاتم در گزارش اعتباری به روز ن
+- IndividualQuestions_V3#182 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من بدهی مالیاتی پرداخت نشده داشتم و رتبه ام E3 شده است. اگر آن را پرداخت کنم، چه
+- IndividualQuestions_V3#183 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من یک محکومیت مالی پرداخت نشده داشتم و رتبه ام به این دلیل E3 شده است. اگر آن را
+- IndividualQuestions_V3#184 no-gold-chunk :: IndividualQuestions_V3.xlsx :: بدهی عقب افتاده را پرداخت کردم، چرا امتیازم تغییر نمی کنه؟
+- IndividualQuestions_V3#185 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا گزارش اعتباری من هنوز وامی را نشان می‌دهد که ۲ ماه پیش تسویه کرده‌ام؟
+- IndividualQuestions_V3#186 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم درخواست کنم اطلاعاتم زودتر از موعد ماهانه به‌روزرسانی شود؟
+- IndividualQuestions_V3#187 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر اطلاعاتم در دو بانک متناقض باشد، کدام یک در گزارش اعتباری لحاظ می‌شود؟
+- IndividualQuestions_V3#188 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم درخواست کنم که فقط اطلاعات ۲ سال اخیرم در گزارش اعتباری نمایش داده 
+- IndividualQuestions_V3#189 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر چک برگشتی من رفع سوء اثر شده باشد، اما همچنان در گزارش اعتباری نمایش داده شو
+- IndividualQuestions_V3#190 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر فرد هیچ سابقه وامی نداشته باشد، اما چک‌های زیادی پاس کرده باشد، آیا این موضو
+- IndividualQuestions_V3#191 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا داشتن بیمه عمر یا بیمه تکمیلی، تأثیری در افزایش امتیاز اعتباری دارد؟
+- IndividualQuestions_V3#192 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان دارد امتیاز اعتباری من بدون هیچ تغییری در رفتار مالیم، کاهش یابد؟
+- IndividualQuestions_V3#193 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چند درصد از امتیاز اعتباری من وابسته به تاریخچه پرداخت اقساط است؟
+- IndividualQuestions_V3#194 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چند درصد از امتیاز اعتباری من وابسته به سابقه من در چک است؟
+- IndividualQuestions_V3#195 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چند درصد از امتیاز اعتباری من وابسته به سابقه من در  پرداخت مالیات است؟
+- IndividualQuestions_V3#196 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چند درصد از امتیاز اعتباری من وابسته به تراکنش ها و گردش حساب های من است؟
+- IndividualQuestions_V3#197 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا با وجود بازپرداخت به‌موقع اقساط، امتیاز اعتباری من هنوز افزایش نیافته است؟
+- IndividualQuestions_V3#198 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه می‌توانم درخواست اصلاح اطلاعات نادرست در گزارش اعتباری را پیگیری کنم؟
+- IndividualQuestions_V3#199 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا در آینده، امکان انتقال امتیاز اعتباری به اعضای درجه یک خانواده (پدر، مادر، ف
+- IndividualQuestions_V3#200 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگه ضامن داشته باشم، امتیاز ضامن هم به من کمک می کنه؟
+- IndividualQuestions_V3#201 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه می‌توانم درخواست دسترسی به جزئیات محاسباتی رتبه اعتباری خود یا شرکتم را دا
+- IndividualQuestions_V3#202 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه می‌توانم درخواست بررسی مجدد رتبه اعتباری (و امتیاز اعتباری) خود را پس از ت
+- IndividualQuestions_V3#203 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر بدهی شرکت در سامانه سمات به اشتباه ثبت شده باشد، چه مدارکی برای اصلاح آن لاز
+- IndividualQuestions_V3#204 no-gold-chunk :: IndividualQuestions_V3.xlsx :: هزینه دریافت گزارش اعتباری برای افراد زیر ۱۸ سال که حساب بانکی دارند چقدر است؟
+- IndividualQuestions_V3#205 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه می‌توانم درخواست حذف سابقه منفی قدیمی از گزارش اعتباری شرکت را ثبت کنم؟
+- IndividualQuestions_V3#206 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر یک بانک اطلاعات بازپرداخت اقساط مرا به شرکت اعتبارسنجی ارسال نکند (اطلاعات ب
+- IndividualQuestions_V3#207 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا کارفرما یا سازمان‌های دولتی می‌توانند بدون رضایت صریح من، گزارش اعتباری‌ام ر
+- IndividualQuestions_V3#208 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من تعداد بسیار زیادی تسهیلات را بدون هیچ گونه تاخیری بازپرداخت کرده ام و همیشه ض
+- IndividualQuestions_V3#209 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در گزارش اعتباری من قید شده که به علت یک بدهی با مبلغ بسیار کم، مشکوک الوصول شده
+- IndividualQuestions_V3#210 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنانچه به عنوان فریلنسر یا شاغل آزاد درآمد نامنظم داشته باشم، آیا این موضوع بر ر
+- IndividualQuestions_V3#211 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا زنان خانه دار که منبع درآمد منظمی دارند ولی سابقه وام ندارند، ریسک بالا حساب
+- IndividualQuestions_V3#212 no-gold-chunk :: IndividualQuestions_V3.xlsx :: افراد بازنشسته منبع درآمد منظمی دارند ولی سابقه وام ندارند، ریسک بالا حساب می شو
+- IndividualQuestions_V3#213 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تسویه بدهی‌های کوچک مانند جرائم رانندگی یا عوارض شهرداری در گزارش اعتباری ثب
+- IndividualQuestions_V3#214 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنانچه اطلاعات تماس خود (شماره موبایل یا آدرس) را تغییر دهم، آیا باید این موضوع 
+- IndividualQuestions_V3#215 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اطلاعات تسهیلاتی شرکت‌ها چند مرتبه در سیستم شما به‌روزرسانی می‌شود؟
+- IndividualQuestions_V3#216 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر یک بار در پرداخت قسطی تاخیر داشته باشم اما مبلغ را قبل از ارسال  ماهانه اطلا
+- IndividualQuestions_V3#217 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا داشتن چند ضامن برای یک وام، در مقابل یک ضامن، تاثیر متفاوتی بر رتبه اعتباری 
+- IndividualQuestions_V3#218 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا فسخ قرارداد یک تسهیلات بانکی، در گزارش اعتباری ثبت می‌شود؟
+- IndividualQuestions_V3#219 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تغییر نام یا نام خانوادگی بر سوابق اعتباری من تاثیر می‌گذارد؟
+- IndividualQuestions_V3#220 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنانچه حکم دادگاه برای پرداخت نفقه یا مهریه داشته باشم و آن را پرداخت نکنم، آیا 
+- IndividualQuestions_V3#221 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم درخواست مسدود کردن موقت دریافت گزارش اعتباری خود را داشته باشم؟
+- IndividualQuestions_V3#222 no-gold-chunk :: IndividualQuestions_V3.xlsx :: می تونم کاری کنم که کسی نتونه گزارشمو بگیره؟
+- IndividualQuestions_V3#223 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا دریافت تسهیلات با نرخ بهره پایین‌تر نسبت به وام‌های با نرخ بهره بالاتر تاثیر
+- IndividualQuestions_V3#224 no-gold-chunk :: IndividualQuestions_V3.xlsx :: انواع مختلف تسهیلات چه تاثیری در امتیاز اعتباری دارد؟
+- IndividualQuestions_V3#225 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تاخیر در پرداخت عوارض شهرداری در گزارش اعتباری ثبت می‌شود و در امتیاز اثر گذ
+- IndividualQuestions_V3#226 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تاخیر در پرداخت قبوض در گزارش اعتباری ثبت می‌شود؟
+- IndividualQuestions_V3#227 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنانچه به دلیل بلایای طبیعی (زلزله، سیل و...) و یا شرایط بحرانی (جنگ و ...) قادر
+- IndividualQuestions_V3#228 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر بدلیل جنگ یا سیل و ...(اتفاقات غیر مترقبه) وضعیت قرداد های من منفی شود، کاهش
+- IndividualQuestions_V3#229 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تعداد دفعات تغییر شغل یا جابجایی شغلی در گزارش اعتباری ثبت می‌شود و بر رتبه 
+- IndividualQuestions_V3#230 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا فروشگاه‌های اینترنتی می‌توانند از گزارش اعتباری من برای خرید اقساطی استفاده 
+- IndividualQuestions_V3#231 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا می‌توانم برای فرزند نابالغم که حساب بانکی دارد، گزارش اعتباری بگیرم؟
+- IndividualQuestions_V3#232 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا چک‌های برگشتی که مربوط به حساب مشترک باشد، روی امتیاز اعتباری من هم اثر می‌گ
+- IndividualQuestions_V3#233 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا پرداخت بخشی از یک قسط در موعد مقرر و تکمیل مانده آن در چند روز آینده (پس از 
+- IndividualQuestions_V3#234 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر چک تضمین‌شده (ضمانت) داشته باشم و برگشت بخورد، آیا بر رتبه اعتباری من تأثیر 
+- IndividualQuestions_V3#235 no-gold-chunk :: IndividualQuestions_V3.xlsx :: تفاوت اثر «تعهدات جاری در نقش ضامن» با «تعهدات خاتمه‌یافته در نقش ضامن» در محاسب
+- IndividualQuestions_V3#236 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سابقه سفته در سامانه اعتبارسنجی ثبت می‌شود و بر رتبه و امتیاز من اثر می‌گذار
+- IndividualQuestions_V3#237 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا گزارش اعتباری افراد شامل اطلاعات مربوط به وام‌های بانکی خاتمه‌یافته نیز می‌ش
+- IndividualQuestions_V3#238 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا جریمه دیرکرد اقساط در گزارش اعتباری من درج می‌شود؟
+- IndividualQuestions_V3#239 no-gold-chunk :: IndividualQuestions_V3.xlsx :: سابقه منفی در گزارش اعتباری با چه منطق و مبنایی درج می شود؟
+- IndividualQuestions_V3#240 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سابقه اعتباری من در شرکت‌های اعتبارسنجی دیگر کشورها می‌تواند برای دریافت تسه
+- IndividualQuestions_V3#241 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان دریافت گزارش اعتباری برای اتباع خارجی مقیم ایران فراهم است؟
+- IndividualQuestions_V3#242 no-gold-chunk :: IndividualQuestions_V3.xlsx :: ایرانی نیستم. گزارش اعتباری دارم؟
+- IndividualQuestions_V3#243 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر در پرداخت قسط یک وام، مبلغی کمتر از مبلغ قسط ماهانه را پرداخت کنم، وضعیت آن 
+- IndividualQuestions_V3#244 no-gold-chunk :: IndividualQuestions_V3.xlsx :: یه قسطو کمتر دادم. اثرش چیه؟
+- IndividualQuestions_V3#245 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر به دلیل اختلال بانکی برداشت خودکار قسط انجام نشود، وضعیت چگونه در گزارش ثبت 
+- IndividualQuestions_V3#246 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در صورت ثبت اشتباه یک چک برگشتی و سپس اصلاح آن توسط بانک، آیا ردپای این موضوع در
+- IndividualQuestions_V3#247 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا سرمایه‌گذاری در سهام می‌تواند به عنوان عاملی مثبت در سنجش اعتبار در نظر گرفت
+- IndividualQuestions_V3#248 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در صورت اختلال گسترده در سیستم بانکی که باعث تأخیر در بازپرداخت اقساط یا در ارائ
+- IndividualQuestions_V3#249 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر تسهیلات بیش از یک ضامن داشته باشد، آیا عدم بازپرداخت مناسب اقساط تسهیلات توس
+- IndividualQuestions_V3#250 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر یک چک برگشتی داشته باشم اما بلافاصله (ظرف ۲۴ ساعت) مبلغ را تأمین و چک را رفع
+- IndividualQuestions_V3#251 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من اسفند 1404 یک چک 50 میلیونی کشیدم که فروردین 1405 برگشت خورد، ولی فردای همان 
+- IndividualQuestions_V3#252 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا برای دریافت گزارش اعتباری، حتماً باید شماره همراه به نام خود شخص باشد؟
+- IndividualQuestions_V3#253 no-gold-chunk :: IndividualQuestions_V3.xlsx :: وقتی گفته می شود سابقه بازپرداخت تسهیلات در نقش ضامن دقیقا یعنی چی؟
+- IndividualQuestions_V3#254 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا استعلام مکرر از گزارش اعتباری خودم توسط خودم توی گزارشم ثبت می شه؟
+- IndividualQuestions_V3#255 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا استعلام بانک ها از گزارش اعتباری من توی گزارشم ثبت می شه؟
+- IndividualQuestions_V3#256 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا استعلام بانک ها از گزارش اعتباری من توی امتیازم تاثیر داره؟
+- IndividualQuestions_V3#257 no-gold-chunk :: IndividualQuestions_V3.xlsx :: وام‌های خرد دقیقاً چه نوع وام‌هایی هستند و چه تفاوتی با وام‌های بزرگ در محاسبه ا
+- IndividualQuestions_V3#258 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من چند وام خرد از بانک های مختلف گرفته ام، تاثیرش با یک وام کلان متفاوت است؟
+- IndividualQuestions_V3#259 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا نوع وام(خودرو، مسکن و ...) در محاسبه ریسک تاثیر دارد؟
+- IndividualQuestions_V3#260 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا رتبه اعتباری یک شرکت، بر رتبه اعتباری مدیرعامل یا اعضای هیئت مدیره آن تاثیر 
+- IndividualQuestions_V3#261 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان دریافت گزارش اعتباری از طریق اپلیکیشن موبایل وجود دارد؟
+- IndividualQuestions_V3#262 no-gold-chunk :: IndividualQuestions_V3.xlsx :: حداقل امتیاز اعتباری مورد نیاز برای دریافت وام بانکی چقدر است؟
+- IndividualQuestions_V3#263 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان مقایسه امتیاز اعتباری یک شخص با شخص دیگر وجود دارد؟
+- IndividualQuestions_V3#264 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در صورت ابطال چک قبل از سررسید، آیا این موضوع در گزارش اعتباری ثبت می‌شود؟
+- IndividualQuestions_V3#265 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنانچه شرکت من تسهیلات دریافت کند، آیا این موضوع بر رتبه اعتباری شخصی من به عنوا
+- IndividualQuestions_V3#266 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان دارد یک شرکت با سابقه منفی در گزارش اعتباری، پس از تغییر مدیریت و سهام
+- IndividualQuestions_V3#267 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنانچه وام خود را به شخص دیگری واگذار کنم (انتقال دهم)، آیا سابقه آن همچنان در گ
+- IndividualQuestions_V3#268 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا بانک‌ها موظف هستند قبل از گزارش اطلاعات منفی به شرکت اعتبارسنجی، به من اطلاع
+- IndividualQuestions_V3#269 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان درخواست تجدید نظر (تجدید محاسبه) در رتبه اعتباری و امتیاز اعتباری اختص
+- IndividualQuestions_V3#270 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان اصلاح امتیاز بصورت موقت وجود دارد؟ مثلا برای یک ضمانت خاص
+- IndividualQuestions_V3#271 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا شرکت اعتبارسنجی ایران با شرکت‌های اعتبارسنجی بین‌المللی تبادل اطلاعات دارد؟
+- IndividualQuestions_V3#272 no-gold-chunk :: IndividualQuestions_V3.xlsx :: برای وام های ارزی، مدل ریسک متفاوتی دارید؟ نوسان نرخ ارز چطور لحاظ میشه؟
+- IndividualQuestions_V3#273 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان مشاهده تاریخچه تغییرات امتیاز اعتباری در طول زمان وجود دارد؟
+- IndividualQuestions_V3#274 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا تاخیر در پرداخت اقساط در دوران بحران‌های اقتصادی (جنگ، همه‌گیری بیماری و ...
+- IndividualQuestions_V3#275 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چنانچه وام مسکن خود را از طریق فروش ملک یا دارایی تسویه کنم، آیا این موضوع در گز
+- IndividualQuestions_V3#276 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر من یک بدهی رو بصورت توافقی تسویه کنم(نه کامل)، در گزارش چطور درج می شود؟ با 
+- IndividualQuestions_V3#277 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در صورت انتقال ضمانت وام از یک شخص به شخص دیگر، آیا سابقه ضمانت از گزارش اعتباری
+- IndividualQuestions_V3#278 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر من به عنوان ضامن، در صورت تاخیر در بازپرداخت متقاضی اصلی، خودم اقساط وام او 
+- IndividualQuestions_V3#279 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر به عنوان دانشجو هیچ درآمدی نداشته باشم، آیا باز هم می‌توانم امتیاز اعتباری د
+- IndividualQuestions_V3#280 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر در یک روز از چندین بانک مختلف استعلام اعتباری بگیرم، آیا این موضوع به عنوان 
+- IndividualQuestions_V3#281 no-gold-chunk :: IndividualQuestions_V3.xlsx :: تفاوت بین رتبه اعتباری و امتیاز اعتباری چیست؟
+- IndividualQuestions_V3#282 no-gold-chunk :: IndividualQuestions_V3.xlsx :: در صورت فوت شخص، آیا بدهی‌های او بر رتبه اعتباری وراث تاثیر می‌گذارد؟
+- IndividualQuestions_V3#283 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا امکان دارد با داشتن رتبه اعتباری و امتیاز اعتباری عالی، همچنان درخواست وام م
+- IndividualQuestions_V3#284 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا اگر ضامن وام بزرگی شوم، تاثیر بیشتری بر امتیاز اعتباری من دارد، نسبت به حالت
+- IndividualQuestions_V3#285 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا فقط از یک سری داده های خاص در محاسبه امتیاز و رتبه استفاده می کنید، در حالی 
+- IndividualQuestions_V3#286 no-gold-chunk :: IndividualQuestions_V3.xlsx :: با وجود این که تاریخ انقضای گزارش اعتباری یک ماه است، اما امتیاز من در طول این ی
+- IndividualQuestions_V3#287 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چگونه به گزارش اعتباری شخصی دیگر دسترسی داشته باشم؟
+- IndividualQuestions_V3#288 empty-question :: IndividualQuestions_V3.xlsx :: 
+- IndividualQuestions_V3#289 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه من قرمز شده. چی کار کنم که سبز بشه؟
+- IndividualQuestions_V3#290 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اعتبار ۴ قسطه (اسنپ یا دیجی پی یا ...) من در گزارش اعتباریم نیست.
+- IndividualQuestions_V3#291 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه من نارنجی شده. چی کار کنم که سبز بشه؟
+- IndividualQuestions_V3#292 no-gold-chunk :: IndividualQuestions_V3.xlsx :: وام و اعتبار کدوم بانک ها و اپلیکیشن ها توی گزارش هست؟
+- IndividualQuestions_V3#293 no-gold-chunk :: IndividualQuestions_V3.xlsx :: گزارش ۸۰۰۰ تومنی رو گرفتم و E3 شدم، باید چی کار کنم؟
+- IndividualQuestions_V3#294 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه من زرد شده. چی کار کنم که سبز شود؟
+- IndividualQuestions_V3#295 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا وقتی هیچ سابقه تاخیری ندارم، بالاترین امتیاز رو ندارم؟
+- IndividualQuestions_V3#296 no-gold-chunk :: IndividualQuestions_V3.xlsx :: شما جلوی وام گرفتن من را گرفتید. من رتبه C دارم و نمی توانم وام بگیرم.
+- IndividualQuestions_V3#297 no-gold-chunk :: IndividualQuestions_V3.xlsx :: شما با چه معیاری تصمیم می گیرید که چه کسی صلاحیت دریافت وام را دارد؟
+- IndividualQuestions_V3#298 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا اگر رتبه D یا E داشته باشم، اصلا نمی توانم وام بگیرم؟
+- IndividualQuestions_V3#299 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چطوری اشتباه گزارشمو درست کنم؟
+- IndividualQuestions_V3#300 no-gold-chunk :: IndividualQuestions_V3.xlsx :: گزارش اعتباری چه شکلیه؟
+- IndividualQuestions_V3#301 no-gold-chunk :: IndividualQuestions_V3.xlsx :: تا چند سال توی امتیاز و رتبه مهمه؟
+- IndividualQuestions_V3#302 no-gold-chunk :: IndividualQuestions_V3.xlsx :: کدوم امتیازها خوبه؟
+- IndividualQuestions_V3#303 no-gold-chunk :: IndividualQuestions_V3.xlsx :: کدوم رتبه ها خوبه؟
+- IndividualQuestions_V3#304 no-gold-chunk :: IndividualQuestions_V3.xlsx :: کدوم رتبه ها بده؟
+- IndividualQuestions_V3#305 no-gold-chunk :: IndividualQuestions_V3.xlsx :: کدوم امتیازها بده؟
+- IndividualQuestions_V3#306 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبم چنده؟
+- IndividualQuestions_V3#307 no-gold-chunk :: IndividualQuestions_V3.xlsx :: امتیازم چنده؟
+- IndividualQuestions_V3#308 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من چند ماه پیش یه رتبه ای داشتم و از اون موقع تا الان قسطامو به موقع دادم. چرا ر
+- IndividualQuestions_V3#309 no-gold-chunk :: IndividualQuestions_V3.xlsx :: ۴۸۰ شدم. چرا؟
+- IndividualQuestions_V3#310 no-gold-chunk :: IndividualQuestions_V3.xlsx :: D1 شدم. چرا؟
+- IndividualQuestions_V3#311 no-gold-chunk :: IndividualQuestions_V3.xlsx :: ‌B1 شدم. چرا؟
+- IndividualQuestions_V3#312 no-gold-chunk :: IndividualQuestions_V3.xlsx :: C۲ شدم. چرا؟
+- IndividualQuestions_V3#313 no-gold-chunk :: IndividualQuestions_V3.xlsx :: A2 شدم. چرا A1 نشدم؟
+- IndividualQuestions_V3#314 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه من A شده، اما من سابقه چک برگشتی دارم، چطور ممکنه؟
+- IndividualQuestions_V3#315 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه من C شده و من تا حالا هیچ وامی نگرفتم،‌ چطور ممکنه؟
+- IndividualQuestions_V3#316 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه A یعنی چی؟
+- IndividualQuestions_V3#317 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه B یعنی چی؟
+- IndividualQuestions_V3#318 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه C یعنی چی؟
+- IndividualQuestions_V3#319 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه D یعنی چی؟
+- IndividualQuestions_V3#320 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه E یعنی چی؟
+- IndividualQuestions_V3#321 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه A1 یعنی چی؟
+- IndividualQuestions_V3#322 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه A2 یعنی چی؟
+- IndividualQuestions_V3#323 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه A3 یعنی چی؟
+- IndividualQuestions_V3#324 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه B1 یعنی چی؟
+- IndividualQuestions_V3#325 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه B2 یعنی چی؟
+- IndividualQuestions_V3#326 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه B3 یعنی چی؟
+- IndividualQuestions_V3#327 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه C1 یعنی چی؟
+- IndividualQuestions_V3#328 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه C2 یعنی چی؟
+- IndividualQuestions_V3#329 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه C3 یعنی چی؟
+- IndividualQuestions_V3#330 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه D1 یعنی چی؟
+- IndividualQuestions_V3#331 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه D2 یعنی چی؟
+- IndividualQuestions_V3#332 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه D3 یعنی چی؟
+- IndividualQuestions_V3#333 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه E1 یعنی چی؟
+- IndividualQuestions_V3#334 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه E2 یعنی چی؟
+- IndividualQuestions_V3#335 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه E3 یعنی چی؟
+- IndividualQuestions_V3#336 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چند درصد از امتیاز اعتباری وابسته به سابقه پرداخت اقساط است؟
+- IndividualQuestions_V3#337 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چند درصد از امتیاز اعتباری وابسته به مالیات است؟
+- IndividualQuestions_V3#338 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چند درصد از امتیاز اعتباری وابسته به چک است؟
+- IndividualQuestions_V3#339 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چه وزنی به هریک از پارامترهای اصلی(سابقه پرداخت و تسهیلات و میزان بدهی و ...) در
+- IndividualQuestions_V3#340 no-gold-chunk :: IndividualQuestions_V3.xlsx :: کدوم دلایل برگشت چک توی امتیاز مهمه؟
+- IndividualQuestions_V3#341 no-gold-chunk :: IndividualQuestions_V3.xlsx :: توی گزارشم نوشته «فرد در تعداد نسبتا کمی از ماه‌های 3 سال گذشته، بازپرداخت به مو
+- IndividualQuestions_V3#342 no-gold-chunk :: IndividualQuestions_V3.xlsx :: توی گزارشم نوشته  «فرد در 3 سال گذشته میانگین بدهی‌ بسیار زیادی داشته که در زمان
+- IndividualQuestions_V3#343 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من قسطمو دیر پرداخت کردم، ولی توی گزارش ثبت نشده. چرا؟
+- IndividualQuestions_V3#344 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من A1 نشدم، ولی دلیل کاهش امتیازی ندارم. چرا؟
+- IndividualQuestions_V3#345 no-gold-chunk :: IndividualQuestions_V3.xlsx :: مبنای این که باید دو ماه پس از بازپرداخت اقساط با تاخیر زیاد باید توی E3 بمونم چ
+- IndividualQuestions_V3#346 no-gold-chunk :: IndividualQuestions_V3.xlsx :: رتبه اعتباری من کاهش یافته است، علی رغم این که رفتار مالی مثبت داشتم. چرا؟
+- IndividualQuestions_V3#347 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من هیچ وامی نگرفته‌ام، ولی برای یک آشنا ضامن شده‌ام. آیا این روی امتیازم اثر دار
+- IndividualQuestions_V3#348 no-gold-chunk :: IndividualQuestions_V3.xlsx :: درآمد خانواده م به امتیاز اعتباری من ربط دارد؟
+- IndividualQuestions_V3#349 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من فقط چند بار برای اطلاع از وضعیت اعتباری‌ام گزارش گرفته‌ام، چرا این روی امتیاز
+- IndividualQuestions_V3#350 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اخذ استعلام های مکرر در بازه 3 ماهه، برای اشخاصی که هیچ گونه تسهیلات دریافت نکرد
+- IndividualQuestions_V3#351 no-gold-chunk :: IndividualQuestions_V3.xlsx :: خطوط قرمز چیه؟
+- IndividualQuestions_V3#352 no-gold-chunk :: IndividualQuestions_V3.xlsx :: بدهیمو پرداخت کردم.بعدش چی کار کنم؟
+- IndividualQuestions_V3#353 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من وام نىارم C بهم دادین چرا؟
+- IndividualQuestions_V3#354 no-gold-chunk :: IndividualQuestions_V3.xlsx :: مگه نگفتید اطلاعات ماهانه به روز میشه. چرا توی اون لینک شرکت «نام تامین کننده» ب
+- IndividualQuestions_V3#355 no-gold-chunk :: IndividualQuestions_V3.xlsx :: بهم گفتین که یه وام بگیرم تا رتبم A یا B بشه. ولی هنوز C هستم. چرا؟
+- IndividualQuestions_V3#356 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر نسبت گردش حساب به درآمد من بالا باشد، امتیاز منفی اعمال می شود؟
+- IndividualQuestions_V3#357 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا محل سکونت یا کسب و کار در امتیاز اعتباری تاثیر دارد؟ مثلا مقایسه بین کرج و ت
+- IndividualQuestions_V3#358 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر کارت بازرگانی داشته باشم، امتیازم در مدل مثل یک فرد عادی محاسبه می شود؟
+- IndividualQuestions_V3#359 no-gold-chunk :: IndividualQuestions_V3.xlsx :: .من چندین سال سابقه دارم، اما در یک بازه 2 ساله هیچ استعلام یا تسهیلاتی نداشتم، 
+- IndividualQuestions_V3#360 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر چک رو به یک نفر دیگه انتقال بدم و اون چک برگشت بخوره، تاثیری روی امتیاز من د
+- IndividualQuestions_V3#361 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا چک ها و تسهیلات در بازه زمانی 9 اسفند 1404 تا 9 خرداد 1405 در امتیاز و رتبه 
+- IndividualQuestions_V3#362 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من تو جنگ اول یه چک برگشتی داشتم. این تو گزارشم میاد؟
+- IndividualQuestions_V3#363 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من تو جنگ دوم تسهیلاتمو پرداخت نکردم تا اخر جنگ. این تو گزارشم میاد؟
+- IndividualQuestions_V3#364 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا چک ها و تسهیلات در بازه زمانی 23 خرداد 1405 تا 15 شهریور 1405 در امتیاز و رت
+- IndividualQuestions_V3#365 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من یه چک داشتم برا آخر تیر، که چون بانکم صادرات بود پاس نشد. این امتیازمو کم میک
+- IndividualQuestions_V3#366 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من بیس و سه تومن قسط ملیمو از مرداد ندادم. این امتیازمو کم میکنه؟
+- IndividualQuestions_V3#367 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من قبلا سابقه وام نداشتم ولی توی ۳ ماه اخیر ۶ تا قسط رو به موقع پرداخت کردم، مگه
+- IndividualQuestions_V3#368 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا هدف از دریافت تسهیلات «سایر»‌ خورده؟
+- IndividualQuestions_V3#369 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا این پیامک برای من ارسال شده که گزارش اعتبارسنجی تسهیلات شما توسط رفاه دریافت
+- IndividualQuestions_V3#370 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا دریافت این پیامک که «که گزارش اعتبارسنجی تسهیلات شما توسط رفاه دریافت شد؟» ب
+- IndividualQuestions_V3#371 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من از این استعلام خبر نداشتم و درخواست وامی هم نداده‌ام. باید چیکار کنم؟
+- IndividualQuestions_V3#372 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چرا رتبه اعتباری من در متن پیامک نوشته شده است؟
+- IndividualQuestions_V3#373 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا هر بار که بانکی استعلام می‌گیرد، همین پیامک ارسال می‌شود؟
+- IndividualQuestions_V3#374 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر شماره موبایل ثبت‌شده من اشتباه یا قدیمی باشد، این پیامک به کجا ارسال می‌شود؟
+- IndividualQuestions_V3#375 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگه چک پاس شده داشته باشم تو امتیازم موثره؟
+- IndividualQuestions_V3#376 no-gold-chunk :: IndividualQuestions_V3.xlsx :: چکم پاس شد کی امتیازدار میشم؟
+- IndividualQuestions_V3#377 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا بدهی‌های با مبلغ بسیار کم هم باعث کاهش شدید امتیاز می‌شوند؟
+- IndividualQuestions_V3#378 no-gold-chunk :: IndividualQuestions_V3.xlsx :: من یکمی بدهی دارم چرا امتیازم همچنان بالاست / رتبه E3 نشده‌ام؟
+- IndividualQuestions_V3#379 no-gold-chunk :: IndividualQuestions_V3.xlsx :: آیا این آستانه مبلغی (۲۵۰ هزار تومان) برای همه انواع بدهی یکسان است؟
+- IndividualQuestions_V3#380 no-gold-chunk :: IndividualQuestions_V3.xlsx :: اگر بدهی من دقیقاً ۲۵۰ هزار تومان یا کمی بیشتر باشد، وضعیت منفی محاسبه می‌شود؟
+- IndividualQuestions_V3#381 no-gold-chunk :: IndividualQuestions_V3.xlsx :: امتیاز تسهیلات من بالاست ولی چکم پایینه چرا؟
+- IndividualQuestions_V3#382 no-gold-chunk :: IndividualQuestions_V3.xlsx :: امتیاز تسهیلات من پایینه ولی چکم بالاست چرا؟
+- ChequeQuestions#19 no-gold-chunk :: ChequeQuestions.xlsx :: امتیاز تسهیلات من بالاست ولی چکم پایینه چرا؟
+- ChequeQuestions#20 no-gold-chunk :: ChequeQuestions.xlsx :: امتیاز تسهیلات من پایینه ولی چکم بالاست چرا؟
+- ChequeQuestions#102 no-gold-chunk :: ChequeQuestions.xlsx :: من در دو زمان مختلف گزارش اعتباری خود را دریافت کرده ام و در این فاصله هیچ قسط ی
+- ChequeQuestions#112 no-gold-chunk :: ChequeQuestions.xlsx :: کدوم امتیازها خوبه؟
+- ChequeQuestions#113 no-gold-chunk :: ChequeQuestions.xlsx :: کدوم رتبه ها خوبه؟
+- ChequeQuestions#114 no-gold-chunk :: ChequeQuestions.xlsx :: کدوم رتبه ها بده؟
+- ChequeQuestions#115 no-gold-chunk :: ChequeQuestions.xlsx :: کدوم امتیازها بده؟
+- ChequeQuestions#118 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه A یعنی چی؟
+- ChequeQuestions#119 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه B یعنی چی؟
+- ChequeQuestions#120 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه C یعنی چی؟
+- ChequeQuestions#121 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه D یعنی چی؟
+- ChequeQuestions#122 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه E یعنی چی؟
+- ChequeQuestions#123 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه A1 یعنی چی؟
+- ChequeQuestions#124 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه A2 یعنی چی؟
+- ChequeQuestions#125 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه A3 یعنی چی؟
+- ChequeQuestions#126 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه B1 یعنی چی؟
+- ChequeQuestions#127 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه B2 یعنی چی؟
+- ChequeQuestions#128 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه B3 یعنی چی؟
+- ChequeQuestions#129 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه C1 یعنی چی؟
+- ChequeQuestions#130 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه C2 یعنی چی؟
+- ChequeQuestions#131 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه C3 یعنی چی؟
+- ChequeQuestions#132 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه D1 یعنی چی؟
+- ChequeQuestions#133 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه D2 یعنی چی؟
+- ChequeQuestions#134 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه D3 یعنی چی؟
+- ChequeQuestions#135 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه E1 یعنی چی؟
+- ChequeQuestions#136 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه E2 یعنی چی؟
+- ChequeQuestions#137 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه E3 یعنی چی؟
+- ChequeQuestions#138 no-gold-chunk :: ChequeQuestions.xlsx :: کدوم دلایل برگشت چک توی امتیاز مهمه؟
+- ChequeQuestions#145 no-gold-chunk :: ChequeQuestions.xlsx :: خطوط قرمز چیه؟

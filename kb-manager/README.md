@@ -2,20 +2,22 @@
 
 > **ICS Credit Scoring Knowledge Base** — Process, version, and manage your Persian-language knowledge base for RAG agents.
 
-## Current Status — v9 (KB_9.7.2026 + live benchmarks, 2026-09-07)
+## Current Status — v10 (1405-06-23 corpus + full-corpus stage-level benchmark, 2026-09-19)
 
 | Metric | Value |
 |--------|-------|
-| **Version** | `v9_KB_9.7.2026` (`kb-source/KB_9.7.2026` 21 docs, `KB_9.7.2026.zip` 27 entries, `kb-source/1405-05-31` 32 docs parallel) |
-| **Documents / Chunks** | **21 docs, 1,084 chunks** (`KB_9.7.2026`, `1084` type-aware `glossary/staff/loan/timeline` + `crm_qa` 5 files) + **32 docs, 2,133 chunks** (`1405-05-31` fallback, `kb_1405.db`) |
-| **DB** | `sqlite` light (`kb_9_7_2026.db` `1084×384` + `kb_1405.db` `2133×384`) + `pgvector` remote `kb_test.db` `6593×384` HNSW `m16` |
-| **Source** | `kb-source/KB_9.7.2026` (`حقیقی/سایر` 22 files, UTF-8 `واژگان معادل` excluded) + `1405-05-31` |
-| **Tunable** | `KB_KEYWORD_BOOST=3.0`, `KB_EMBED_DEVICE=cuda/cpu`, `RERANKER_TOP_K 100` (was 50 for Q11/12), `KB_XLSX_ENGINE=auto` |
-| **Batch** | `GET /transparency/zip` (upload zip → tree select → pipeline) + `GET /benchmarks/massive` (400+ QA, progress `0/573` live) + `GET /transparency/questions` |
-| **Avg Latency** | `IVA 15` `22.6s` (`11/15 73.3%` `MRR 0.474` new KB) vs `22.7s` old; massive `~60 min` `573` queries |
-| **Hit@5** | `IVA 15` `11/15 73.3%` (failed `11,12,13,15` → next `13/15` with `RERANKER_TOP_K 100` + `واژگان` expansion); `Massive` `300+` verbatim `100%` target (now `62/573 10.8%` running) |
-| **Pipeline** | Full rebuild `8.9s` `21 docs` `1084` + `17.3s` `32 docs` `2133` (type-aware) |
-| **Web UI** | `http://127.0.0.1:8000` (`kb_9_7_2026.db` or `kb_1405.db` via `KB_DB_URL`) + `/transparency` (Persian `Vazirmatn` `dir=rtl`) + `/benchmarks/massive` (live) |
+| **Version** | `v10_1405-06-23` (`kb-source/1405-06-23` 41 files → 40 after dupe removal → **35 docs**, `kb_1405_06_23.db`) |
+| **Documents / Chunks** | **35 docs, 2,282 chunks** (`1405-06-23`, `qa_pair` + `body` + `reason_detail` + `parent`; rebuild `29s`) |
+| **DB** | `sqlite` light (`kb_1405_06_23.db`, `2282×384` dense, `data/dense_embeddings.npz`) |
+| **Source** | `kb-source/1405-06-23` (41 xlsx/pdf/docx: `حقیقی` + `حقوقی` + `گزارش چک` + `سایر` + `ضمیمه پایگاه دانش چت‌بات`) |
+| **Chunking** | New `kv_pair` + `single_col_list` schemas, ingest-time variable fan-out (cap 50, `<name>` syntax), excluded sheets/columns, reason-code detection fix |
+| **Full-corpus benchmark** | **714 gold-mapped QA rows**, `Hit@5 0.9244`, `Hit@1 0.7703`, `MRR 0.8369`, 0 errors (2026-09-19, 162.7 min CPU) |
+| **Stage-level (Hit@5)** | `bm25 0.564` · `dense 0.343` · `merged 0.602` · **`final 0.924`** (reranker +0.32 over RRF) |
+| **Failures** | `A retriever 46` · `B fusion 6` · `C reranker 2` · `D success 660` (per-stage top-10 dumped to JSONL) |
+| **Ingestion Suite** | `/ingestion` 5-step wizard (Upload → Tree → Edit → Columns → Run), zip/local-path sessions, per-doc review gate, save-zip/export-path |
+| **Web UI** | `http://127.0.0.1:8000` (`kb_1405_06_23.db` via `KB_DB_URL`) + `/transparency` (Persian `Vazirmatn` `dir=rtl`) + `/ingestion` + `/benchmarks/massive` (live) |
+
+> **v10 notice:** full-corpus stage-level benchmark (`agent2_v10_1405_06_23.py`) classifies every gold-mapped row as **A** retriever (gold in neither BM25 nor dense top-100), **B** fusion (gold in a leg top-100 but RRF merged rank > 20), **C** reranker (merged ≤ 20 but reranked out of top-5), or **D** success. Each JSONL row now stores the **top-10 BM25 / dense / merged** and **top-5 final** results with scores + the `reranker_model`, and the gold rank is an exact 1-indexed position (never `-1`).
 
 > **v7 Notice:** New isolated KB from the `1405-05-31` folder (individual/corporate/cheque/saire/fanni content). Synonym beam5 + colloquial→formal expansion added (`kb_manager/query_expansion.py`, 74 entries) lifts Persian conversational queries; pipeline now skips `TestQuestion*` source dirs so test datasets are never ingested. 4 IVA misses are ranking-quality (reason-code "guaranteed loan" Q11/12 and semantic Q14/15 — see `diag_pretank.py`; reranker demotes golden chunks). Next: increase RERANKER_TOP_K 50→100 for pool, or per-domain rerank.
 
@@ -31,7 +33,8 @@
 | **v6** | Sep 2026 | 69 docs / 3,626 chunks | P0-P8 remediation + Persian central + synonym beam5 | `regex_persian.py` central maps, `dedup.py` MinHash LSH, `query_expansion.py` beam5, fingerprint/invalidation, async fixes, duplicate-doc pipefix | 10q smoke **100%** Hit@5 |
 | **v7** | Sep 2026 | 34 docs / 2,074 chunks | 1405-05-31 KB + colloquial beam5 | **Fresh KB** from `kb-source/1405-05-31`; `TestQuestion*` dirs excluded; colloquial→formal synonyms; IVA 15 | **Doc-level Hit@5 73.3%** (11/15), MRR 0.466, ~22.7s |
 | **v8** | Sep 2026 | 103 docs / 6,593 chunks | `pgvector HNSW 384 m16` + `tunable keyword×3.0` | `Vector(384)` `HNSW`, `پرسش/پاسخ` `crm_qa` fix, `8001` | **HNSW 23.1s → GPU 18.4s 1.3×** |
-| **v9** ⭐ current | Sep 2026 | **21 docs / 1,084 chunks** + 32 docs | `KB_9.7.2026` 27 entries type-aware + `transparency/zip` + `massive live` | `KB_9.7.2026` (`حقیقی/سایر` 22 files, `واژگان` excluded, `ZWNJ` fix `persian.py:96`, `RERANKER_TOP_K 100`, `massive 573` live) | **IVA 11/15 73.3% MRR 0.474** (4 misses) → `13/15` target; massive `62/573` running |
+| **v9** | Sep 2026 | **21 docs / 1,084 chunks** + 32 docs | `KB_9.7.2026` 27 entries type-aware + `transparency/zip` + `massive live` | `KB_9.7.2026` (`حقیقی/سایر` 22 files, `واژگان` excluded, `ZWNJ` fix `persian.py:96`, `RERANKER_TOP_K 100`, `massive 573` live) | **IVA 11/15 73.3% MRR 0.474** (4 misses) → `13/15` target; massive `62/573` running |
+| **v10** ⭐ current | Sep 2026 | **35 docs / 2,282 chunks** | `1405-06-23` + `kv_pair`/`single_col_list` + ingest-time variable fan-out + stage-level bench | New chunk schemas, exclusion sets, reason-code detection fix, `/ingestion` 5-step wizard, full-corpus stage-level benchmark (`bm25→dense→RRF→rerank`) | **Hit@5 0.9244**, Hit@1 0.7703, MRR 0.8369 (714 gold-mapped rows, 2026-09-19) |
 
 ### What changed in v7 (vs v6)
 
@@ -195,6 +198,65 @@ Notes: causal-LM-derived rerankers (Jina-v3/Qwen3) ship `pad_token_id=None`; the
 - **Production note:** 568M on CPU is heavier than MiniLM-118M → set `KB_RERANK_POOL=15` to bound latency (~5–15s rerank solo on CPU); GPU hosts can raise to 30.
 
 ## Benchmark Results
+
+### v10 — full-corpus stage-level retrieval benchmark (2026-09-19, measured)
+
+Dataset: **`1405-06-23` corpus** (`kb_1405_06_23.db`, 35 docs, 2,282 chunks). `agent2_v10_1405_06_23.py` replicates `benchmarks.py::_run_massive` file discovery + 3-step gold mapping, runs `search_knowledge_base(query, top_k=100)` per gold-mapped QA row, and records the gold rank at **every stage** plus the full stage leaderboards.
+
+- **Run:** 2026-09-19, 162.7 min CPU, `top_k=100`, `per_query_timeout=600s`, 0 errors.
+- **Eval set:** 714 gold-mapped rows (of 1,659 QA rows; 943 `no-gold-chunk` — see caveat, 2 empty).
+- **Models:** dense `paraphrase-multilingual-MiniLM-L12-v2` · reranker `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`.
+- **Config:** `rrf_k=60`, `rerank_top_k=100`, `keyword_boost=3.0`, `synonym_beam=5`, `fusion_alpha=0.7`.
+- **DB sha256:** `7147948b…af08a0`; **npz sha256:** `4d760396…94a66bb`.
+
+| Stage | Hit@5 | recall@100 |
+|-------|-------|------------|
+| BM25 | 0.5644 (403/714) | 0.8613 (615/714) |
+| Dense | 0.3431 (245/714) | 0.7605 (543/714) |
+| Merged (RRF) | 0.6022 (430/714) | 0.9356 (668/714) |
+| **Final (reranked)** | **0.9244 (660/714)** | — |
+
+| Aggregate | Value |
+|-----------|-------|
+| **Hit@1** | **0.7703** (550/714) |
+| **Hit@5** | **0.9244** (660/714) |
+| **MRR** | **0.8369** |
+| A retriever / B fusion / C reranker / D success | 46 / 6 / 2 / 660 |
+| errors | 0 |
+
+The reranker adds **+0.32 Hit@5 over RRF** (0.602 → 0.924) and rescues 230 rows. RRF already lifts single-leg hit rates (BM25 0.564, dense 0.343) by +0.04 over the better leg.
+
+**Per-file Hit@5:**
+
+| File | n | A | B | C | D | Hit@5 |
+|------|---|---|---|---|---|-------|
+| Company_CRM_Questions | 332 | 24 | 2 | 1 | 305 | 0.919 |
+| IndividualCRMQuestions | 179 | 12 | 3 | 0 | 164 | 0.916 |
+| ChequeQuestions | 117 | 1 | 0 | 1 | 115 | 0.983 |
+| PublicQuestions | 55 | 9 | 1 | 0 | 45 | **0.818** |
+| EtebaritoProblems / Disputed / categorized / مباحثی | 31 | 0 | 0 | 0 | 31 | 1.000 |
+
+**Root causes (sample-inspected):**
+
+- **A — retriever failure (46): 34/46 miss both legs.** Gold chunks exist but carry an unrelated "distractor prefix" (e.g. `Company_CRM_Questions#47` asks about cheque-bounce reasons while the gold text opens with an update-frequency question), so neither BM25 nor dense surface them. Heaviest in Company (24), Individual (12), PublicQuestions (9).
+- **B — fusion failure (6): RRF dilution.** Gold found by only one leg loses to chunks present in both (`1/(60+rank)` signal too weak). e.g. `PublicQuestions#24` bm25=3 → merged=39; `IndividualCRMQuestions#63` bm25=31 → merged=78.
+- **C — reranker failure (2): semantic ambiguity.** `#151` "how long until the report updates" scored below "guarantee obligation stays 5 years" (temporal conflation); `ChequeQuestions#140` about a low average balance.
+
+**Caveat — gold-mapping coverage.** 943/1,659 QA rows (56.8%) have no gold chunk because two source workbooks (`IndividualQuestions_V3.xlsx` 383 rows, `Individual_CRM_Questions_categorized.xlsx` 333 rows) produced almost no `qa_pair` chunks (1 and 8 respectively) despite near-identical structure to fully-mapped files. This is an **ingest/chunker gap, not a benchmark gap**; the 714 evaluated rows are the ones with a verified gold chunk. Files with complete coverage: Company (329/330), Cheque (117/146), Public (55/61).
+
+Artifacts: `artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl` (714 rows: per-stage top-10 + scores, `reranker_model`, exact gold rank) · `docs/retrieval_training/failure_analysis_v10_1405-06-23.md`
+
+#### v9 → v10 (different corpora — read with care)
+
+| metric | v9 (`KB_9.7.2026`) | v10 (`1405-06-23`) |
+|--------|--------------------|--------------------|
+| evaluated | 511 | 714 |
+| A / B / C | 18 / 2 / 2 | 46 / 6 / 2 |
+| Hit@1 | 0.8376 | 0.7703 |
+| Hit@5 | 0.9569 | 0.9244 |
+| MRR | 0.8884 | 0.8369 |
+
+Not an apples-to-apples regression: v10 is a **larger and harder corpus** (714 vs 511 gold-mapped; 35 docs/2,282 chunks vs 21/1,084; adds `PublicQuestions` and `Company_CRM_Questions` which dominate the A failures). **C reranker failures stayed flat at 2 across both runs.**
 
 ### v9 — reranker shootout, wave-1 full-800 CPU (2026-09-12/13, measured)
 
