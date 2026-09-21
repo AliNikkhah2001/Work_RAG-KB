@@ -1,0 +1,43 @@
+{
+  "version": 11,
+  "source_dir": "D:/Code/KB/kb-manager/data/v10_source/1405-06-23",
+  "source_hash": " derived from file dates 2026-09",
+  "total_documents": 35,
+  "total_chunks": 2227,
+  "chunking_config": {
+    "overlap_tokens": 50,
+    "strip_keywords": true,
+    "use_context": false,
+    "parent_chunking": false
+  },
+  "dense_config": {
+    "model": "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1",
+    "use_context": false,
+    "fingerprint": "includes_use_context_flag"
+  },
+  "benchmarks": {
+    "hit_at_5": 0.8585,
+    "total_gold_rows": 714,
+    "evaluated_rows": 659,
+    "funnel": {
+      "A_retriever_miss": 25,
+      "A'_fusion_loss": 8,
+      "B_reranker_loss": 13,
+      "D_success": 613
+    },
+    "per_file": {
+      "Company_CRM_Questions": {"hit_at_5": 0.916, "total": 332},
+      "IndividualCRMQuestions": {"hit_at_5": 0.933, "total": 179},
+      "ChequeQuestions": {"hit_at_5": 0.521, "total": 117},
+      "DisputeQuestions": {"hit_at_5": 1.000, "total": 29}
+    }
+  },
+  "changes_from_v10": [
+    "Overlap removal from _chunk_excel_rows (no prefix on atomic chunks)",
+    "Keyword stripping from QA content strings",
+    "Dense use_context default changed True->False",
+    "Fingerprint includes use_context for auto-rebuild"
+  ],
+  "created": "2026-09-21",
+  "notes": "Post-chunkfix rebuild: overlap-free, keyword-free chunks; dense index auto-rebuilt on fingerprint mismatch"
+}
