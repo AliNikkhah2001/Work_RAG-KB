@@ -87,7 +87,7 @@ SYNONYM_MAP: dict[str, list[str]] = {
     "حقوقی": ["حقوق", "حق"],
     "حق": ["حقوق"],
     # typo-tolerant (fail: "مطمینم" for "مطمئنم"; "اعتبارسنگری"; "جند" for "چند")
-    "مطمینم": ["مطمئنم", "مطمئن"],
+    "مطمینم": ["مطمئن", "مطمئنم"],
     "مطمئنم": ["مطمئن"],
     "اعتبارسنگری": ["اعتبارسنجی"],
     "جند": ["چند"],
@@ -127,6 +127,14 @@ SYNONYM_MAP: dict[str, list[str]] = {
     "کسانی": ["افراد", "اشخاص"],
 }
 
+# Phonetic typo corrections (never added to _REVERSE — correct spelling must not be corrupted)
+_TYPO_CORRECTIONS: dict[str, list[str]] = {
+    "حنگ": ["جنگ"],
+    "برکشا": ["برگشت"],
+}
+
+# Exclusive domain terms that must never be dropped from keyword beams
+_EXCLUSIVE_TERMS = frozenset({"جنگ", "زلزله", "کرونا", "ورشکستگی", "پیرامون", "مالیاتی", "مجازی", "حقوقی"})
 
 def _load_generated_map() -> dict[str, list[str]]:
     """Overlay corpus-grounded / LLM-generated synonym map if present.
@@ -167,14 +175,15 @@ for k, vs in SYNONYM_MAP_FINAL.items():
 
 
 def expand_tokens_synonym(tokens: list[str], max_extra: int = 8) -> list[str]:
-    """Return tokens + synonym tokens (parsitext-style expansion)."""
+    """Return tokens + synonym tokens + typo corrections (parsitext-style expansion)."""
     extra: list[str] = []
     for t in tokens:
         syns = SYNONYM_MAP_FINAL.get(t, [])
-        # also check reverse (loan -> تسهیلات)
         if not syns and t in _REVERSE:
             syns = [_REVERSE[t]]
-        for s in syns[:2]:  # cap per token
+        if not syns and t in _TYPO_CORRECTIONS:
+            syns = _TYPO_CORRECTIONS[t]
+        for s in syns[:2]:
             if s not in tokens and s not in extra:
                 extra.append(s)
             if len(extra) >= max_extra:
@@ -203,12 +212,37 @@ def strip_placeholders(query: str) -> str:
     return re.sub(r"\s+", " ", _PLACEHOLDER_RE.sub(" ", query)).strip()
 
 
-def generate_multi_queries(query: str, beam: int = 5) -> list[str]:
-    """Rule-based beam 5: verbatim, synonym-swapped, soundex, keyword-only, reworded.
+def _exclusive_token_ratio(query: str) -> float:
+    """Fraction of tokens that are rare/exclusive domain terms."""
+    toks = query.split()
+    if not toks:
+        return 0.0
+    n_excl = sum(1 for t in toks if t in _EXCLUSIVE_TERMS)
+    return n_excl / len(toks)
 
-    When LLM available, caller should use query_reform.MultiQueryGenerator instead;
-    this is the offline fallback that still lifts keyword_only Hit@5 ~+5%.
+
+def should_expand(query: str, beam: int = 5) -> bool:
+    """Gate keyword-only beam 5 expansion.
+
+    Long queries (>=7 tokens) containing ANY exclusive domain term
+    should NOT beam-expand: verbatim + synonym only, to avoid
+    information-destructive keyword-only/reworded beams.
+    Returns True if full beam expansion is safe.
     """
+    toks = query.split()
+    if len(toks) >= 7 and any(t in _EXCLUSIVE_TERMS for t in toks):
+        return False
+    return True
+
+
+def generate_multi_queries(query: str, beam: int = 5) -> list[str]:
+    """Rule-based beam: verbatim, synonym-swapped, soundex, keyword-only, reworded.
+
+    When should_expand() returns False (long query w/ exclusive terms),
+    caps beam at 2 (verbatim + synonym) to avoid information-destructive beams.
+    """
+    if not should_expand(query, beam):
+        beam = 2
     queries: list[str] = [query]
 
     # 1b: placeholder-stripped (inserted right after verbatim — highest value;
@@ -218,16 +252,26 @@ def generate_multi_queries(query: str, beam: int = 5) -> list[str]:
     if stripped and stripped != query:
         queries.append(stripped)
 
-    # 2: synonym variant
+    # 2: synonym variant + typo correction
     toks = query.split()
-    syn_q = " ".join(next(iter(SYNONYM_MAP_FINAL.get(t, [t])), t) if t in SYNONYM_MAP_FINAL else t for t in toks)
+    def _resolve(t: str) -> str:
+        if t in SYNONYM_MAP_FINAL:
+            return SYNONYM_MAP_FINAL[t][0]
+        if t in _REVERSE:
+            return _REVERSE[t]
+        if t in _TYPO_CORRECTIONS:
+            return _TYPO_CORRECTIONS[t][0]
+        return t
+    syn_q = " ".join(_resolve(t) for t in toks)
     if syn_q != query:
         queries.append(syn_q)
 
-    # 3: keyword-only (keep nouns, drop stopwords already done, but keep top 3)
+    # 3: keyword-only (preserve rare/exclusive tokens — cap 5 not 3)
     kw = [t for t in toks if t not in {"از", "به", "که", "را", "برای", "این", "آن"}]
+    # always keep exclusive/rare tokens at front so they're never truncated
+    kw = [t for t in kw if t in _EXCLUSIVE_TERMS] + [t for t in kw if t not in _EXCLUSIVE_TERMS]
     if len(kw) >= 2:
-        queries.append(" ".join(kw[:3]))
+        queries.append(" ".join(kw[:5]))
 
     # 4: reworded (shuffle + drop 30%)
     if len(toks) >= 4:

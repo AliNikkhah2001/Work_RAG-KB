@@ -38,7 +38,7 @@ class DenseSemanticIndex:
         model_name: str = _MODEL_NAME,
         batch_size: int = 64,
         embed_fn: Any | None = None,
-        use_context: bool = True,
+        use_context: bool = False,
         device: str | None = None,
     ) -> None:
         self._model_name = model_name
@@ -121,7 +121,7 @@ class DenseSemanticIndex:
         headings: Optional[list[str]] = None,
         chunk_types: Optional[list[str]] = None,
         model_name: str = _MODEL_NAME,
-        use_context: bool = True,
+        use_context: bool = False,
     ) -> str:
         """Content fingerprint used to invalidate the disk cache.
 
@@ -254,7 +254,7 @@ def load_or_build(
     model_name: str = _MODEL_NAME,
     batch_size: int = 64,
     embed_fn: Any | None = None,
-    use_context: bool = True,
+    use_context: bool = False,
     device: str | None = None,
 ) -> DenseSemanticIndex:
     """Return a dense index from cache if valid, else build and persist.

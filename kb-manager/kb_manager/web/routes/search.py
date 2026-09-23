@@ -49,7 +49,9 @@ if TYPE_CHECKING:
 router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
-_DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+_DENSE_MODEL = os.getenv("KB_EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+if _DENSE_MODEL == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" and os.path.exists("/splunk-data/v1/Work_RAG-Server-Setup/offline-prep/models/huggingface/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2"):
+    _DENSE_MODEL = "/splunk-data/v1/Work_RAG-Server-Setup/offline-prep/models/huggingface/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2"
 # Reranker model (KB_RERANKER_MODEL-aware helper below) + pool size – tunable via env (restart required)
 _RERANKER_MODEL = os.getenv(
     "KB_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"
@@ -320,6 +322,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
         chunk_types=dense_chunk_types,
         model_name=_DENSE_MODEL,
         device=_embed_device,
+        use_context=False,
     )
 
     reranker = get_reranker(model_name=_get_reranker_model(), device=_rerank_device)
@@ -380,7 +383,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
                 titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
                 headings = [c.heading_path for c in all_chunks]
                 ctypes = [c.chunk_type for c in all_chunks]
-                cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
                 if cur_fp == _index_cache_fp:
                     return _index_cache
                 # fingerprint mismatch → stale, fall through to rebuild
@@ -401,7 +404,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
                     titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
                     headings = [c.heading_path for c in all_chunks]
                     ctypes = [c.chunk_type for c in all_chunks]
-                    cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                    cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
                     if cur_fp == _index_cache_fp:
                         return _index_cache
         chunk_data, bm25, dense, reranker, hyde = await _build_index()
@@ -410,7 +413,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         titles = [cd[2] for cd in chunk_data]
         headings = [cd[3] for cd in chunk_data]
         ctypes = [cd[5] for cd in chunk_data]
-        cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+        cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
         _index_cache = (chunk_data, bm25, dense, reranker, hyde)
         _index_cache_count = chunk_count
         _index_cache_fp = cur_fp
@@ -631,13 +634,21 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     rerank_cap = rerank_pool_cap if rerank_pool_cap > 0 else _RERANKER_TOP_K
     rerank_input = candidates[:rerank_cap]
     rerank_pool_size = max(len(rerank_input), 1)
-    reranked = reranker.rerank(
-        normalized,
-        [c.model_dump() for c in rerank_input],
-        top_k=rerank_pool_size,
-        pool=rerank_pool_cap,
-    )
-    rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
+    try:
+        reranked = reranker.rerank(
+            normalized,
+            [c.model_dump() for c in rerank_input],
+            top_k=rerank_pool_size,
+            pool=rerank_pool_cap,
+        )
+        rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("reranker offline fallback: %s", e)
+        reranked = [c.model_dump() for c in rerank_input[:top_k]]
+        for r in reranked:
+            r["rerank_score"] = r.get("hybrid_score", 0)
+        rerank_ms = 0.0
 
     # Re-attach RRF hybrid_score by chunk_id (rerank preserves it, but guard anyway).
     _rrf_by_id = {c.chunk_id: c.hybrid_score for c in rerank_input}
