@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
+import logging
 import math
 import os
 import re
@@ -43,13 +46,124 @@ _KEYWORD_BOOST_DEFAULT = float(os.getenv("KB_KEYWORD_BOOST", "3.0"))
 # rerank/RRF score fusion weight – tunable via env (restart required)
 _RERANK_FUSION_ALPHA = float(os.getenv("KB_RERANK_FUSION_ALPHA", "0.7"))
 
+# ---------------------------------------------------------------------------
+# Redis cache for POST /search/api (TTL 600s, key = hash(normalized+top_k))
+# ---------------------------------------------------------------------------
+_REDIS_URL = os.getenv("KB_REDIS_URL", "redis://127.0.0.1:16379/0")
+_REDIS_TTL = int(os.getenv("KB_REDIS_TTL", "600"))
+_REDIS_ENABLED = os.getenv("KB_REDIS_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+_REDIS_CONNECT_TIMEOUT = float(os.getenv("KB_REDIS_CONNECT_TIMEOUT", "1.0"))
+_redis_client = None  # type: ignore[var-annotated]
+_redis_init_tried = False
+_mem_cache: dict[str, tuple[float, dict]] = {}  # key -> (expire_ts, value)
+_log = logging.getLogger(__name__)
+
+
+def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None) -> str:
+    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost)."""
+    # include keyword_boost so different boosts don't collide (preserves accuracy)
+    kb = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
+    try:
+        kb = float(kb)
+    except Exception:
+        kb = _KEYWORD_BOOST_DEFAULT
+    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}"
+    h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+    return f"kb:search:{h}"
+
+
+async def _get_redis():
+    """Lazy singleton redis.asyncio client. Returns None if unavailable/disabled."""
+    global _redis_client, _redis_init_tried
+    if not _REDIS_ENABLED:
+        return None
+    if _redis_client is not None:
+        return _redis_client
+    if _redis_init_tried and _redis_client is None:
+        # already failed once — still try to re-connect but don't spam logs; use short timeout
+        pass
+    _redis_init_tried = True
+    try:
+        import redis.asyncio as redis_async  # type: ignore[import-not-found]
+
+        client = redis_async.from_url(
+            _REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=_REDIS_CONNECT_TIMEOUT,
+            socket_timeout=_REDIS_CONNECT_TIMEOUT,
+        )
+        # probe connectivity; fail fast so we can fall back to mem cache
+        await client.ping()
+        _redis_client = client
+        _log.info("Redis cache enabled at %s (TTL %ss)", _REDIS_URL, _REDIS_TTL)
+        return _redis_client
+    except Exception as e:
+        _log.warning("Redis unavailable (%s) — falling back to in-memory cache: %s", _REDIS_URL, e)
+        _redis_client = None
+        return None
+
+
+async def _cache_get(key: str) -> dict | None:
+    """Try Redis, then in-memory dict. Never raises — returns None on miss/error."""
+    # 1) Redis
+    try:
+        r = await _get_redis()
+        if r is not None:
+            raw = await r.get(key)
+            if raw is not None:
+                try:
+                    return json.loads(raw)
+                except Exception:
+                    # corrupted entry — treat as miss
+                    return None
+            # redis miss → check mem as well
+    except Exception as e:
+        _log.debug("Redis GET failed for %s: %s", key, e)
+    # 2) in-memory fallback (also used when Redis is down)
+    try:
+        entry = _mem_cache.get(key)
+        if entry is not None:
+            exp, val = entry
+            if time.monotonic() < exp:
+                return val
+            else:
+                # expired
+                _mem_cache.pop(key, None)
+    except Exception:
+        pass
+    return None
+
+
+async def _cache_set(key: str, value: dict, ttl: int = 600) -> None:
+    """Store in Redis (if available) and always in mem cache. Never raises."""
+    # keep mem cache regardless — guarantees fallback when Redis is down
+    try:
+        _mem_cache[key] = (time.monotonic() + ttl, value)
+        # opportunistic eviction of expired entries
+        if len(_mem_cache) > 512:
+            now = time.monotonic()
+            for k, (exp, _) in list(_mem_cache.items()):
+                if now >= exp:
+                    _mem_cache.pop(k, None)
+    except Exception:
+        pass
+    try:
+        r = await _get_redis()
+        if r is not None:
+            raw = json.dumps(value, ensure_ascii=False)
+            await r.setex(key, ttl, raw)
+    except Exception as e:
+        _log.debug("Redis SET failed for %s: %s", key, e)
+
 if TYPE_CHECKING:
     pass
 
 router = APIRouter()
 
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
-_DENSE_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+_DENSE_MODEL = os.getenv("KB_EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+if _DENSE_MODEL == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" and os.path.exists("/splunk-data/v1/Work_RAG-Server-Setup/offline-prep/models/huggingface/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2"):
+    _DENSE_MODEL = "/splunk-data/v1/Work_RAG-Server-Setup/offline-prep/models/huggingface/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2"
 # Reranker model (KB_RERANKER_MODEL-aware helper below) + pool size – tunable via env (restart required)
 _RERANKER_MODEL = os.getenv(
     "KB_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"
@@ -264,6 +378,9 @@ class SearchSteps(BaseModel):
     final_results: list[SearchResult]
     elapsed_ms: float
     rerank_ms: float = 0.0
+    # Per-stage breakdown (ms) for transparency diagram + analytics
+    stage_ms: dict[str, float] = {}
+    config: dict = {}
 
 
 async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
@@ -320,6 +437,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
         chunk_types=dense_chunk_types,
         model_name=_DENSE_MODEL,
         device=_embed_device,
+        use_context=False,
     )
 
     reranker = get_reranker(model_name=_get_reranker_model(), device=_rerank_device)
@@ -380,7 +498,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
                 titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
                 headings = [c.heading_path for c in all_chunks]
                 ctypes = [c.chunk_type for c in all_chunks]
-                cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
                 if cur_fp == _index_cache_fp:
                     return _index_cache
                 # fingerprint mismatch → stale, fall through to rebuild
@@ -401,7 +519,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
                     titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
                     headings = [c.heading_path for c in all_chunks]
                     ctypes = [c.chunk_type for c in all_chunks]
-                    cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+                    cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
                     if cur_fp == _index_cache_fp:
                         return _index_cache
         chunk_data, bm25, dense, reranker, hyde = await _build_index()
@@ -410,7 +528,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         titles = [cd[2] for cd in chunk_data]
         headings = [cd[3] for cd in chunk_data]
         ctypes = [cd[5] for cd in chunk_data]
-        cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, True)
+        cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
         _index_cache = (chunk_data, bm25, dense, reranker, hyde)
         _index_cache_count = chunk_count
         _index_cache_fp = cur_fp
@@ -429,6 +547,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         benchmark so per-stage recall can be measured at K > top_k.
     """
     start = time.monotonic()
+    stage_ms: dict[str, float] = {}
+    t_mark = start
     normalized = query.strip()
     tokens = _tokenize(normalized)
     # resolve keyword boost: explicit arg > env default > 3.0
@@ -508,6 +628,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
+    stage_ms["bm25"] = round((time.monotonic() - t_mark) * 1000, 1)
+    t_mark = time.monotonic()
     # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
     # Try pgvector first if available (HNSW), fallback to file dense
     dense_raw_base = None
@@ -571,6 +693,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
+    stage_ms["dense"] = round((time.monotonic() - t_mark) * 1000, 1)
+    t_mark = time.monotonic()
     # --- Step 3b: HyDE (optional) ---
     hyde_scores: dict[str, float] = {}
     if hyde is not None and hyde.is_available:
@@ -584,6 +708,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                 if chunk_id in bm25_id_map:
                     hyde_scores[chunk_id] = float(sims[idx])
 
+    stage_ms["hyde"] = round((time.monotonic() - t_mark) * 1000, 1) if hyde is not None and hyde.is_available else 0.0
+    t_mark = time.monotonic()
     # --- Step 4: Merge (RRF - Reciprocal Rank Fusion over 2-3 legs) ---
     ranked_lists: list[list[tuple[str, float]]] = [
         [(cid, s) for cid, s in bm25_raw if cid in bm25_id_map],
@@ -624,6 +750,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     for i, c in enumerate(candidates):
         c.hybrid_score = round(c.hybrid_score, 6)
 
+    stage_ms["rrf"] = round((time.monotonic() - t_mark) * 1000, 1)
+    t_mark = time.monotonic()
     # --- Step 6: Cross-encoder Reranking (with BM25 fallback for short queries) ---
     # KB_RERANK_POOL>0 overrides the _RERANKER_TOP_K pre-slice cap.
     # Score the full rerank pool (not just top_k) so fusion normalizes over the input set.
@@ -631,13 +759,21 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     rerank_cap = rerank_pool_cap if rerank_pool_cap > 0 else _RERANKER_TOP_K
     rerank_input = candidates[:rerank_cap]
     rerank_pool_size = max(len(rerank_input), 1)
-    reranked = reranker.rerank(
-        normalized,
-        [c.model_dump() for c in rerank_input],
-        top_k=rerank_pool_size,
-        pool=rerank_pool_cap,
-    )
-    rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
+    try:
+        reranked = reranker.rerank(
+            normalized,
+            [c.model_dump() for c in rerank_input],
+            top_k=rerank_pool_size,
+            pool=rerank_pool_cap,
+        )
+        rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("reranker offline fallback: %s", e)
+        reranked = [c.model_dump() for c in rerank_input[:top_k]]
+        for r in reranked:
+            r["rerank_score"] = r.get("hybrid_score", 0)
+        rerank_ms = 0.0
 
     # Re-attach RRF hybrid_score by chunk_id (rerank preserves it, but guard anyway).
     _rrf_by_id = {c.chunk_id: c.hybrid_score for c in rerank_input}
@@ -709,9 +845,32 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                 _rest.insert(_start + _j, _by_id[_pid])
             reranked_results = _rest
 
+    stage_ms["rerank"] = round((time.monotonic() - t_mark) * 1000, 1)
+    # use actual rerank_ms if available (cross-encoder internal timing)
+    if rerank_ms:
+        stage_ms["rerank"] = rerank_ms
+    t_mark = time.monotonic()
     # --- Step 7: Final top-k ---
     final = reranked_results[:top_k]
     elapsed = (time.monotonic() - start) * 1000
+    stage_ms["build_context"] = round((time.monotonic() - t_mark) * 1000, 1)
+    stage_ms["total"] = round(elapsed, 1)
+    # config echo for transparency diagram
+    config = {
+        "keyword_boost": keyword_boost,
+        "bm25_k1": 1.5,
+        "bm25_b": 0.75,
+        "dense_model": _DENSE_MODEL,
+        "dense_dim": 384,  # paraphrase-multilingual-MiniLM-L12-v2
+        "hyde_enabled": bool(hyde is not None and getattr(hyde, "is_available", False)),
+        "rrf_k": 60,
+        "reranker_model": _get_reranker_model(),
+        "fusion_alpha": float(os.getenv("KB_RERANK_FUSION_ALPHA", str(_RERANK_FUSION_ALPHA))),
+        "max_chunks": top_k,
+        "rerank_pool": _get_rerank_pool(),
+        "beam": _SYNONYM_BEAM,
+        "use_pgvector": use_pgvector,
+    }
     depth = stage_depth or top_k
 
     return SearchSteps(
@@ -726,6 +885,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         final_results=final,
         elapsed_ms=round(elapsed, 1),
         rerank_ms=rerank_ms,
+        stage_ms=stage_ms,
+        config=config,
     )
 
 
@@ -760,7 +921,14 @@ async def search_page(request: Request):
 
 @router.post("/api")
 async def search_api(request: Request):
-    """Search API endpoint - returns JSON with step-by-step results."""
+    """Search API endpoint - returns JSON with step-by-step results.
+
+    Redis cache (TTL 600s, key = hash(normalized_query + top_k)):
+    - On hit, returns cached SearchSteps JSON immediately without BM25/Dense/Rerank.
+    - On miss, computes pipeline and stores result.
+    - Errors are never cached. Redis unavailable → gracefully falls back to compute
+      (and to in-memory dict if redis not reachable).
+    """
     import traceback
 
     try:
@@ -780,12 +948,30 @@ async def search_api(request: Request):
     if not query:
         return {"error": "Empty query"}
 
+    # --- cache lookup (must not hurt recall/accuracy: key includes top_k + boost) ---
+    ckey: str | None = None
+    try:
+        ckey = _cache_key(query, top_k, keyword_boost)
+        cached = await _cache_get(ckey)
+        if cached is not None:
+            return cached
+    except Exception:
+        # never block search on cache errors
+        ckey = ckey or _cache_key(query, top_k, keyword_boost)
+        cached = None
+
     try:
         # F2/F29 fix: directly await async pipeline — no to_thread/_sync_loop indirection
         # (asyncpg pool binds to the loop that first uses it; a worker thread breaks it)
         steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost)
         out = steps.model_dump()
         out["keyword_boost_used"] = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
+        # store only on success — do not cache errors
+        if ckey is not None:
+            try:
+                await _cache_set(ckey, out, _REDIS_TTL)
+            except Exception:
+                pass
         return out
     except Exception as e:
         return {"error": str(e), "traceback": traceback.format_exc()}
