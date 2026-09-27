@@ -210,9 +210,13 @@ async def transparency_index(request: Request, q: str = "", page: int = 1, per_p
         query = select(Document).order_by(Document.updated_at.desc())
         count_q = select(func.count(Document.id))
         if q:
-            like = f"%{q}%"
-            query = query.where(Document.title.ilike(like) | Document.source_path.ilike(like))
-            count_q = count_q.where(Document.title.ilike(like) | Document.source_path.ilike(like))
+            # K-C5: escape ilike wildcards % and _ to prevent full-table DoS
+            if len(q) > 200:
+                q = q[:200]
+            escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            like = f"%{escaped}%"
+            query = query.where(Document.title.ilike(like, escape="\\") | Document.source_path.ilike(like, escape="\\"))
+            count_q = count_q.where(Document.title.ilike(like, escape="\\") | Document.source_path.ilike(like, escape="\\"))
         total = (await session.execute(count_q)).scalar() or 0
         total_pages = max(1, (total + per_page - 1) // per_page)
         offset = (page - 1) * per_page

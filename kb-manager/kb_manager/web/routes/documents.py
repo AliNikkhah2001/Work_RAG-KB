@@ -101,9 +101,26 @@ async def upload_document(
     upload_dir = Path("data/uploads")
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    file_path = upload_dir / file.filename
+    # K-C1: sanitize filename — prevent path traversal and overwrite
+    import re
+    safe_name = Path(file.filename or "upload").name
+    sanitized = re.sub(r"[^a-zA-Z0-9._-]", "_", safe_name)
+    if not sanitized or sanitized in (".", ".."):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    file_path = (upload_dir / sanitized).resolve()
+    # ensure resolved path stays inside upload_dir
+    try:
+        file_path.relative_to(upload_dir.resolve())
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Invalid filename: path traversal")
+    # size limit 100MB
+    content = await file.read()
+    if len(content) > 100 * 1024 * 1024:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=413, detail="File too large (max 100MB)")
     with open(file_path, "wb") as f:
-        content = await file.read()
         f.write(content)
 
     async with db.session() as session:

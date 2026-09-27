@@ -31,8 +31,9 @@ async def lifespan(app: FastAPI):
                 .where(IngestionJob.status.in_(["running", "pending"]))
                 .values(status="interrupted", completed_at=_dt.datetime.now(_dt.UTC))
             )
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Failed to mark stale jobs interrupted: %s", e)
     # Ensure indexes exist on existing tables (create_all only creates missing tables)
     try:
         async with db.async_engine.begin() as conn:
@@ -41,8 +42,9 @@ async def lifespan(app: FastAPI):
                     "CREATE INDEX IF NOT EXISTS ix_chunks_created_at ON chunks (created_at)"
                 )
             )
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Failed to create index ix_chunks_created_at: %s", e)
 
     # Pre-warm search index synchronously so the server is ready immediately.
     # This loads BM25 index + MiniLM embeddings + cross-encoder reranker (~30s first time).
