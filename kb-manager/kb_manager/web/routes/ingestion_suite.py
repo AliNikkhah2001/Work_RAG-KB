@@ -30,6 +30,24 @@ KB_ZIPS_DIR = PROJECT_ROOT / "data" / "kb_zips"
 KB_ZIPS_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_ZIP_BYTES = 500 * 1024 * 1024
+MAX_STAGE_BYTES = 2 * 1024 * 1024 * 1024  # 2GB per session
+MAX_FILE_BYTES = 100 * 1024 * 1024  # 100MB per file
+STAGE_TTL_HOURS = 24
+
+def _reap_old_stages():
+    """Delete staged sessions older than STAGE_TTL_HOURS."""
+    import time
+    stage_root = Path("data/stage")
+    if not stage_root.exists():
+        return
+    now = time.time()
+    for sid_dir in stage_root.iterdir():
+        try:
+            if now - sid_dir.stat().st_mtime > STAGE_TTL_HOURS * 3600:
+                import shutil
+                shutil.rmtree(sid_dir)
+        except Exception:
+            pass
 
 _JOBS: dict[str, dict[str, Any]] = {}
 _TASKS: dict[str, asyncio.Task] = {}
