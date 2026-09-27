@@ -1,0 +1,9 @@
+{
+  "version": 11,
+  "total_documents": 35,
+  "total_chunks": 2227,
+  "db_path": "data/kb_1405_06_23.db",
+  "embeddings_path": "data/dense_embeddings.npz",
+  "created": "2026-09-21",
+  "notes": "Post-chunkfix rebuild: overlap removal, keyword stripping, dense use_context=False"
+}

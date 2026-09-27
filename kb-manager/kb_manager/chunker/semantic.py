@@ -421,9 +421,9 @@ class SemanticChunker(BaseChunker):
         else:
             self._skipped_incomplete = 0
 
-        # Return both child and parent chunks
-        all_chunks = chunks + parent_chunks
-        return self._apply_overlap(all_chunks)
+        # v11 fix: row-wise atomic chunks must NOT have overlap prefix
+        # (overlap corrupts verbatim retrieval for QA rows)
+        return chunks + parent_chunks
 
     def _apply_overlap(self, chunks: list[Chunk]) -> list[Chunk]:
         """Apply overlap between consecutive chunks.
@@ -482,16 +482,15 @@ class SemanticChunker(BaseChunker):
                 ("پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("متن پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("متن_پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
-                ("keyword", "\u06a9\u0644\u06cc\u062f\u0648\u0627\u0698\u0647\u200c\u0647\u0627"),
-                ("keywords", "\u06a9\u0644\u06cc\u062f\u0648\u0627\u0698\u0647\u200c\u0647\u0627"),
             ]
 
         for key, label in field_order:
             if key in fields:
                 lines.append(f"{label}: {fields[key]}")
 
-        # Add any remaining fields not in the predefined order
-        seen = {k for k, _ in field_order}
+        # v11 fix: strip keywords from content — they remain as BM25/keyword field and chunk.keywords but not in content string
+        # Prevent leakage via remaining-fields loop by adding keyword/keywords to seen exclusion set
+        seen = {k for k, _ in field_order} | {"keyword", "keywords"}
         for key, value in fields.items():
             if key not in seen:
                 label = self._FIELD_NAMES_FA.get(key, key)
