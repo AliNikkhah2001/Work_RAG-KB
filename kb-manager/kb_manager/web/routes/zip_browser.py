@@ -38,7 +38,8 @@ def _safe_join(base: Path, rel: str) -> Path | None:
     try:
         p = (base / rel).resolve()
         base_r = base.resolve()
-        if str(p).startswith(str(base_r)):
+        # Use is_relative_to (Python 3.9+) instead of startswith bypass
+        if p.is_relative_to(base_r):
             return p
     except Exception:
         return None

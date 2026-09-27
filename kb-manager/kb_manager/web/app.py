@@ -130,7 +130,6 @@ async def health():
         "status": "ok" if db_ok else "degraded",
         "db_mode": cfg.db.mode,
         "db_driver": cfg.db.driver,
-        "db_url": cfg.db.async_url.split("@")[-1] if "@" in cfg.db.async_url else cfg.db.async_url,
         "db_ok": db_ok,
         "doc_count": doc_count,
         "chunk_count": chunk_count,
