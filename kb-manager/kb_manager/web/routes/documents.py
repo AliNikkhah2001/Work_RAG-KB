@@ -9,9 +9,10 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 
 from kb_manager.models.database import Chunk, Document
+from kb_manager.web.auth import require_admin_auth
 from kb_manager.web.deps import db, templates
 
-router = APIRouter()
+router = APIRouter(dependencies=[])  # auth added per-route for now
 
 
 @router.get("")

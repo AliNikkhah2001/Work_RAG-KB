@@ -358,9 +358,19 @@ async def create_session_from_path(payload: dict):
     raw = str((payload or {}).get("path") or "").strip()
     if not raw:
         raise HTTPException(status_code=400, detail="مسیر لازم است / path required")
+    # K-C3: restrict to allowlist to prevent arbitrary file read
+    import os
+    allowed_roots = [Path(p).resolve() for p in os.getenv("KB_ALLOWED_SOURCE_ROOTS", str(PROJECT_ROOT)).split(",") if p.strip()]
+    if not allowed_roots:
+        allowed_roots = [PROJECT_ROOT.resolve()]
     src = Path(raw).expanduser()
     if not src.is_absolute():
         src = (PROJECT_ROOT / src).resolve()
+    else:
+        src = src.resolve()
+    # reject if not inside any allowed root
+    if not any(str(src).startswith(str(r) + os.sep) or str(src) == str(r) for r in allowed_roots):
+        raise HTTPException(status_code=403, detail="Path not in allowed roots")
     if not src.exists():
         raise HTTPException(status_code=404, detail=f"مسیر یافت نشد: {raw}")
     sid = uuid.uuid4().hex[:12]
