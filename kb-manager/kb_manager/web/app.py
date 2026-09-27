@@ -141,11 +141,6 @@ async def api_health():
     """Alias for /health."""
     return await health()
 
-
-@app.get("/health")
-async def health():
-    return {"status": "ok", "service": "kb-manager"}
-
 @app.get("/ready")
 async def ready():
     """Ready if DB has chunks and index could be built."""
