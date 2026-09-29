@@ -1,532 +1,296 @@
-# KB Manager - Knowledge Base Management System
+# KB Manager — Persian RAG Knowledge Base
 
-> **ICS Credit Scoring Knowledge Base** — Process, version, and manage your Persian-language knowledge base for RAG agents.
+> **ICS Credit Scoring Knowledge Base** — ingest, chunk, version, and serve a Persian-language corpus (credit reports, cheque scoring, CRM Q&A) for RAG agents, with hybrid retrieval (BM25 + dense + RRF + cross-encoder rerank), stage-level benchmarks, and a FastAPI operations UI.
 
-## Current Status — v10 (1405-06-23 corpus + full-corpus stage-level benchmark, 2026-09-19)
+- **Current KB:** `v11_1405-06-23` — 35 docs / 2,227 chunks, Hit@5 **0.8585**, MRR 0.8271
+- **Stack:** FastAPI · SQLAlchemy (async) · SQLite / pgvector · sentence-transformers · cross-encoder rerankers · hazm/shekar (Persian) · Click + Rich CLI
+- **Validated:** `compileall` clean · `pytest` **116 passed**, 3 skipped, 1 pre-existing env-dependent failure (2026-09-29)
 
-| Metric | Value |
-|--------|-------|
-| **Version** | `v10_1405-06-23` (`kb-source/1405-06-23` 41 files → 40 after dupe removal → **35 docs**, `kb_1405_06_23.db`) |
-| **Documents / Chunks** | **35 docs, 2,282 chunks** (`1405-06-23`, `qa_pair` + `body` + `reason_detail` + `parent`; rebuild `29s`) |
-| **DB** | `sqlite` light (`kb_1405_06_23.db`, `2282×384` dense, `data/dense_embeddings.npz`) |
-| **Source** | `kb-source/1405-06-23` (41 xlsx/pdf/docx: `حقیقی` + `حقوقی` + `گزارش چک` + `سایر` + `ضمیمه پایگاه دانش چت‌بات`) |
-| **Chunking** | New `kv_pair` + `single_col_list` schemas, ingest-time variable fan-out (cap 50, `<name>` syntax), excluded sheets/columns, reason-code detection fix |
-| **Full-corpus benchmark** | **714 gold-mapped QA rows**, `Hit@5 0.9244`, `Hit@1 0.7703`, `MRR 0.8369`, 0 errors (2026-09-19, 162.7 min CPU) |
-| **Stage-level (Hit@5)** | `bm25 0.564` · `dense 0.343` · `merged 0.602` · **`final 0.924`** (reranker +0.32 over RRF) |
-| **Failures** | `A retriever 46` · `B fusion 6` · `C reranker 2` · `D success 660` (per-stage top-10 dumped to JSONL) |
-| **Ingestion Suite** | `/ingestion` 5-step wizard (Upload → Tree → Edit → Columns → Run), zip/local-path sessions, per-doc review gate, save-zip/export-path |
-| **Web UI** | `http://127.0.0.1:8000` (`kb_1405_06_23.db` via `KB_DB_URL`) + `/transparency` (Persian `Vazirmatn` `dir=rtl`) + `/ingestion` + `/benchmarks/massive` (live) |
+## Contents
 
-> **v10 notice:** full-corpus stage-level benchmark (`agent2_v10_1405_06_23.py`) classifies every gold-mapped row as **A** retriever (gold in neither BM25 nor dense top-100), **B** fusion (gold in a leg top-100 but RRF merged rank > 20), **C** reranker (merged ≤ 20 but reranked out of top-5), or **D** success. Each JSONL row now stores the **top-10 BM25 / dense / merged** and **top-5 final** results with scores + the `reranker_model`, and the gold rank is an exact 1-indexed position (never `-1`).
+- [Features](#features)
+- [Architecture](#architecture)
+- [Project structure](#project-structure)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+- [Configuration](#configuration)
+- [API & UI](#api--ui)
+- [Version history](#version-history)
+- [Architecture evolution](#architecture-evolution)
+- [Benchmarks & metrics](#benchmarks--metrics)
+- [Latency](#latency)
+- [LLM-as-judge feedback & root causes](#llm-as-judge-feedback--root-causes)
+- [Evaluation reports](#evaluation-reports)
+- [Development](#development)
 
-> **v7 Notice:** New isolated KB from the `1405-05-31` folder (individual/corporate/cheque/saire/fanni content). Synonym beam5 + colloquial→formal expansion added (`kb_manager/query_expansion.py`, 74 entries) lifts Persian conversational queries; pipeline now skips `TestQuestion*` source dirs so test datasets are never ingested. 4 IVA misses are ranking-quality (reason-code "guaranteed loan" Q11/12 and semantic Q14/15 — see `diag_pretank.py`; reranker demotes golden chunks). Next: increase RERANKER_TOP_K 50→100 for pool, or per-domain rerank.
+## Features
 
-## Version History & Differences
+- **Multi-format ingest** — `.xlsx` (openpyxl/calamine), `.docx`, `.pdf` (PyMuPDF) via a parser registry (`kb_manager/parsers/`), orchestrated full/incremental rebuilds (`kb_manager/pipeline/orchestrator.py`) with quality gates (`pipeline/quality.py`) and versioning (`pipeline/versioning.py`).
+- **Semantic chunking** — `semantic` / `fixed` strategies (`kb_manager/chunker/`); QA-pair, article, kv-pair, reason-detail, single-col-list and staff-profile schemas with parent chunks, question dedup, and overlap control.
+- **Hybrid retrieval** — lexical BM25 + dense MiniLM-L12 cosine index (numpy `.npz` cache with content fingerprint) → RRF fusion → cross-encoder rerank (`kb_manager/dense.py`, `kb_manager/reranker.py`, `kb_manager/web/routes/search.py`).
+- **Persian query path** — normalization (`preprocessor/persian.py`, `regex_persian.py`), synonym/beam expansion (`query_expansion.py`, 74-entry colloquial→formal map), reform/enhance stages, optional HyDE (`hyde.py`, off by default).
+- **Operations UI** — dashboard, transparency views (RTL Persian), 5-step ingestion wizard, benchmarks, chunk/document browsers, zip browser, monitoring (`kb_manager/web/routes/`, 12 routers).
+- **Stage-level evaluation** — every gold row classified A / A′ / B / D with per-stage top-k lists dumped to JSONL, plus a live TUI dashboard and LLM-judge corpus tooling (`artifacts/retrieval_training/`).
 
-| Version | When | KB corpus | Pipeline / Retrieval | Key changes | Benchmark |
-|---------|------|-----------|----------------------|-------------|-----------|
-| **v1** | Aug 2026 | ~160 files (31Tir1405 zip) | Baseline ingest + BM25 | Initial KB architecture, file taxonomy, schemas | — |
-| **v2** | Aug 2026 | 355 docs / 6,208 chunks | BM25 + TF-IDF (RRF k=60) | First hybrid retrieval; QA cleanup start | Hit@5 **90%**, MRR 0.736, 2.8s |
-| **v3** | Aug 2026 | 355 docs / 6,208 chunks | BM25 + Dense MiniLM-L12 + RRF | Added dense semantic leg + contextual embeddings | Hit@5 **89.2%**, MRR 0.787, 1.9s |
-| **v4** | Aug 2026 | 355 docs / 6,208 chunks | + char 3-grams + cross-encoder reranker | Char n-grams (typo fix), mmarco reranker, structured Persian chunking | Hit@5 **90%**, MRR 0.775, **15.8s** (rerank cost) |
-| **v5** | Aug 2026 | 355 docs / 6,208 chunks | P0-P5 frozen dataset + BM25×3 | Frozen dataset checksum, BM25 keyword ×3 weight, typo map fixed, no fabricated metrics | Hit@5 **84.2%**, MRR 0.751, 4.2s |
-| **v6** | Sep 2026 | 69 docs / 3,626 chunks | P0-P8 remediation + Persian central + synonym beam5 | `regex_persian.py` central maps, `dedup.py` MinHash LSH, `query_expansion.py` beam5, fingerprint/invalidation, async fixes, duplicate-doc pipefix | 10q smoke **100%** Hit@5 |
-| **v7** | Sep 2026 | 34 docs / 2,074 chunks | 1405-05-31 KB + colloquial beam5 | **Fresh KB** from `kb-source/1405-05-31`; `TestQuestion*` dirs excluded; colloquial→formal synonyms; IVA 15 | **Doc-level Hit@5 73.3%** (11/15), MRR 0.466, ~22.7s |
-| **v8** | Sep 2026 | 103 docs / 6,593 chunks | `pgvector HNSW 384 m16` + `tunable keyword×3.0` | `Vector(384)` `HNSW`, `پرسش/پاسخ` `crm_qa` fix, `8001` | **HNSW 23.1s → GPU 18.4s 1.3×** |
-| **v9** | Sep 2026 | **21 docs / 1,084 chunks** + 32 docs | `KB_9.7.2026` 27 entries type-aware + `transparency/zip` + `massive live` | `KB_9.7.2026` (`حقیقی/سایر` 22 files, `واژگان` excluded, `ZWNJ` fix `persian.py:96`, `RERANKER_TOP_K 100`, `massive 573` live) | **IVA 11/15 73.3% MRR 0.474** (4 misses) → `13/15` target; massive `62/573` running |
-| **v10** ⭐ current | Sep 2026 | **35 docs / 2,282 chunks** | `1405-06-23` + `kv_pair`/`single_col_list` + ingest-time variable fan-out + stage-level bench | New chunk schemas, exclusion sets, reason-code detection fix, `/ingestion` 5-step wizard, full-corpus stage-level benchmark (`bm25→dense→RRF→rerank`) | **Hit@5 0.9244**, Hit@1 0.7703, MRR 0.8369 (714 gold-mapped rows, 2026-09-19) |
+## Architecture
 
-### What changed in v7 (vs v6)
+### Ingest pipeline
 
-1. **Brand-new isolated corpus**: ingest switched from the old `kb-source/clean_files` (78 files) to the `kb-source/1405-05-31/` tree — `(done)حقوقی`, `(done)حقیقی`, `سایر`, `فنی`. Result: 34 documents, 2,074 chunks (585 QA, 979 body, 499 reason-detail), rebuilt in 23.3s.
-2. **Test datasets excluded from indexing** (`orchestrator._scan_files`): any path segment starting with `TestQuestion` is skipped — so `TestQuestions_IVA/` is never ingested.
-3. **Colloquial → formal query expansion** (74-entry map): added user-facing Persian forms (چی/چه, رو/را, توی/در, قسطشون/قسط, رتبم/رتبه, چکم/چک…) to close the gap on real conversational questions.
-4. **Real user-question benchmark**: `TestQuestions_IVA/InitialTestQuestion.xlsx` (15 questions) with a doc-level ground-truth (golden document that holds the answer). Reported doc-level Hit@5 = 73.3% (11/15), MRR 0.466.
-5. **Web fixes shipped in v7**: pipeline jobs no longer stuck `running` (finalize now re-fetches inside the active session + stale jobs marked `interrupted` at startup); snapshot plot images fixed (`{name:path}` route → 404 was a path-segment mismatch); Comparison tab rewritten data-driven (v2→v7, not hard-coded v4); `/versions` rollback persists (missing flush).
+```mermaid
+graph LR
+    SRC[kb-source version folder<br/>xlsx / docx / pdf] --> SCAN[orchestrator._scan_files<br/>TestQuestion* excluded]
+    SCAN --> PARSE[parsers registry<br/>xlsx / docx / pdf]
+    PARSE --> PRE[preprocessor pipeline<br/>clean + persian + validators]
+    PRE --> CHUNK[semantic chunker<br/>qa / article / kv / reason-detail<br/>parents + question dedup]
+    CHUNK --> QUAL[quality gates]
+    QUAL --> DEDUP[dedup.py<br/>question + MinHash LSH]
+    DEDUP --> EMB[embedder + dense index<br/>MiniLM-L12 384d, npz cache]
+    EMB --> DB[(SQLite aiosqlite<br/>or pgvector HNSW)]
+```
 
-### Known v7 gaps (next fixes)
+### Retrieval pipeline (per query)
 
-- **4 IVA misses** (Q11/12 reason-code "guaranteed loan", Q14 rank-vs-score, Q15 negative-contract details): golden chunks ARE in the RRF pool for Q11/12 but the cross-encoder demotes them → try `RERANKER_TOP_K 50→100` or per-domain reranking.
-- Latency ~22.7s/query is CPU-bound (cross-encoder 50-pool); on GPU (H200) expect the v5-era ~4s baseline. See Remediation Phase 9.
-- Only `verbatim` format benchmarked for IVA; expanding to 6 formats + answer-grounded RAGAS eval is the next milestone.
+```mermaid
+graph LR
+    Q[Persian query] --> QX[query enhance / expansion beam5 / reform<br/>HyDE optional, off by default]
+    QX --> BM25[BM25 lexical<br/>keyword x3 + char 3-grams]
+    QX --> DENSE[Dense cosine<br/>content-only embeddings]
+    BM25 --> RRF[RRF fusion k=60<br/>merged top-100]
+    DENSE --> RRF
+    RRF --> RERANK[cross-encoder rerank<br/>100-pool, CPU ~14s]
+    RERANK --> TOP[final top-5 + scores]
+```
 
-## Knowledge Base Content Map — 1405-06-23 (41 files)
-
-Full detail: `docs/KV_CHUNKING_PLAN.md` (KV / tree / variable chunking plan, audit findings, work order).
-
-### Corpus hierarchy (41 files)
+### Web service
 
 ```mermaid
 graph TD
-  ROOT["corpus root - 41 files"] --> HOQ["hoquqi - 3 xlsx"]
-  ROOT --> HAGH_ET["haghighi / gozaresh-etebari - individual files"]
-  ROOT --> HAGH_CH["haghighi / gozaresh-check - cheque files"]
-  ROOT --> SAIR["sair misc - 16 xlsx"]
-  ROOT --> ZAM["zamime appendix - docx + pdfs + pngs"]
-  ROOT --> MIS["misnamed - 2 extensionless xlsx"]
-  HOQ --> HOQ_A["row-wise QA / reason / articles"]
-  HAGH_ET --> HAGH_ET_A["individual credit-report sheets"]
-  HAGH_CH --> HAGH_CH_A["cheque report + reason codes"]
-  SAIR --> SAIR_A["glossary + staff + loan + timeline + KV tables"]
-  ZAM --> ZAM_A["1 docx + 2 pdf + 5 png"]
-  MIS --> MIS_A["IndividualQuestions V3 + ReasonCodeIndividual V3"]
+    APP[kb_manager.web.app<br/>FastAPI 0.1.0 + lifespan pre-warm] --> R1[/documents<br/>/chunks<br/>/pipeline/]
+    APP --> R2[/search<br/>/benchmarks<br/>/monitoring/]
+    APP --> R3[/transparency + zip_browser<br/>/ingestion + kb_history<br/>/versions /cleanup/]
+    APP --> H[/health<br/>/api/health<br/>/ready<br/>dashboard /]
+    APP --> DB[(SQLite or pgvector)]
 ```
 
-### Schema to chunk strategy
+Lifespan pre-warm loads the BM25 index + MiniLM embeddings + cross-encoder (~30 s first boot) so the first query is fast (`kb_manager/web/app.py:14-57`).
 
-```mermaid
-flowchart LR
-  QA["schema: crm_qa"] --> S_QA["strategy: qa_pair, 1 row = 1 chunk"]
-  RC["schema: reason_codes"] --> S_RC["strategy: reason row, 1 row = 1 chunk"]
-  AR["schema: articles"] --> S_AR["strategy: article row-wise, 1 row = 1 chunk"]
-  TYP["schema: glossary / staff / loan / timeline"] --> S_TYP["strategy: typed row, 1 row = 1 chunk"]
-  KV["schema: none + 2-col KV"] --> S_KV["strategy: kv_pair, 1 row = 1 chunk"]
-  GEN["schema: none + generic body"] --> S_GEN["strategy: structural body chunks"]
-```
-
-### Variable expansion
-
-```mermaid
-graph TD
-  TPL["template row with <bank_name>"] --> REG["registry: bank_name.json"]
-  REG --> REG_SRC["seeded from neobanks + Mobile_Banks + DataUsers"]
-  REG --> C1["chunk 1: value A"]
-  REG --> C2["chunk 2: value B"]
-  REG --> CN["chunk N: value N"]
-  C1 --> PAR["parent chunk per group"]
-  C2 --> PAR
-  CN --> PAR
-```
-
-### Schema changes Before / After
-
-| Change | Before | After |
-|--------|--------|-------|
-| Skip rule | no test-data skip | skip TestQuestion paths |
-| Articles | articles grouped, not row-wise | articles row-wise, 1 row = 1 chunk |
-| KV tables | 2-col KV had no strategy | new kv_pair type, 1 row = 1 chunk |
-| Single-col lists | single-col sheets rejected | single-col parsed as list, 1 row = 1 chunk |
-| Extensionless xlsx | misnamed files invisible | magic sniffing parses PK zip workbooks |
-| Chunk labels | generic labels only | localized question / answer / keyword labels |
-| Duplicates | both cheque QA files ingested | byte-identical duplicate excluded, ingest one |
-| Survey sheets | opinion sheets ingested | nazar sheets excluded |
-
-### TODO (from docs/KV_CHUNKING_PLAN.md section 8)
-
-- [ ] kv_table chunk type + parser single-col lists + V3 renames
-- [ ] Variable registry + expansion in session parser + suite variables column
-- [ ] Tree-KV parent chains + chunking-view support (colors per parent group)
-- [ ] Keywords/summary enrichment for non-QA rows
-- [ ] Multi-query + enhancer behind flags, benchmarked before default-on
-
-## Quick Start
-
-```bash
-pip install -e ".[dev]"
-python run_server.py
-# Open http://127.0.0.1:8000
-```
-
-The server pre-warms the search index (BM25 + dense embeddings + cross-encoder reranker) on startup (~30-60s first time).
-
-### Ingest from Source
-
-The pipeline page at `/pipeline` has an editable source directory (defaults to `kb-source/` submodule). Click **Full Rebuild** to ingest.
-
-```bash
-# Or via CLI
-python -c "
-import asyncio
-from kb_manager.pipeline.orchestrator import PipelineOrchestrator
-from kb_manager.models.database import Database
-from kb_manager.config import load_config
-
-async def main():
-    cfg = load_config()
-    db = Database(cfg.db)
-    orch = PipelineOrchestrator(database=db)
-    summary = await orch.run_full_rebuild(cfg.source_dir)
-    print(summary.to_dict())
-
-asyncio.run(main())
-"
-```
-
-## Retrieval Pipeline
-
-Four-stage hybrid retriever with cross-encoder reranking:
-
-```
-Query → Persian Normalization + Char 3-grams
-      → BM25 (lexical) ─────────────────┐
-      → Dense Semantic (MiniLM L12) ─────┤
-                                         ↓
-                              RRF Fusion (k=60)
-                                         ↓
-                         Cross-encoder Rerank (top-50)
-                                         ↓
-                              Final Top-K Results
-```
-
-- **BM25**: Okapi BM25 with Persian-aware tokenization, char 3-grams for typo robustness, keyword 3x boost
-- **Dense**: `paraphrase-multilingual-MiniLM-L12-v2` (384-dim) with contextual embeddings (title + heading prepended)
-- **RRF**: Reciprocal Rank Fusion over BM25 + Dense ranked lists
-- **Reranker**: `BAAI/bge-reranker-v2-m3` (default, configurable via `KB_RERANKER_MODEL`) on a `KB_RERANK_POOL`-capped candidate pool (default `min(50, top_k*3)`; production CPU sets `KB_RERANK_POOL=15` to bound latency, GPU hosts can raise to 30); per-call latency logged (`rerank model=… n=… ms=…`, `SearchSteps.rerank_ms`)
-
-### Reranker backbones (select via `KB_RERANKER_MODEL`; default `BAAI/bge-reranker-v2-m3`)
-
-> **Default: `BAAI/bge-reranker-v2-m3`.** Set in code (`reranker.py _DEFAULT_MODEL`, `config.py RerankerConfig`, `search.py _RERANKER_MODEL` fallback) and live on production KB `:8000` via `KB_RERANKER_MODEL` + `KB_RERANK_POOL=15`.
-
-| Model | Params | License | Loader | Status |
-|---|---|---|---|---|
-| `BAAI/bge-reranker-v2-m3` (default) | 568M | Apache 2.0 | CrossEncoder | **production default — best measured MRR + Persian support (see below)** |
-| `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` | 118M | Apache 2.0 | CrossEncoder | lightweight fallback: `KB_RERANKER_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1` |
-| `jinaai/jina-reranker-v3` | 0.6B | Apache 2.0 | CrossEncoder (`trust_remote_code`, EOS pad fallback) | candidate (v2 skipped: CC-BY-NC) |
-| `Qwen/Qwen3-Reranker-0.6B` | 0.6B | Apache 2.0 | FlagEmbedding LLM head | candidate |
-| `Qwen/Qwen3-Reranker-4B` | 4B | Apache 2.0 | FlagEmbedding LLM head | candidate (~23GB RAM, CPU-only here) |
-| `BAAI/bge-reranker-v2-gemma` | 2.5B | Apache 2.0 | FlagEmbedding LLM head | candidate, biggest SOTA in scope |
-| `BAAI/bge-reranker-v2-minicpm-layerwise` | 2.7B | Apache 2.0 | — | blocked: needs transformers-5 port (remote modeling uses removed APIs) |
-| `Alibaba-NLP/gte-multilingual-reranker-base` | ~300M | Apache 2.0 | — | blocked: custom modeling broken under transformers 5 (rope index bug, verified native) |
-
-Notes: causal-LM-derived rerankers (Jina-v3/Qwen3) ship `pad_token_id=None`; the loader falls back to EOS on tokenizer + model + nested text config. `BAAI/bge-reranker-v2-gemma` is Gemma-2B-based (~2.5B, 9.4GB), not 9B. Hosted APIs (Cohere/Voyage) excluded — self-hosted only.
-
-#### Persian support (why v2-m3 is the default multilingual pick)
-
-- **Backbone:** BGE-M3 (XLM-RoBERTa-Large base, 568M params, 2.27GB) — multilinguality over 100+ languages, including Persian.
-- **Benchmark lineage:** SOTA on MIRACL multilingual retrieval, which includes a Persian (`fa`) split, and on MKQA cross-lingual; vendor BGE docs explicitly recommend v2-m3 "for multilingual".
-- **Loader:** plain cross-encoder (sentence-transformers `CrossEncoder`), Apache-2.0, no `trust_remote_code` needed — unlike Jina-v3 / Qwen3 LLM-head loaders.
-- **Production note:** 568M on CPU is heavier than MiniLM-118M → set `KB_RERANK_POOL=15` to bound latency (~5–15s rerank solo on CPU); GPU hosts can raise to 30.
-
-## Benchmark Results
-
-### v10 — full-corpus stage-level retrieval benchmark (2026-09-19, measured)
-
-Dataset: **`1405-06-23` corpus** (`kb_1405_06_23.db`, 35 docs, 2,282 chunks). `agent2_v10_1405_06_23.py` replicates `benchmarks.py::_run_massive` file discovery + 3-step gold mapping, runs `search_knowledge_base(query, top_k=100)` per gold-mapped QA row, and records the gold rank at **every stage** plus the full stage leaderboards.
-
-- **Run:** 2026-09-19, 162.7 min CPU, `top_k=100`, `per_query_timeout=600s`, 0 errors.
-- **Eval set:** 714 gold-mapped rows (of 1,659 QA rows; 943 `no-gold-chunk` — see caveat, 2 empty).
-- **Models:** dense `paraphrase-multilingual-MiniLM-L12-v2` · reranker `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`.
-- **Config:** `rrf_k=60`, `rerank_top_k=100`, `keyword_boost=3.0`, `synonym_beam=5`, `fusion_alpha=0.7`.
-- **DB sha256:** `7147948b…af08a0`; **npz sha256:** `4d760396…94a66bb`.
-
-| Stage | Hit@5 | recall@100 |
-|-------|-------|------------|
-| BM25 | 0.5644 (403/714) | 0.8613 (615/714) |
-| Dense | 0.3431 (245/714) | 0.7605 (543/714) |
-| Merged (RRF) | 0.6022 (430/714) | 0.9356 (668/714) |
-| **Final (reranked)** | **0.9244 (660/714)** | — |
-
-| Aggregate | Value |
-|-----------|-------|
-| **Hit@1** | **0.7703** (550/714) |
-| **Hit@5** | **0.9244** (660/714) |
-| **MRR** | **0.8369** |
-| A retriever / B fusion / C reranker / D success | 46 / 6 / 2 / 660 |
-| errors | 0 |
-
-The reranker adds **+0.32 Hit@5 over RRF** (0.602 → 0.924) and rescues 230 rows. RRF already lifts single-leg hit rates (BM25 0.564, dense 0.343) by +0.04 over the better leg.
-
-**Per-file Hit@5:**
-
-| File | n | A | B | C | D | Hit@5 |
-|------|---|---|---|---|---|-------|
-| Company_CRM_Questions | 332 | 24 | 2 | 1 | 305 | 0.919 |
-| IndividualCRMQuestions | 179 | 12 | 3 | 0 | 164 | 0.916 |
-| ChequeQuestions | 117 | 1 | 0 | 1 | 115 | 0.983 |
-| PublicQuestions | 55 | 9 | 1 | 0 | 45 | **0.818** |
-| EtebaritoProblems / Disputed / categorized / مباحثی | 31 | 0 | 0 | 0 | 31 | 1.000 |
-
-**Root causes (sample-inspected):**
-
-- **A — retriever failure (46): 34/46 miss both legs.** Gold chunks exist but carry an unrelated "distractor prefix" (e.g. `Company_CRM_Questions#47` asks about cheque-bounce reasons while the gold text opens with an update-frequency question), so neither BM25 nor dense surface them. Heaviest in Company (24), Individual (12), PublicQuestions (9).
-- **B — fusion failure (6): RRF dilution.** Gold found by only one leg loses to chunks present in both (`1/(60+rank)` signal too weak). e.g. `PublicQuestions#24` bm25=3 → merged=39; `IndividualCRMQuestions#63` bm25=31 → merged=78.
-- **C — reranker failure (2): semantic ambiguity.** `#151` "how long until the report updates" scored below "guarantee obligation stays 5 years" (temporal conflation); `ChequeQuestions#140` about a low average balance.
-
-**Caveat — gold-mapping coverage.** 943/1,659 QA rows (56.8%) have no gold chunk because two source workbooks (`IndividualQuestions_V3.xlsx` 383 rows, `Individual_CRM_Questions_categorized.xlsx` 333 rows) produced almost no `qa_pair` chunks (1 and 8 respectively) despite near-identical structure to fully-mapped files. This is an **ingest/chunker gap, not a benchmark gap**; the 714 evaluated rows are the ones with a verified gold chunk. Files with complete coverage: Company (329/330), Cheque (117/146), Public (55/61).
-
-Artifacts: `artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl` (714 rows: per-stage top-10 + scores, `reranker_model`, exact gold rank) · `docs/retrieval_training/failure_analysis_v10_1405-06-23.md`
-
-#### v9 → v10 (different corpora — read with care)
-
-| metric | v9 (`KB_9.7.2026`) | v10 (`1405-06-23`) |
-|--------|--------------------|--------------------|
-| evaluated | 511 | 714 |
-| A / B / C | 18 / 2 / 2 | 46 / 6 / 2 |
-| Hit@1 | 0.8376 | 0.7703 |
-| Hit@5 | 0.9569 | 0.9244 |
-| MRR | 0.8884 | 0.8369 |
-
-Not an apples-to-apples regression: v10 is a **larger and harder corpus** (714 vs 511 gold-mapped; 35 docs/2,282 chunks vs 21/1,084; adds `PublicQuestions` and `Company_CRM_Questions` which dominate the A failures). **C reranker failures stayed flat at 2 across both runs.**
-
-#### Root-cause analysis (all 54 failures, sample-by-sample)
-
-Full report: **[`docs/retrieval_training/RCA_v10_README.md`](docs/retrieval_training/RCA_v10_README.md)**. Every failure was dumped with its full gold text + actual retrieved text at each stage and judged on lexical (words) and semantic (answerhood) axes by independent passes. Artifacts: `artifacts/retrieval_training/rca/` (stage dumps), `rca_judge/` (gold-vs-winner full text + Jaccard), `retrieval_failures_v10_1405-06-23.jsonl` (per-stage top-k).
-
-**Headline defect — the dense embedding prefix.** QA chunks are embedded with a contextual prefix (`kb_manager/dense.py:57-76`): `Title: <file name>` + `Heading: Sheet: <name>` + `Type: Q&A` + content. The `Title:` line injects the **source file name** into the vector (e.g. `ChequeQuestions`), creating a "cheque-document gravity" that pulls cheque chunks together and away from their content. Removing the prefix, measured over all 714 queries with the same model:
-
-| Dense gold recall | @1 | @5 | @10 | @100 |
-|---|---:|---:|---:|---:|
-| WITH prefix (current) | 0.2115 | 0.4132 | 0.5070 | 0.8221 |
-| **CONTENT ONLY** | **0.5924** | **0.7927** | **0.8473** | **0.9622** |
-| Δ | **+0.381** | +0.380 | +0.340 | **+0.140** |
-
-Ablation: NO TITLE alone lifts @100 0.822→0.891; CONTENT ONLY lifts it to 0.958. Worst docs recover most (PublicQuestions +0.345, categorized +0.200). The pgvector ingestion path already embeds content-only, so the two dense backends are inconsistent — the `.npz` search-time index is the one with the harmful prefix.
-
-**Failure mechanisms (54 samples):** RERANK/LEXICAL-BIAS 27 (winner topically adjacent but answers a neighbouring question) · RETRIEVAL-MISS 8 · GOLD-MALFORMED 6 (question present, no answer body) · GOLD-LABEL-WRONG 6 (winner is a better answer than the labelled gold) · FUSION-BIAS 5 (single-leg exact-match gold loses to dual-leg adjacent chunk) · RERANK-BIAS 2 (query-string echo beats answerhood). **≈1 in 4 "failures" is a label/data problem, not a ranking problem.**
-
-**Prioritised fixes:** **P0** remove the embedding prefix (measured +0.14 recall@100) · **P1** per-question QA re-chunking (kills the multi-QA "distractor prefix") · **P2** weighted/normalised RRF (k=60→10) + leg-top-3 union + widen rerank cut 5→10 · **P3** reranker hard-negative training on non-answering twins · **P4** gold/benchmark hygiene · **P5** colloquial→formal query rewriting + Arabic-presentation-form normalisation.
-
-
-### v9 — reranker shootout, wave-1 full-800 CPU (2026-09-12/13, measured)
-
-Dataset: 800 Persian QA, answer-grounded golds remapped to the live 2077-chunk PG KB (threshold 0.6, 772/800 covered, ~7 gold/query), top_k=5. In-process parallel workers (`bench_backbone.py`, one persistent event loop per worker — `asyncio.run()` per query breaks the asyncpg pool).
-
-| Backbone | Pool | Hit@5 | Top-1 | MRR | s/q (CPU) |
-|---|---|---|---|---|---|
-| **BGE-m3 `BAAI/bge-reranker-v2-m3` (default)** | 15 | 0.536 | 0.474 | **0.496** | ~5–15 (rerank solo; pool-15 production cap) |
-| MiniLM-L12 `mmarco-mMiniLMv2-L12-H384-v1` (lightweight fallback) | 15 | 0.536 | 0.469 | 0.493 | 3.9 |
-| MiniLM-L12 | 30 | 0.538 | — | 0.495 | 7.4 |
-| BGE-m3 `BAAI/bge-reranker-v2-m3` | 30 | 0.536 | 0.474 | 0.496 | 52 |
-| Jina-v3 | — | EXCLUDED | — | 0.117 | — |
-
-Jina-v3 excluded: classification head failed to load under transformers 5 ("MISSING params newly initialized" → near-random scores, MRR 0.117 — not a quality signal).
-
-Decision (2026-09-15): **default is `BAAI/bge-reranker-v2-m3`** — best measured MRR (0.496) on our Persian credit KB (800 remapped queries, top-5: hit 0.536, top1 0.474) plus multilingual/Persian backbone support (BGE-M3, 100+ languages incl. Persian; MIRACL `fa`; vendor "for multilingual" recommendation). MiniLM stays as the lightweight CPU fallback (`KB_RERANKER_MODEL=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`: MRR 0.493 at pool15, 0.495 at pool30 — within 0.003 of BGE-m3 at a fraction of the latency). Qwen3-Reranker-4B (think-disabled, GPU): 0.233 — decisively behind. bgemma-2B 25-slice: 0.44 tied with MiniLM at ~10x latency. Production CPU note: 568M → keep `KB_RERANK_POOL=15`; GPU hosts can raise to 30. Heavies (Qwen3, bgemma-2B) must prove on GPU full-800 (`deploy/vast/wave2_gpu.sh` in the parent repo).
-
-#### Flag-LLM reranker prompt (`KB_RERANKER_PROMPT`)
-
-`kb_manager/reranker.py`: `get_reranker_prompt()` reads `KB_RERANKER_PROMPT`; empty/unset = FlagEmbedding library default, literal `detailed` = `DEFAULT_LLM_RERANK_PROMPT`. The detailed prompt keeps the Yes/No prediction contract the loader scores (the `Yes` logit) and adds a Persian semantic-answerhood instruction:
-
-> "Given a search query A and a candidate passage B, determine whether passage B contains an answer to query A by providing a prediction of either 'Yes' or 'No'. Predict 'Yes' only if the passage directly answers the query, defines its key terms, states the applicable rules, procedures, amounts, dates, names, or reason codes. Predict 'No' if the passage is merely topically related, mentions query terms without answering, or answers a different question. The query and passage may be in Persian: judge semantic answerhood, not keyword overlap. Respond with exactly one word: 'Yes' or 'No'."
-
-Live pair-scoring demo (`demo_bgemma_prompt.py`) showed correct ranking under both default and detailed prompts (detailed shifts margins, not order, on the demo pair).
-
-#### Interim: bgemma-2B vs MiniLM, identical 25-query slice (CPU, pool15, 2026-09-13)
-
-| Reranker | Prompt | Hit@5 | Top-1 | MRR | nDCG@5 | s/q (CPU) |
-|---|---|---|---|---|---|---|
-| bge-reranker-v2-gemma 2B | detailed | 0.44 | 0.44 | 0.44 | 0.186 | 64 |
-| MiniLM-L12 | n/a (cross-encoder) | 0.44 | 0.44 | 0.44 | 0.191 | 6.2 |
-
-Identical ranking at ~10x cost — heavies must prove on GPU full-800 before displacing the BGE-m3 default.
-
-#### Blocker ledger (CPU wave-1)
-
-| Model | Blocker |
-|---|---|
-| `Alibaba-NLP/gte-multilingual-reranker-base` | rope index bug under transformers 5 (custom modeling, verified native) |
-| `BAAI/bge-reranker-v2-minicpm-layerwise` | transformers-5 remote modeling uses removed APIs |
-| `Qwen/Qwen3-Reranker-0.6B` | too slow on CPU (~33 s/q); smoke 5q hit 0.2 @ 11.5 s/q — plumbing OK, needs GPU |
-
-### v7 — IVA 15 questions, 1405-05-31 KB (verbatim, CPU)
-
-| Metric | Doc-level | Answer-grounded (≥70% tokens in top-5) |
-|--------|-----------|---------------------------------------|
-| Hit@5 | **11/15 (73.3%)** | 3/15 (20%) |
-| MRR | 0.466 | — |
-| Avg latency | ~22.7s | — |
-
-Per-question results: [`versions/v7_iva_1405-05-31/IVA_REPORT.md`](versions/v7_iva_1405-05-31/IVA_REPORT.md) · `data/iva_results.json`
-
-### v5 — 120 queries, 6208 chunks (baseline, `aa5c576`)
-
-| Format | Hit@5 | Top-1 | MRR | Avg Latency |
-|--------|-------|-------|-----|-------------|
-| verbatim | 95.0% | 80.0% | 0.867 | 3.3s |
-| paraphrase | 90.0% | 80.0% | 0.842 | 3.6s |
-| typo | 95.0% | 90.0% | 0.917 | 3.3s |
-| reworded | 75.0% | 70.0% | 0.725 | 3.6s |
-| conversational | 85.0% | 75.0% | 0.792 | 7.5s |
-| keyword_only | 65.0% | 15.0% | 0.367 | 3.5s |
-| **Overall** | **84.2%** | **68.3%** | **0.751** | **4.2s** |
-
-### v8 — HNSW pgvector 6593 chunks, RTX 6000 Ada (2026-09-05)
-
-| Variant | Device | HNSW | Avg latency | p95 | Hit@5 (5q verbatim) | Rerank 50 | Dense 10 |
-|---------|--------|------|-------------|-----|---------------------|-----------|----------|
-| **File-based before** | CPU | file `npz` | ~22.7s | ~34s | 0.00* | 439ms | 144ms |
-| **HNSW pgvector CPU** | CPU | `pgvector HNSW m16` `13ms` | **23.1s** | 34.8s | 0.00 | 439ms | 144ms |
-| **HNSW pgvector GPU** | **cuda:0** | `pgvector HNSW m16` `13ms` | **18.4s** | 28.8s | 0.00 | **279ms 1.6×** | **180ms 0.8×** |
-| **Speedup GPU vs CPU** | — | — | **1.3×** | — | — | 1.6× | — |
-
-*Hit 0/5 on 5q verbatim after re-ingest (mismatched expected ids after Persian fix, IVA 15 still 73.3% baseline). Detailed `data/hnsw_benchmark_detailed.json` + `data/hnsw_benchmark_quick.json`. HNSW `13ms` vs file dense `~5ms` similar; bottleneck is `cross-encoder 50-pool` (CPU 439ms → GPU 279ms). On H200 expect ~4s (v5-era). Tunable `KB_KEYWORD_BOOST=3.0` (`POST /search/api {"keyword_boost":5}`) adds `×5` to `bm25_kw`; `GET /search/config` shows current.
-
-## Web UI Pages
-
-| Page | URL | Description |
-|------|-----|-------------|
-| Dashboard | `/` | Document/chunk counts, domain/category breakdown |
-| Documents | `/documents` | Browse, filter, manage documents — each row has **Inspect → Transparency** |
-| Chunks | `/chunks` | View/edit chunks, search content |
-| Pipeline | `/pipeline` | Trigger rebuild/incremental, job history |
-| Search | `/search` | Interactive search with step-by-step transparency |
-| **Transparency** | `/transparency` | **Excel → Chunks pipeline introspection (NEW)** — raw table (exact `_format_cell` bytes), header normalization & schema `overlap ≥60%` debug, parser text, and DB chunks per sheet. Persian-safe (Vazirmatn, `dir=rtl/auto`, UTF-8). Live `POST /transparency/parse-upload` parses any `.xlsx` without indexing. `GET /transparency/api/raw/{doc_id}` returns JSON `charset=utf-8` for byte-level proof. |
-| **Questions Batch** | `/transparency/questions?group_by=section` | All `qa_pair` questions divided by hierarchy (`heading_path/parent_key/sheet`) – for `retrieval`/`guardrails`/`RAG` batch; `GET /transparency/questions/json`, `GET /transparency/questions/retrieval-check`, `GET /transparency/benchmarks/by-section` per-section hit@5/MRR |
-| Benchmarks | `/benchmarks` | Run retrieval benchmarks, view plots, create snapshots |
-| Comparison | `/benchmarks/comparison` | Version comparison charts (v2→v7, data-driven) |
-| Versions | `/versions` | Document version history and rollback |
-| Cleanup QA | `/cleanup/qa` | Filter incomplete QA chunks |
-| Monitoring | `/monitoring` | Staleness reports, retrieval metrics |
-
-## Project Structure
+## Project structure
 
 ```
 kb-manager/
-├── kb_manager/              # Main package
-│   ├── config.py            # Configuration (env vars + defaults)
-│   ├── cli.py               # CLI interface
-│   ├── models/
-│   │   └── database.py      # SQLAlchemy ORM (Document, Chunk, DocumentVersion, IngestionJob)
-│   ├── parsers/
-│   │   ├── xlsx_parser.py   # Excel with schema auto-detection
-│   │   ├── pdf_parser.py    # PDF (PyMuPDF)
-│   │   └── docx_parser.py   # DOCX
-│   ├── preprocessor/
-│   │   ├── persian.py       # ZWNJ normalization, Unicode cleanup
-│   │   └── pipeline.py      # Chained preprocessing
-│   ├── chunker/
-│   │   ├── semantic.py      # Structure-aware chunking (QA pairs, reason codes, articles)
-│   │   └── fixed.py         # Fixed-size chunking
-│   ├── dense/
-│   │   └── dense_index.py   # DenseSemanticIndex (MiniLM embeddings + .npz cache)
-│   ├── reranker/
-│   │   └── cross_encoder.py # CrossEncoderReranker (mMiniLMv2)
-│   ├── evaluation/
-│   │   ├── benchmark.py     # BenchmarkRunner + AsyncBenchmarkRunner
-│   │   ├── generator.py     # Synthetic test data generator
-│   │   ├── metrics.py       # IR metrics (ranx + pure-Python fallback)
-│   │   ├── plots.py         # Performance plots (hit rate, MRR, latency)
-│   │   └── query_formats.py # 6 query format transformations
-│   ├── cleanup/
-│   │   └── qa_cleanup.py    # Find/preview/cleanup incomplete QA chunks
-│   ├── pipeline/
-│   │   ├── orchestrator.py  # PipelineOrchestrator (parse→chunk→embed→store)
-│   │   ├── versioning.py    # Version snapshots
-│   │   └── quality.py       # Quality gates
-│   └── web/                 # FastAPI web UI
-│       ├── app.py           # FastAPI app with lifespan (table creation + search pre-warm)
-│       ├── deps.py          # Shared DB + templates (avoids circular imports)
-│       ├── routes/
-│       │   ├── benchmarks.py  # Benchmark execution + version snapshots
-│       │   ├── chunks.py      # Chunk management
-│       │   ├── cleanup.py     # QA cleanup dashboard
-│       │   ├── documents.py   # Document management
-│       │   ├── monitoring.py  # Staleness + metrics
-│       │   ├── pipeline.py    # Pipeline control (actually runs orchestrator)
-│       │   ├── search.py      # Search API + BM25/dense/reranker
-│       │   └── versions.py    # Document version history
-│       ├── templates/       # Jinja2 HTML templates
-│       └── static/lib/      # Local Chart.js (CDN blocked)
-├── data/
-│   ├── kb_test.db           # SQLite database
-│   ├── test_questions.json  # 120 benchmark queries (6 formats × 20)
-│   ├── benchmark_comparison.json  # v2/v3/v4 comparison data
-│   └── plots/               # Generated benchmark plots
-├── versions/                # Version snapshots
-│   └── v4_retrieval/        # Latest versioned snapshot
-├── kb-source/               # Git submodule (78 XLSX source files)
-├── scripts/
-│   └── cleanup_incomplete_qa.py  # CLI cleanup tool
-├── tests/                   # 17 tests (chunker + pipeline)
-├── run_server.py            # Start web server
-├── regen_test_questions.py  # Regenerate benchmark dataset from current KB
-└── pyproject.toml
+├── kb_manager/
+│   ├── cli.py                 # CLI: ingest / status / search / serve / inspect / eval-* / dedup
+│   ├── config.py              # dataclass config, KB_* env resolution (0.0.0.0:8000, sqlite default)
+│   ├── dense.py               # numpy cosine index, npz cache + fingerprint, use_context=False
+│   ├── reranker.py            # cross-encoder registry (BGE default, MiniLM fallback), pool override
+│   ├── chunker/               # base / fixed / semantic / registry (strategies: semantic, fixed)
+│   ├── parsers/               # base / xlsx / docx / pdf / registry
+│   ├── preprocessor/          # clean / persian / regex_persian / validators / pipeline
+│   ├── embedder/              # base / sentence_transformer / registry
+│   ├── pipeline/              # orchestrator / quality / versioning
+│   ├── models/                # database / schemas / queries
+│   ├── web/                   # app.py + routes/ (12 routers) + templates/ + static/
+│   │   └── routes/            # benchmarks, chunks, cleanup, documents, ingestion_suite,
+│   │                          # kb_history, monitoring, pipeline, search, transparency,
+│   │                          # versions, zip_browser
+│   ├── evaluation/            # synthetic generator + retrieval metrics
+│   ├── retrieval_training/    # mining / stage analysis packages
+│   ├── versioning/            # KB snapshot/version helpers
+│   ├── dedup.py               # question + MinHash LSH dedup pipeline
+│   ├── query_expansion.py     # synonym beam5 + colloquial→formal map
+│   ├── query_reform.py query_enhance.py hyde.py llm.py famteb.py
+│   └── synonym_*.py cleanup/
+├── tests/                     # 15 test modules (chunker, parsers, pipeline, embedder,
+│                              # evaluation, ingestion_suite, kb_history, qa_massive, …)
+├── configs/                   # default.yaml + chunking/
+├── versions/                  # v1, v2, v4_retrieval, v6, v7_iva_1405-05-31,
+│                              # v10_1405-06-23, v11_1405-06-23 (manifest + export + report)
+├── artifacts/retrieval_training/  # agent2 benchmark, JSONL rows, live_dashboard.py,
+│                              # rca/ + rca_judge/ corpora, report_plots/, HTML+PDF reports
+├── data/                      # kb_*.db, dense_embeddings.npz, v10_source/, plots/
+└── pyproject.toml             # deps, kb-manager entry point, pytest/ruff/mypy config
 ```
+
+Corpus sources live in the **`kb-source` submodule** (`Work_RAG-KB-SourceFiles`): version folders `1405-05-31`, `1405-06-23` (current ingestion), `1405-06-28` (source added, pending ingest).
+
+## Tech stack
+
+| Layer | Libraries / models (pinned in `pyproject.toml`) |
+|-------|-----------------------------------------------|
+| API / server | `fastapi>=0.115`, `uvicorn[standard]>=0.30`, `jinja2`, `python-multipart`, `pyyaml` |
+| Data | `sqlalchemy[asyncio]>=2.0` (`aiosqlite` / `asyncpg`), `pgvector>=0.3`, `psycopg2-binary` |
+| Retrieval | `sentence-transformers>=3.0` (MiniLM-L12 384d), `torch>=2.0`, cross-encoders: default `BAAI/bge-reranker-v2-m3`, benchmark runs `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`, `numpy>=1.24` |
+| Persian NLP | `hazm>=0.10`, `shekar>=0.5` + local `regex_persian.py` maps |
+| Parsing | `openpyxl` (+calamine engine option), `python-docx`, `PyMuPDF`, `pandas>=2.0` |
+| CLI | `click>=8.1`, `rich>=13` (`kb-manager = kb_manager.cli:main`) |
+| Dev / QA | `pytest` + `pytest-asyncio` + `pytest-cov`, `httpx`, `ruff`, `mypy --strict` |
+| Reporting | `matplotlib` (plots), `fpdf2` (PDF export) |
+
+## Getting started
+
+```bash
+pip install -e ".[dev]"        # or: pip install -e .
+export KB_DB_MODE=sqlite       # sqlite (default) | pgvector
+export KB_SQLITE_PATH=./data/kb_test.db
+export KB_SOURCE_DIR=/path/to/kb-source/1405-06-23
+
+python -m kb_manager.cli ingest --full -s "$KB_SOURCE_DIR"   # full rebuild
+python -m kb_manager.cli status                              # doc/chunk counts
+python -m kb_manager.cli search -q "…" -k 5                  # CLI search
+python -m kb_manager.cli serve                               # web on 0.0.0.0:8000
+```
+
+Useful extras: `inspect <file>` (parser dump), `status-chunks`, `dedup --dry-run`, `eval-generate` / `eval-run`.
 
 ## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `KB_DB_MODE` | `sqlite` | `sqlite` (light) or `pgvector` (`KB_DB_HOST/PORT/NAME/USER/PASSWORD`); `KB_DB_URL` overrides |
-| `KB_DB_URL` | `sqlite+aiosqlite:///./data/kb_test.db` | Database URL (if set, `KB_DB_MODE` inferred) |
-| `KB_SQLITE_PATH` | `./data/kb_test.db` | SQLite file (when `KB_DB_MODE=sqlite`) |
-| `KB_SOURCE_DIR` | `./kb-source` | Source files directory |
-| `KB_EMBED_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | Embedding model |
-| `KB_EMBED_DEVICE` | `cpu` | `cpu` or `cuda` for dense + reranker; `KB_RERANKER_DEVICE` overrides reranker |
-| `KB_KEYWORD_BOOST` | `3.0` | Tunable weight for `bm25_kw` (`0..10`, `POST /search/api {"keyword_boost":5}`) |
-| `KB_CHUNK_STRATEGY` | `semantic` | Chunking strategy |
-| `KB_CHUNK_MAX` | `512` | Max tokens per chunk |
-| `KB_WEB_HOST` | `0.0.0.0` | Web host (`0.0.0.0` public) |
-| `KB_WEB_PORT` | `8000` | Web server port |
+Defaults from `kb_manager/config.py` (all overridable via `KB_*` env):
 
-## Running Tests
+| Key | Default | Notes |
+|-----|---------|-------|
+| `KB_DB_MODE` | `sqlite` | `sqlite` (aiosqlite) or `pgvector` (asyncpg); `KB_DB_URL` overrides |
+| `KB_SQLITE_PATH` | `./data/kb_test.db` | production runs point at `data/kb_1405_06_23.db` |
+| `KB_SOURCE_DIR` | `<root>/kb-source` | pass `-s` to ingest for an explicit version folder |
+| `KB_WEB_HOST` / `KB_WEB_PORT` | `0.0.0.0` / `8000` | |
+| Chunking | `semantic`, max 512 / min 100 / overlap 50, parent 1536, scope `sheet`, `dedup_questions=True` | v11: overlap skipped for row-wise atomic chunks |
+| Dense | MiniLM-L12, 384d, batch 64, L2-normalised, `use_context=False` | npz fingerprint includes the flag → auto-rebuild |
+| Reranker | `BAAI/bge-reranker-v2-m3` (config default) | v10/v11 benchmark runs used the MiniLM cross-encoder |
+| Fusion | RRF k=60, rerank pool 100 | reranker adds ≈ +0.27 Hit@5 over RRF (v11) |
+
+## API & UI
+
+Routers mounted in `kb_manager/web/app.py:90-101` — `/documents`, `/chunks`, `/pipeline`, `/versions`, `/monitoring`, `/search`, `/benchmarks`, `/cleanup`, `/transparency` (+ zip browser), `/ingestion` (+ KB history) — plus `/health`, `/api/health`, `/ready` and `/` dashboard. The UI ships Persian RTL views (`Vazirmatn`) and a live massive-benchmark page.
+
+## Version history
+
+| Ver | Corpus | Pipeline / retrieval | Benchmark (measured) |
+|-----|--------|---------------------|----------------------|
+| v1 | ~160 files (31Tir1405) | baseline ingest + BM25 | — |
+| v2 | 355 docs / 6,208 chunks | BM25 + TF-IDF (RRF k=60) | Hit@5 90%, MRR 0.736, 2.8 s |
+| v3 | 355 docs / 6,208 chunks | + dense MiniLM-L12 + RRF | Hit@5 89.2%, MRR 0.787, 1.9 s |
+| v4 | 355 docs / 6,208 chunks | + char 3-grams + cross-encoder reranker | Hit@5 90%, MRR 0.775, 15.8 s (rerank cost) |
+| v5 | 355 docs / 6,208 chunks | frozen dataset + BM25×3 | Hit@5 84.2%, MRR 0.751, 4.2 s |
+| v6 | 69 docs / 3,626 chunks | P0–P8 remediation, Persian central, synonym beam5, MinHash dedup | 10-q smoke 100% Hit@5 |
+| v7 | 34 docs / 2,074 chunks | fresh 1405-05-31 KB, TestQuestion* excluded, colloquial expansion, IVA-15 | doc-Hit@5 73.3% (11/15), MRR 0.466 |
+| v8 | 103 docs / 6,593 chunks | pgvector HNSW-384 + tunable keyword×3.0 | HNSW 23.1 s → GPU 18.4 s |
+| v9 | 21+32 docs / ~1,084 chunks | KB_9.7.2026 type-aware, transparency/zip, massive-live | IVA 11/15 (73.3%), MRR 0.474 |
+| v10 | **35 docs / 2,282 chunks** | 1405-06-23, kv/single-col schemas, stage-level bench (old A/B/C/D taxonomy) | **Hit@5 0.9244**, Hit@1 0.7703, MRR 0.8369 — A=46 B=6 C=2 D=660, 0 errors |
+| v11 ⭐ | **35 docs / 2,227 chunks** | chunkfix rebuild + A/A′ diagnostics + dense `use_context=False` | **Hit@5 0.8585**, MRR 0.8271 — A=25 A′=8 B=13 D=613, err=55 (all Cheque OOM) |
+
+v11 manifest: `versions/v11_1405-06-23/manifest.json`. v10 export: `versions/v10_1405-06-23/`.
+
+## Architecture evolution
+
+- **v1→v4 — hybrid core.** Baseline BM25 ingest grew a dense MiniLM leg with RRF-k60 fusion, char 3-grams for Persian typos, and a cross-encoder rerank stage. Latency moved 2–4 s → ~16 s on CPU: the reranker pool is the cost center (still true in v11).
+- **v5→v6 — quality remediation.** Frozen checksummed datasets, BM25 keyword weighting, Persian regex central, question + MinHash-LSH dedup, fingerprint/invalidation, async fixes.
+- **v7→v9 — fresh corpora + scale-out.** Isolated 1405-05-31 rebuild with test-dir exclusion and colloquial expansion; pgvector HNSW-384 backend; KB_9.7.2026 type-aware chunking with transparency/zip tooling.
+- **v10 — measurement.** New `kv_pair` / `single_col_list` schemas, ingest-time variable fan-out, 5-step ingestion wizard, and the first full-corpus stage-level benchmark (714 gold rows, per-stage top-k JSONL).
+- **v11 — chunkfix (current).** Three pollution fixes, all verified at `0` residual in the live DB across all QA files:
+  1. overlap prefix removed from row-wise atomic chunks (`chunker/semantic.py:426`);
+  2. `کلیدواژه‌ها:` label stripped from QA content, keywords kept only in the JSON column (`chunker/semantic.py:485-486,494`);
+  3. dense `use_context` default `True→False` with fingerprint-gated auto-rebuild (`dense.py:124,257`) — ablation: recall@100 0.822→0.962.
+  
+  Plus A vs A′ fusion-loss diagnostics (`agent2_v10_1405_06_23.py`) and the live funnel TUI (`live_dashboard.py`).
+
+## Benchmarks & metrics
+
+v11 post-fix run (714 gold rows, 659 executed; reranker `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`):
+
+| Label | Count | Meaning |
+|-------|-------|---------|
+| D success | 613 | gold in final top-5 |
+| A retriever miss | 25 | gold in neither BM25 nor dense top-100 (Company 14, Individual 7, Public 4, **Cheque 0**) |
+| A′ fusion loss | 8 | one leg found gold, RRF dropped it |
+| B reranker loss | 13 | merged top-100 → dropped from top-5 |
+| error (infra) | 55 | OOM/paging, **all in ChequeQuestions** |
+
+![failure funnel](artifacts/retrieval_training/report_plots/p_funnel.png)
+
+### Stage funnel (659 executed rows)
+
+| Stage | Hit@5 | Recall@100 |
+|-------|-------|------------|
+| BM25 | 380 (0.577) | 572 (0.868) |
+| Dense | 399 (0.606) | 552 (0.838) |
+| Merged RRF | 435 (0.660) | 626 (0.950) |
+| Final rerank | **613 (0.930)** | — |
+
+![stage funnel](artifacts/retrieval_training/report_plots/p_stages.png)
+
+### Per-file Hit@5 (denominator = all gold rows incl. errors)
+
+| File | n | Hit@5 | Funnel |
+|------|---|-------|--------|
+| Company_CRM_Questions | 332 | 0.9157 | D=304 A=14 A′=6 B=8 |
+| IndividualCRMQuestions | 179 | 0.9330 | D=167 A=7 A′=1 B=4 |
+| PublicQuestions.xlsx | 55 | 0.9273 | D=51 A=4 |
+| Individual_CRM_Questions_categorized | 10 | 0.9000 | D=9 A′=1 |
+| DisputeQuestions / EtebaritoProblems | 19 | 1.0000 | D=19 |
+| **ChequeQuestions** | 117 | **0.5214** | D=61 B=1 err=55 → **61/62 = 0.9839 on executed rows** |
+
+![per-file hit rate](artifacts/retrieval_training/report_plots/p_perfile.png)
+
+### v10 vs v11
+
+| Metric | v10 pre-fix | v11 post-fix |
+|--------|-------------|--------------|
+| Hit@5 | 0.9244 | 0.8585 (0.9302 on executed rows) |
+| MRR | 0.8369 | 0.8271 |
+| Funnel | A=46 (lumped) B=6 C=2 D=660, err=0 | A=25 A′=8 B=13 D=613, err=55 |
+| Chunk pollution | overlap + keyword label + dense prefix present | 0 label leaks / 0 overlap prefixes (verified) |
+
+The Hit@5 gap is confounded by the KB rebuild (rotated chunk IDs, re-chunked content) and the 55 Cheque OOMs counted as misses — not by the three fixed pollutions. Title-removal ablation (measured, `title_removal_experiment.json`):
+
+![title-removal ablation](artifacts/retrieval_training/report_plots/p_ablation.png)
+
+Dense recall@100 **0.822 → 0.962**, recall@5 0.413 → 0.793 with content-only embeddings.
+
+## Latency
+
+Measured per-query `elapsed_ms` from the v11 benchmark JSONL (659 executed rows; CPU cross-encoder, 100-pool):
+
+| Slice | n | mean | p50 | p95 | max |
+|-------|---|------|-----|-----|-----|
+| overall | 659 | 15.0 s | 13.7 s | 22.3 s | 282.1 s |
+| ChequeQuestions | 62 | 13.8 s | 13.6 s | 17.7 s | 31.2 s |
+| Company_CRM_Questions | 332 | 15.7 s | 13.9 s | 22.5 s | 282.1 s |
+| IndividualCRMQuestions | 179 | 14.6 s | 13.2 s | 24.9 s | 41.2 s |
+| PublicQuestions.xlsx | 55 | 14.0 s | 13.7 s | 17.6 s | 20.1 s |
+
+The rerank stage dominates (BM25/dense/RRF are ms-scale). GPU-backed runs in earlier versions measured ~4 s (v5) and 18.4 s HNSW-vs-23.1 s CPU (v8).
+
+## LLM-as-judge feedback & root causes
+
+Judge corpus: `artifacts/retrieval_training/rca_judge/judge_*.md` (gold full text vs retrieved-winner full text + token-Jaccard) with group RCAs in `rca/`. Note the judge files were built pre-fix, so their gold excerpts still show the old `...` prefix and `کلیدواژه‌ها:` label — itself evidence of the pollution v11 removed.
+
+- **Company#141 (B)** — q↔gold Jaccard 0.292 (7 shared: اعضای، گذارد…) vs q↔winner 0.083. *Fusion casualty:* dense had gold at 15, RRF pushed it to merged-62, reranker never recovered (final 11). → weighted fusion / merged-top pinning.
+- **Company#151 (C)** — q↔gold 0.084 vs q↔winner 0.075. *Lexical trap:* 9 near-identical Cheque_ReasonCode keyword-stuffed rows (≈249.17 BM25) buried gold at BM25-28. → reason-code sheet quarantine / keyword de-boost.
+- **Company#202 (B)** — dense 80 → merged 94 → final 43. *Dense-invisible phrasing* («چه زمانی… اقدام کنم»). → query-rewrite / paraphrase augmentation.
+- **Cheque#26 (B)** — BM25=7, merged=12, final=6. *Twin crowding, correct-but-second:* two distractors carry the identical short answer as the gold's family (scores 1.0/0.9999); 16 of 92 Cheque short answers are duplicated. → answer-level dedup before scoring.
+- **Cheque#64–66 (errors)** — empty rank lists, `MemoryError` / paging-1455. *Not a retrieval judgment.* → infra (rerank batch/RAM/pagefile), re-run with `--resume`.
+
+![error types](artifacts/retrieval_training/report_plots/p_errors.png)
+
+Ranked root causes: (1) infra OOM on the Cheque slice — 55/117 rows, sole cause of the 0.521 headline; (2) twin crowding — real but small (1 B row, −1 slot); (3) keyword-stuffed reason-code sheets — pre-fix BM25 flooding, fixed in v11; (4) true retriever misses A=25 in Company/Individual/Public; (5) reranker near-misses B=13, the largest rescue opportunity after the infra fix.
+
+## Evaluation reports
+
+- `artifacts/retrieval_training/cheque_eval_report.html` — full breakdown with Persian samples + plots (242 KB)
+- `artifacts/retrieval_training/cheque_eval_report.pdf` — plots + tables, ASCII-safe (186 KB)
+- `artifacts/retrieval_training/report_metrics.json` — machine-readable funnel/stage/latency summary
+- `artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl` — 714 rows with per-stage top-k
+- `artifacts/retrieval_training/live_dashboard.py` — live funnel TUI
+- `docs/retrieval_training/RCA_v10_README.md` — consolidated RCA
+
+## Development
 
 ```bash
-pytest tests/ -v
+python -m pytest tests/ -q        # suite (116 passed / 3 skipped; 1 pre-existing
+                                  # env-dependent failure: test_qa_massive_count finds
+                                  # 0 QA files under the default source resolution)
+python -m compileall -q kb_manager
+ruff check kb_manager tests
+mypy kb_manager                   # strict
 ```
 
-## CLI Commands
-
-```bash
-python run_server.py                    # Start web server
-python -m kb_manager.cli ingest --full  # Full rebuild via CLI
-python -m kb_manager.cli status         # Show KB stats
-python scripts/cleanup_incomplete_qa.py --dry-run  # Preview QA cleanup
-```
-
-## Transparency — How Excel Tables Become Chunks (and how to verify Persian)
-
-`GET /transparency` and `GET /transparency/{doc_id}` show the pipeline step-by-step with **exact bytes** so you can prove Persian is not mojibake:
-
-1. **Read sheets** (`parsers/xlsx_parser.py:240,266`) via `openpyxl`/`calamine` — first row = headers, trailing empties trimmed, `~$` skipped.
-2. **Normalize + schema** (`xlsx_parser.py:87,92`): `re.sub(r"[\s_\-]+","", lower)` then first schema with `overlap ≥60%` wins (`reason_codes` 14, `crm_qa` 5, `articles` 10). UI shows per-sheet `normalized`, `matched/missing`, `threshold` table.
-3. **Rows → fields** (`xlsx_parser.py:311,346`): `_format_cell` (`None→""`, float `g`-format, else `str.strip()`), empty rows dropped, `U+FFFD`/`?+Arabic` integrity warnings. QA rows need `question` + (`answer`|`briefanswer`) else `skipped_incomplete`; dedup via `chunker/semantic.py:110` (`ي→ی, ك→ک, ZWNJ→space`).
-4. **Preprocess** (`preprocessor/pipeline.py:354`) clean → Persian normalise → keywords.
-5. **Chunk** (`chunker/semantic.py:183` `_chunk_excel_rows`): **one row = one chunk** (never split) with Persian labels `سوال/پاسخ کوتاه/پاسخ کامل/کلیدواژه‌ها`; parents per `parent_scope=sheet`.
-
-Rendering is Persian-clean: `base.html:4` `<meta charset="UTF-8">`, Vazirmatn CDN + `class="persian" dir="rtl/auto"` on every cell/chunk (`static/style.css:629`), `content-preview pre` line-height 1.9. If a cell shows `?`/`�`, the `integrity_warnings` badge names the exact `sheet/column`.
-
-## Troubleshooting — PowerShell blocked (0x800704ec)
-
-**Error:** `error 2147943660 (0x800704ec) when launching %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`
-**Meaning:** AppLocker / Software Restriction Policy blocks `powershell.exe` on this machine (`This program is blocked by group policy`). All tools that spawn PowerShell 5.1 (including this agent's `bash` tool) will show `spawn UNKNOWN`.
-
-**Fix:**
-- Use **CMD**, not PowerShell: double-click `restart_server.bat` / `push_and_merge.bat` in `kb-manager/` (they use `cmd.exe`/`netstat`/`taskkill`/`python`), or run `cmd` → `cd D:\Code\KB\kb-manager` → `netstat -ano | findstr :8000` → `taskkill /F /PID <pid>` → `python start_server_detached.py`.
-- To unblock: `gpedit.msc` → Computer/User Configuration → Windows Settings → Security Settings → Software Restriction Policies / AppLocker → allow `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe` (requires admin).
-
-**Push without PowerShell:** use `push_and_merge.bat` (CMD) — see below.
-
-## QA-Aware Retrieval Experiment (Isolated, no prod change)
-
-Planned under `components/retrieval_experiments/` (see `docs/QA_RETRIEVAL_EXPERIMENT.md` after Phase 1) — four signals `question_sim` + `answer_sim` + `keyword_overlap` + `category_match`; modes **A** prod BM25+semantic, **B** QA-only, **C** hybrid RRF/weighted. Evaluation on `TestQuestions_IVA` (15 Q) + `data/test_questions.json` reports `Recall@1/5, MRR, NDCG, groundedness, hallucination, latency` + `failure_analysis.md` (missed/wrong/hallucinated/guardrail FP). Merge only if `Recall@5 ↑` and `hallucination ¬↑` and `p95` acceptable.
-
-## Roadmap & Remediation — Updated for v7 + Transparency
-
-Full audit: [`docs/REMEDIATION_PLAN.md`](docs/REMEDIATION_PLAN.md) (36 findings)
-
-### Done
-- [x] **Phase 0** Safety net — `data/test_questions.sha256` frozen, `data/versions.lock`, `tests/test_characterization.py` 5 tests
-- [x] **Phase 1** Immediate crashes — ordinal propagation (`search.py` 7-tuple), CPU dtype `float32` on CPU, chunk page `content`, reranker pool 50 (`82e8e3d`)
-- [x] **Phase 2** Async boundary — `llm.py:103` `async def generate`, `benchmark.py:173` await, `search.py:285` lock (`37c8c09`)
-- [x] **Phase 3** Index/ingestion — fingerprint `model+context` (`dense.py:120`), invalidation fingerprint+`max(updated_at)`, parent key map O(1), dedup `true`/`kb-source` (`08aa35a`), duplicate-doc fix (`orchestrator.py:270`), CLI session fix (`cli.py:52`)
-- [x] **Phase 4** Retrieval consolidation — `regex_persian.py` central maps, `persian.py` delegates, BM25 `kw*3` field weight, ZWNJ tokenizer fix (`73e7f5b` + `109d403`)
-- [x] **Phase 5** Evaluation integrity — drop by index, real typo map, no `1.5` fallback, FaMTEB schema validate, `RAGEvaluator→Heuristic` rename (`b308493`)
-- [x] **Phase 6** HyDE consolidation — single `hyde.py`, `query_reform.HyDE` deprecated, strict JSON, `KB_ALLOW_MOCK` gate, disabled by default (`c2a2856`)
-- [x] **Phase 7** Operational — `deps.py:get_db` DI, job TTL 50, `app.py` router, logging (`40c578c`)
-- [x] **Phase 8** Dead code — `C19-21/B16/B17` removed (`5dad5d1`)
-- [x] **Phase 0-8 merged** to `master`, tag `v6.0`
-- [x] **v7 KB build** — fresh `data/kb_1405.db` from `kb-source/1405-05-31`: 34 docs / 2074 chunks / 307 incomplete-filtered, 23.3s (`orchestrator.py` skips `TestQuestion*` dirs so test data is never indexed)
-- [x] **v7 colloquial expansion** — `query_expansion.py` extended to 74 entries (قسطشون→قسط, رتبم→رتبه, چکم→چک, چی→چه, رو→را, توی→در…)
-- [x] **v7 IVA test** — full 15-question run of `TestQuestions_IVA/InitialTestQuestion.xlsx`: doc-hit@5 **11/15 (73.3%)**, MRR 0.466, snapshot + `IVA_REPORT.md` + `iva_results.json` (`run_iva_eval.py`, `build_iva_dataset.py`)
-- [x] **v7 live** — `run_server.py` now serves `kb_1405.db` (1405-05-31 source)
-
-### Remaining (Next)
-
-| Priority | Task | Owner | Est. |
-|----------|------|-------|------|
-| **P0** | IVA ranking — raise doc-hit@5 73.3%→85%+: `RERANKER_TOP_K 50→100` (golden chunks for Q11/12 ARE in pool but reranker demotes), per-domain rerank, or promote `reason_detail_parent`/`qa_pair_parent` aggregation for semantic Q14/15 | retrieval | 1d |
-| **P1** | Full IVA answer-grounded model eval (RAGAS faithfulness/relevancy on the 15 Q+A) with Gemini/Ollama | eval | 1d |
-| **P1** | Performance — `RERANKER_TOP_K 50→30` GPU (equal headroom), batch 64→128, quantize `float16` on H200, BM25 cache across restarts → target <2s warm | perf | 1w |
-| **P2** | FaMTEB live 600q — `famteb.py` + `run_benchmark.py --famteb` smoke, publish to leaderboard | eval | 1d |
-| **P2** | Corpus dedup apply — `python -m kb_manager.cli dedup --db-path data/kb_1405.db` (2074→~1700 target) + re-benchmark | data | 1d |
-| **P2** | Multi-query rewriting (beam5 RRF with LLM) — consolidate `query_reform.MultiQueryGenerator`, mocked tests | retrieval | 2d |
-| **P2** | HyDE A/B controlled — `docs/BENCHMARK_REPORT.md` hit@5/MRR/p50/p95, `hyde_enabled`, disabled default | report | 1d |
-| **P3** | Ops hardening — branch cleanup 17 branches tag & delete, `config` drift doc, gitignore `SKILL.md`/parent repos | ops | 1d |
-| **P3** | Documentation — `IMPLEMENTATION_PLAN.md` + `PLAN.md` Phase 10-15 status, v6/v7 comparison plots to `data/plots` | docs | 1d |
-
-See `docs/REMEDIATION_PLAN.md` §§5,9 for PR sequence and §§11-12 DoD. Next tag `v7.1` after IVA ranking fix + GPU benchmark.
-
-## License
-
-Private — ICS Credit Scoring
+Docs live under `docs/` (retrieval training, architecture notes, Persian resources). KB snapshots under `versions/` with manifest + export + report per version.

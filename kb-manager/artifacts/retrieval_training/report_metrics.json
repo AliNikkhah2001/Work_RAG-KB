@@ -1,0 +1,141 @@
+{
+ "funnel": {
+  "D": 613,
+  "A": 25,
+  "A'": 8,
+  "B": 13,
+  "error": 55
+ },
+ "per_file": {
+  "Company_CRM_Questions": {
+   "n": 332,
+   "hit": 304
+  },
+  "DisputeQuestions": {
+   "n": 8,
+   "hit": 8
+  },
+  "EtebaritoProblems": {
+   "n": 11,
+   "hit": 11
+  },
+  "PublicQuestions.xlsx": {
+   "n": 55,
+   "hit": 51
+  },
+  "Individual_CRM_Questions_categorized": {
+   "n": 10,
+   "hit": 9
+  },
+  "مباحثی که در آن گیجوویجیم": {
+   "n": 2,
+   "hit": 2
+  },
+  "IndividualCRMQuestions": {
+   "n": 179,
+   "hit": 167
+  },
+  "ChequeQuestions": {
+   "n": 117,
+   "hit": 61
+  }
+ },
+ "stages": {
+  "bm25_rank": [
+   380,
+   572,
+   659
+  ],
+  "dense_rank": [
+   399,
+   552,
+   659
+  ],
+  "merged_rank": [
+   435,
+   626,
+   659
+  ],
+  "final_rank": [
+   613,
+   626,
+   659
+  ]
+ },
+ "dbstats": {
+  "ChequeQuestions": {
+   "n": 118,
+   "tok_mean": 443.2,
+   "tok_max": 26148,
+   "leak": 0,
+   "ovlp": 0,
+   "shorts": 115,
+   "uniq": 92,
+   "dups": 17,
+   "kw_mean": 3.08,
+   "top_dup": [
+    [
+     "در حال حاضر خیر اما در آینده ارائه خواهد شد.",
+     4
+    ],
+    [
+     "امتیاز چک عددی بین 0 تا 100 است و  هر چه به 100نزدیکتر باشد،",
+     3
+    ]
+   ]
+  },
+  "Company_CRM_Questions": {
+   "n": 330,
+   "tok_mean": 372.7,
+   "tok_max": 61492,
+   "leak": 0,
+   "ovlp": 0,
+   "shorts": 313,
+   "uniq": 279,
+   "dups": 26,
+   "kw_mean": 3.19,
+   "top_dup": [
+    [
+     "به دلایل کاهش امتیاز خود در گزارش اعتباری توجه کنید.",
+     5
+    ],
+    [
+     "خیر این امکان وجود ندارد.",
+     4
+    ]
+   ]
+  },
+  "IndividualCRMQuestions": {
+   "n": 172,
+   "tok_mean": 400.3,
+   "tok_max": 34424,
+   "leak": 0,
+   "ovlp": 0,
+   "shorts": 169,
+   "uniq": 152,
+   "dups": 12,
+   "kw_mean": 3.34,
+   "top_dup": [
+    [
+     "در حال حاضر خیر.",
+     4
+    ],
+    [
+     "خیر، امتیاز فقط برای همان کد ملی معتبر است.",
+     3
+    ]
+   ]
+  }
+ },
+ "cheque": {
+  "n": 117,
+  "exec": 62,
+  "hit_exec": 61,
+  "rate_all": 0.5214,
+  "rate_exec": 0.9839
+ },
+ "err_dist": {
+  "paging_1455": 1,
+  "MemoryError": 54
+ }
+}
