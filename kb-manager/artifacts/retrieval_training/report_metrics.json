@@ -1,141 +1,187 @@
 {
+ "N": 663,
+ "hit5": 617,
+ "hit5_rate": 0.9306,
+ "hit1": 498,
+ "mrr": 0.8281,
  "funnel": {
-  "D": 613,
+  "D": 617,
   "A": 25,
   "A'": 8,
-  "B": 13,
-  "error": 55
+  "B": 13
+ },
+ "old": {
+  "N": 714,
+  "funnel": {
+   "D": 613,
+   "A": 25,
+   "A'": 8,
+   "B": 13,
+   "error": 55
+  }
  },
  "per_file": {
   "Company_CRM_Questions": {
    "n": 332,
-   "hit": 304
+   "hit": 304,
+   "rate": 0.9157,
+   "funnel": {
+    "D": 304,
+    "A": 14,
+    "A'": 6,
+    "B": 8
+   }
   },
   "DisputeQuestions": {
    "n": 8,
-   "hit": 8
+   "hit": 8,
+   "rate": 1.0,
+   "funnel": {
+    "D": 8
+   }
   },
   "EtebaritoProblems": {
    "n": 11,
-   "hit": 11
+   "hit": 11,
+   "rate": 1.0,
+   "funnel": {
+    "D": 11
+   }
   },
   "PublicQuestions.xlsx": {
    "n": 55,
-   "hit": 51
+   "hit": 51,
+   "rate": 0.9273,
+   "funnel": {
+    "D": 51,
+    "A": 4
+   }
   },
   "Individual_CRM_Questions_categorized": {
    "n": 10,
-   "hit": 9
+   "hit": 9,
+   "rate": 0.9,
+   "funnel": {
+    "D": 9,
+    "A'": 1
+   }
   },
   "مباحثی که در آن گیجوویجیم": {
    "n": 2,
-   "hit": 2
+   "hit": 2,
+   "rate": 1.0,
+   "funnel": {
+    "D": 2
+   }
   },
   "IndividualCRMQuestions": {
    "n": 179,
-   "hit": 167
+   "hit": 167,
+   "rate": 0.933,
+   "funnel": {
+    "D": 167,
+    "A": 7,
+    "B": 4,
+    "A'": 1
+   }
   },
   "ChequeQuestions": {
-   "n": 117,
-   "hit": 61
+   "n": 66,
+   "hit": 65,
+   "rate": 0.9848,
+   "funnel": {
+    "D": 65,
+    "B": 1
+   }
   }
  },
  "stages": {
-  "bm25_rank": [
-   380,
-   572,
-   659
-  ],
-  "dense_rank": [
-   399,
-   552,
-   659
-  ],
-  "merged_rank": [
-   435,
-   626,
-   659
-  ],
-  "final_rank": [
-   613,
-   626,
-   659
-  ]
- },
- "dbstats": {
-  "ChequeQuestions": {
-   "n": 118,
-   "tok_mean": 443.2,
-   "tok_max": 26148,
-   "leak": 0,
-   "ovlp": 0,
-   "shorts": 115,
-   "uniq": 92,
-   "dups": 17,
-   "kw_mean": 3.08,
-   "top_dup": [
-    [
-     "در حال حاضر خیر اما در آینده ارائه خواهد شد.",
-     4
-    ],
-    [
-     "امتیاز چک عددی بین 0 تا 100 است و  هر چه به 100نزدیکتر باشد،",
-     3
-    ]
-   ]
+  "bm25_rank": {
+   "hit5": 382,
+   "rec100": 576
   },
-  "Company_CRM_Questions": {
-   "n": 330,
-   "tok_mean": 372.7,
-   "tok_max": 61492,
-   "leak": 0,
-   "ovlp": 0,
-   "shorts": 313,
-   "uniq": 279,
-   "dups": 26,
-   "kw_mean": 3.19,
-   "top_dup": [
-    [
-     "به دلایل کاهش امتیاز خود در گزارش اعتباری توجه کنید.",
-     5
-    ],
-    [
-     "خیر این امکان وجود ندارد.",
-     4
-    ]
-   ]
+  "dense_rank": {
+   "hit5": 399,
+   "rec100": 552
   },
-  "IndividualCRMQuestions": {
-   "n": 172,
-   "tok_mean": 400.3,
-   "tok_max": 34424,
-   "leak": 0,
-   "ovlp": 0,
-   "shorts": 169,
-   "uniq": 152,
-   "dups": 12,
-   "kw_mean": 3.34,
-   "top_dup": [
-    [
-     "در حال حاضر خیر.",
-     4
-    ],
-    [
-     "خیر، امتیاز فقط برای همان کد ملی معتبر است.",
-     3
-    ]
-   ]
+  "merged_rank": {
+   "hit5": 437,
+   "rec100": 630
+  },
+  "final_rank": {
+   "hit5": 617,
+   "rec100": 630
   }
  },
- "cheque": {
-  "n": 117,
-  "exec": 62,
-  "hit_exec": 61,
-  "rate_all": 0.5214,
-  "rate_exec": 0.9839
+ "latency": {
+  "overall": {
+   "n": 663,
+   "mean_s": 15.2,
+   "p50_s": 13.7,
+   "p95_s": 22.3,
+   "max_s": 282.1
+  },
+  "ChequeQuestions": {
+   "n": 66,
+   "mean_s": 15.4,
+   "p50_s": 13.7,
+   "p95_s": 20.7,
+   "max_s": 104.5
+  },
+  "Company_CRM_Questions": {
+   "n": 332,
+   "mean_s": 15.7,
+   "p50_s": 13.9,
+   "p95_s": 22.5,
+   "max_s": 282.1
+  },
+  "DisputeQuestions": {
+   "n": 8,
+   "mean_s": 14.7,
+   "p50_s": 14.6,
+   "p95_s": 18.0,
+   "max_s": 18.0
+  },
+  "EtebaritoProblems": {
+   "n": 11,
+   "mean_s": 14.5,
+   "p50_s": 14.4,
+   "p95_s": 17.9,
+   "max_s": 17.9
+  },
+  "IndividualCRMQuestions": {
+   "n": 179,
+   "mean_s": 14.6,
+   "p50_s": 13.2,
+   "p95_s": 24.9,
+   "max_s": 41.2
+  },
+  "Individual_CRM_Questions_categorized": {
+   "n": 10,
+   "mean_s": 13.1,
+   "p50_s": 12.7,
+   "p95_s": 16.5,
+   "max_s": 16.5
+  },
+  "PublicQuestions.xlsx": {
+   "n": 55,
+   "mean_s": 14.0,
+   "p50_s": 13.7,
+   "p95_s": 17.6,
+   "max_s": 20.1
+  },
+  "مباحثی که در آن گیجوویجیم": {
+   "n": 2,
+   "mean_s": 13.2,
+   "p50_s": 13.4,
+   "p95_s": 13.4,
+   "max_s": 13.4
+  }
  },
- "err_dist": {
-  "paging_1455": 1,
-  "MemoryError": 54
+ "dbstats": {
+  "n_cheque_chunks": 118,
+  "shorts": 115,
+  "uniq": 92,
+  "dups": 17
  }
 }
