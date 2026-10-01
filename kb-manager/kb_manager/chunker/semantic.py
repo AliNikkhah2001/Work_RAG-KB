@@ -482,6 +482,8 @@ class SemanticChunker(BaseChunker):
                 ("پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("متن پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("متن_پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
+                # keywords excluded from content — they live in Chunk.keywords field
+                # and are indexed separately via bm25_kw with boost
             ]
 
         for key, label in field_order:
@@ -490,6 +492,7 @@ class SemanticChunker(BaseChunker):
 
         # v11 fix: strip keywords from content — they remain as BM25/keyword field and chunk.keywords but not in content string
         # Prevent leakage via remaining-fields loop by adding keyword/keywords to seen exclusion set
+        # Add any remaining fields not in the predefined order
         seen = {k for k, _ in field_order} | {"keyword", "keywords"}
         for key, value in fields.items():
             if key not in seen:

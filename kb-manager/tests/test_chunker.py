@@ -160,7 +160,7 @@ class TestContentFormat:
         )
         assert "سوال" in content
         assert "پاسخ کوتاه" in content
-        assert "کلیدواژه" in content
+        assert "کلیدواژه" not in content  # keywords go to metadata, not content
 
     def test_reason_code_content_has_persian_labels(self, chunker: SemanticChunker):
         content = self._chunk_row(

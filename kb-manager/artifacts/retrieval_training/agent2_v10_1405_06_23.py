@@ -21,6 +21,7 @@ _os.environ["KB_SOURCE_DIR"] = "D:/Code/KB/kb-manager/data/v10_source/1405-06-23
 _os.environ.setdefault("KB_RERANKER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
 
 import asyncio
+import gc
 import hashlib
 import json
 import pathlib
@@ -29,6 +30,20 @@ import sys
 import time
 import traceback
 from datetime import UTC, datetime
+
+# Lean mode (KB_BENCH_LEAN=1): cap native threads + collect garbage per row.
+# Changes NO retrieval math (same TOP_K/beam/model); only bounds host RAM
+# after the Cheque-slice OOM cascade (55x MemoryError/paging-1455).
+if _os.getenv("KB_BENCH_LEAN") == "1":
+    for _v in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS"):
+        _os.environ.setdefault(_v, "1")
+    try:
+        import torch
+
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
+    except Exception:
+        pass
 
 # Repo root must be importable (script lives in artifacts/, not on sys.path).
 sys.path.insert(0, "D:/Code/KB/kb-manager")
@@ -179,14 +194,23 @@ def map_gold(q, qa_chunks):
 
 
 def classify(bm25_rank, dense_rank, merged_rank, final_rank):
+    """A/B/C/D/A' classification with correct A vs A' split.
+
+    A  = retriever miss: gold absent from BOTH bm25 AND dense top-100
+    A' = fusion loss:    gold found by ONE leg but RRF dropped it
+    B  = reranker loss:  gold in merged top-100 but reranker drops from final top-5
+    D  = success:        gold in final top-5
+    """
     hit5 = final_rank is not None and final_rank <= 5
     if hit5:
         return "D", True
+    gold_in_bm25 = bm25_rank is not None
+    gold_in_dense = dense_rank is not None
+    if not gold_in_bm25 and not gold_in_dense:
+        return "A", False  # true retriever miss — neither leg found it
     if merged_rank is None:
-        return "A", False
-    if merged_rank > 20:
-        return "B", False
-    return "C", False
+        return "A'", False  # fusion loss — one leg found it, RRF killed it
+    return "B", False  # gold in merged but reranker dropped it
 
 
 async def main():
@@ -270,7 +294,7 @@ async def main():
     fout = open(OUT_JSONL, "a" if preloaded else "w", encoding="utf-8")
     rows = []  # in-memory copies for the md report
     skipped = []  # (query_id, reason, file, query)
-    counts = {"A": 0, "B": 0, "C": 0, "D": 0, "error": 0}
+    counts = {"A": 0, "A'": 0, "B": 0, "C": 0, "D": 0, "error": 0}
     hits = 0
     evaluated = 0
     done = 0
@@ -402,6 +426,8 @@ async def main():
                 rec["error"] = err
             fout.write(json.dumps(rec, ensure_ascii=False) + "\n")
             fout.flush()
+            if _os.getenv("KB_BENCH_LEAN") == "1":
+                gc.collect()
             rows.append({"file": f, **rec})
             done += 1
             if done % 25 == 0 or done == total:
@@ -427,9 +453,10 @@ async def main():
     fout.close()
     await db.close()
     rate, mrr = write_report(rows, skipped, counts, b_in_leg, errors, evaluated, total, hits, t_run0)
+    a_prime = counts.get("A'", 0)
     print(
-        f"DONE total={total} evaluated={evaluated} A={counts['A']} B={counts['B']} "
-        f"C={counts['C']} D={counts['D']} err={counts['error']} skipped={len(skipped)} "
+        f"DONE total={total} evaluated={evaluated} A={counts['A']} A'={a_prime} B={counts['B']} "
+        f"D={counts['D']} err={counts['error']} skipped={len(skipped)} "
         f"hit5={rate:.4f} mrr={mrr:.4f}",
         flush=True,
     )
@@ -519,15 +546,16 @@ def write_report(rows, skipped, counts, b_in_leg, errors, evaluated, total, hits
     L.append("## Method (replica of benchmarks.py::_run_massive)")
     L.append("- QA files: rglob *.xlsx minus ~$/TestQuestion/واژگان معادل/محدودیت ها stems, first dir with crm_qa sheets; GT 3-step: metadata.fields.question==q → content startswith/in 'سوال: {q}' → q[:30] in content.")
     L.append("- Ranks: first-index match over steps.bm25_results / dense_results / merged_candidates / final_results (each ≤100 since top_k=100).")
-    L.append("- Classes (D checked first so Hit@5 == D rate): D final≤5; else A merged None; else B merged>20 (gold in ≥1 exposed leg top-100 verified below); else C (merged≤20, final>5 or absent).")
+    L.append("- Classes (D checked first so Hit@5 == D rate): D final≤5; else A neither leg found gold in top-100; else A' one leg found but RRF dropped; else B gold in merged top-100 but reranker dropped from final top-5.")
     L.append("")
     L.append("## Counts")
     L.append(f"- total QA rows: {total}")
     L.append(f"- evaluated (gold-mapped): {evaluated} (= jsonl lines)")
     L.append(f"- skipped: {len(skipped)} (empty-question={skip_empty} no-gold-chunk={skip_nochunk} file-not-indexed={skip_nofile})")
-    L.append(f"- A retriever_failure (gold not in merged top-100): {counts['A']}")
-    L.append(f"- B fusion_failure (leg top-100 → merged>20): {counts['B']} (with gold in ≥1 exposed leg top-100: {b_in_leg}/{counts['B']})")
-    L.append(f"- C reranker_failure (merged≤20 → final>5/absent): {counts['C']}")
+    L.append(f"- A retriever_failure (gold not in bm25 AND not in dense top-100): {counts['A']}")
+    a_prime = counts.get("A'", 0)
+    L.append(f"- A' fusion_loss (gold in ≥1 leg top-100 but RRF dropped it): {a_prime}")
+    L.append(f"- B reranker_failure (gold in merged top-100 but final>5): {counts['B']}")
     L.append(f"- D success (final≤5): {counts['D']}")
     L.append(f"- error (timeout/exception): {counts['error']}")
     L.append("")
@@ -544,12 +572,41 @@ def write_report(rows, skipped, counts, b_in_leg, errors, evaluated, total, hits
     L.append(f"- Stage Hit@5:  bm25={bm25_hit5}/{n_ok} ({bm25_hit5/max(n_ok,1):.4f}) dense={dense_hit5}/{n_ok} ({dense_hit5/max(n_ok,1):.4f}) merged={merged_hit5}/{n_ok} ({merged_hit5/max(n_ok,1):.4f}) final={final_hit5}/{n_ok} ({final_hit5/max(n_ok,1):.4f})")
     L.append(f"- Stage recall@100: bm25={bm25_hit100}/{n_ok} ({bm25_hit100/max(n_ok,1):.4f}) dense={dense_hit100}/{n_ok} ({dense_hit100/max(n_ok,1):.4f}) merged={merged_hit100}/{n_ok} ({merged_hit100/max(n_ok,1):.4f})")
     L.append("")
+    L.append("## Failure funnel")
+    true_retriever_miss = counts["A"]
+    fusion_loss = counts.get("A'", 0)
+    reranker_loss = counts["B"]
+    L.append(f"- True retriever miss (A): {true_retriever_miss} — neither BM25 nor Dense found gold in top-100")
+    L.append(f"- Fusion loss (A'): {fusion_loss} — one leg found gold, RRF dropped it")
+    L.append(f"- Reranker loss (B): {reranker_loss} — gold in merged top-100, reranker dropped from final top-5")
+    L.append(f"- Retriever recall (any leg): {n_ok - true_retriever_miss}/{n_ok} ({(n_ok - true_retriever_miss)/max(n_ok,1):.4f})")
+    L.append(f"- Fusion retention: {n_ok - true_retriever_miss - fusion_loss}/{n_ok - true_retriever_miss} ({(n_ok - true_retriever_miss - fusion_loss)/max(n_ok - true_retriever_miss,1):.4f})")
+    L.append(f"- Reranker rescue: {final_hit5}/{n_ok - true_retriever_miss - fusion_loss} ({final_hit5/max(n_ok - true_retriever_miss - fusion_loss,1):.4f})")
+    L.append("")
+    # Per-file breakdown
+    file_groups: dict[str, list] = {}
+    for r in ok_rows:
+        fname = pathlib.Path(r.get("file", "?")).stem
+        file_groups.setdefault(fname, []).append(r)
+    L.append("## Per-file breakdown")
+    L.append(f"| File | n | A | A' | B | D | hit5 |")
+    L.append(f"|------|---|---|----|----|----|----|")
+    for fname in sorted(file_groups):
+        fr = file_groups[fname]
+        f_a = sum(1 for r in fr if r["failure_type"] == "A")
+        f_ap = sum(1 for r in fr if r["failure_type"] == "A'")
+        f_b = sum(1 for r in fr if r["failure_type"] == "B")
+        f_d = sum(1 for r in fr if r["hit5"])
+        f_n = len(fr)
+        f_hit5 = f_d / max(f_n, 1)
+        L.append(f"| {fname} | {f_n} | {f_a} | {f_ap} | {f_b} | {f_d} | {f_hit5:.3f} |")
+    L.append("")
     L.append("## Comparison vs frozen v10 baseline (retrieval_failures.jsonl: 573 total, 489 pass)")
     L.append(f"- {overlap_note}")
     L.append(f"- newly fixed ids: {json.dumps(overlap_detail[0], ensure_ascii=False)}")
     L.append(f"- newly broken ids: {json.dumps(overlap_detail[1], ensure_ascii=False)}")
     L.append("")
-    for ftype, title in [("A", "A — retriever_failure"), ("B", "B — fusion_failure"), ("C", "C — reranker_failure")]:
+    for ftype, title in [("A", "A — retriever_failure (neither leg)"), ("A'", "A' — fusion_loss (one leg, RRF killed)"), ("B", "B — reranker_failure")]:
         L.append(f"## Examples: {title}")
         for r in examples(ftype):
             L.append(f"- {r['query_id']} bm25={r['bm25_rank']} dense={r['dense_rank']} merged={r['merged_rank']} final={r['final_rank']}")
@@ -629,7 +686,7 @@ async def finalize_from_jsonl(cfg, t_run0):
             elif not map_gold(q, qa_chunks):
                 skipped.append((qid, "no-gold-chunk", f, q))
     await db.close()
-    counts = {"A": 0, "B": 0, "C": 0, "D": 0, "error": 0}
+    counts = {"A": 0, "A'": 0, "B": 0, "C": 0, "D": 0, "error": 0}
     b_in_leg = 0
     hits = 0
     errors = []
@@ -644,9 +701,10 @@ async def finalize_from_jsonl(cfg, t_run0):
             hits += 1
     evaluated = len(rows)
     rate, mrr = write_report(rows, skipped, counts, b_in_leg, errors, evaluated, total, hits, t_run0)
+    a_prime = counts.get("A'", 0)
     print(
-        f"FINALIZED total={total} evaluated={evaluated} A={counts.get('A', 0)} B={counts.get('B', 0)} "
-        f"C={counts.get('C', 0)} D={counts.get('D', 0)} err={counts.get('error', 0)} skipped={len(skipped)} "
+        f"FINALIZED total={total} evaluated={evaluated} A={counts.get('A', 0)} A'={a_prime} B={counts.get('B', 0)} "
+        f"D={counts.get('D', 0)} err={counts.get('error', 0)} skipped={len(skipped)} "
         f"hit5={rate:.4f} mrr={mrr:.4f}",
         flush=True,
     )

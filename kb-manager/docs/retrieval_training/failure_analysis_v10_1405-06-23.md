@@ -1,77 +1,103 @@
 # Retrieval failure analysis (Agent 2 — v10_1405-06-23 corpus)
 
 ## Header / determinism
-- code HEAD: 325ef64aeb3cd67a3bac83100bf8b9da50c9fd2c
+- code HEAD: c1f04400ff94c663cdfff7c6f5a540c232eeed65
 - corpus: v10_1405-06-23
-- kb_manager/ status clean: True (status='')
-- db: data/kb_1405_06_23.db sha256=7147948bff2c53f0586122dff15d89d334860699a227759f3edca73a12af08a0
-- npz: data/dense_embeddings.npz sha256=4d76039659133c775c1bf09f2ed8a7592524e0e895dde54b012dc00b694a66bb
+- kb_manager/ status clean: False (status='M kb_manager/chunker/semantic.py\n M kb_manager/dense.py')
+- db: data/kb_1405_06_23.db sha256=d6297d46678d7a0cf5b0f222261d8916524138eba9fd59465901680562ed5eb7
+- npz: data/dense_embeddings.npz sha256=8aaec99fe1591e88fa9d158c0dd60a760c20466504f42abe3d11a9c83b83c7ca
 - models: dense=sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 reranker=cross-encoder/mmarco-mMiniLMv2-L12-H384-v1
 - retrieval config: rrf_k=60 rerank_top_k=100 keyword_boost=3.0 synonym_beam=5 fusion_alpha=0.7
 - env: KB_DB_URL=sqlite+aiosqlite:///D:/Code/KB/kb-manager/data/kb_1405_06_23.db KB_SOURCE_DIR=D:/Code/KB/kb-manager/data/v10_source/1405-06-23
-- run at (UTC): 2026-09-19T13:55:38.238616+00:00 top_k=100 per-query-timeout=600s
-- elapsed: 0.4 min; pipeline deterministic (CPU), single run
+- run at (UTC): 2026-09-23T08:04:24.827114+00:00 top_k=100 per-query-timeout=600s
+- elapsed: 0.3 min; pipeline deterministic (CPU), single run
 
 ## Method (replica of benchmarks.py::_run_massive)
 - QA files: rglob *.xlsx minus ~$/TestQuestion/واژگان معادل/محدودیت ها stems, first dir with crm_qa sheets; GT 3-step: metadata.fields.question==q → content startswith/in 'سوال: {q}' → q[:30] in content.
 - Ranks: first-index match over steps.bm25_results / dense_results / merged_candidates / final_results (each ≤100 since top_k=100).
-- Classes (D checked first so Hit@5 == D rate): D final≤5; else A merged None; else B merged>20 (gold in ≥1 exposed leg top-100 verified below); else C (merged≤20, final>5 or absent).
+- Classes (D checked first so Hit@5 == D rate): D final≤5; else A neither leg found gold in top-100; else A' one leg found but RRF dropped; else B gold in merged top-100 but reranker dropped from final top-5.
 
 ## Counts
 - total QA rows: 1659
 - evaluated (gold-mapped): 714 (= jsonl lines)
 - skipped: 945 (empty-question=2 no-gold-chunk=943 file-not-indexed=0)
-- A retriever_failure (gold not in merged top-100): 46
-- B fusion_failure (leg top-100 → merged>20): 6 (with gold in ≥1 exposed leg top-100: 6/6)
-- C reranker_failure (merged≤20 → final>5/absent): 2
-- D success (final≤5): 660
-- error (timeout/exception): 0
+- A retriever_failure (gold not in bm25 AND not in dense top-100): 25
+- A' fusion_loss (gold in ≥1 leg top-100 but RRF dropped it): 8
+- B reranker_failure (gold in merged top-100 but final>5): 13
+- D success (final≤5): 613
+- error (timeout/exception): 55
 
 ## Aggregate (over evaluated non-error rows)
-- N=714 Hit@1=0.7703 (550/714) Hit@5=0.9244 MRR=0.8369
-- Stage Hit@5:  bm25=403/714 (0.5644) dense=245/714 (0.3431) merged=430/714 (0.6022) final=660/714 (0.9244)
-- Stage recall@100: bm25=615/714 (0.8613) dense=543/714 (0.7605) merged=668/714 (0.9356)
+- N=659 Hit@1=0.7496 (494/659) Hit@5=0.9302 MRR=0.8271
+- Stage Hit@5:  bm25=380/659 (0.5766) dense=399/659 (0.6055) merged=435/659 (0.6601) final=613/659 (0.9302)
+- Stage recall@100: bm25=572/659 (0.8680) dense=552/659 (0.8376) merged=626/659 (0.9499)
+
+## Failure funnel
+- True retriever miss (A): 25 — neither BM25 nor Dense found gold in top-100
+- Fusion loss (A'): 8 — one leg found gold, RRF dropped it
+- Reranker loss (B): 13 — gold in merged top-100, reranker dropped from final top-5
+- Retriever recall (any leg): 634/659 (0.9621)
+- Fusion retention: 626/634 (0.9874)
+- Reranker rescue: 613/626 (0.9792)
+
+## Per-file breakdown
+| File | n | A | A' | B | D | hit5 |
+|------|---|---|----|----|----|----|
+| ChequeQuestions | 62 | 0 | 0 | 1 | 61 | 0.984 |
+| Company_CRM_Questions | 332 | 14 | 6 | 8 | 304 | 0.916 |
+| DisputeQuestions | 8 | 0 | 0 | 0 | 8 | 1.000 |
+| EtebaritoProblems | 11 | 0 | 0 | 0 | 11 | 1.000 |
+| IndividualCRMQuestions | 179 | 7 | 1 | 4 | 167 | 0.933 |
+| Individual_CRM_Questions_categorized | 10 | 0 | 1 | 0 | 9 | 0.900 |
+| PublicQuestions.xlsx | 55 | 4 | 0 | 0 | 51 | 0.927 |
+| مباحثی که در آن گیجوویجیم | 2 | 0 | 0 | 0 | 2 | 1.000 |
 
 ## Comparison vs frozen v10 baseline (retrieval_failures.jsonl: 573 total, 489 pass)
 - overlap_rows=0 baseline_hit5=0 ours_hit5=0 newly_fixed=0 newly_broken=0
 - newly fixed ids: []
 - newly broken ids: []
 
-## Examples: A — retriever_failure
-- Company_CRM_Questions#13 bm25=None dense=None merged=None final=None
-  - Q: منابع داده گزارش اعتباری اشخاص حقوقی از کجاست؟
-  - gold: 7f99735d-8538-4f08-a5e0-eaccb8255752
-- Company_CRM_Questions#17 bm25=None dense=88 merged=None final=None
-  - Q: بدهی مالیاتی روی امتیاز موثره؟
-  - gold: d9ff4737-f7ff-4245-814b-550980441fb0
-- Company_CRM_Questions#44 bm25=None dense=None merged=None final=None
-  - Q: آیا یک شرکت پس از منحل شدن همچنان دارای گزارش اعتباری و امتیاز اعتباری است؟
-  - gold: 850c30c6-04ed-44d8-b413-8f48e723f60a
-- Company_CRM_Questions#47 bm25=None dense=None merged=None final=None
+## Examples: A — retriever_failure (neither leg)
+- Company_CRM_Questions#12 bm25=None dense=None merged=None final=None
+  - Q: شرکت ما کلی زمین و ساختمون داره. چرا رتبه (اعتباری) C2ه؟
+  - gold: c24d024e-a322-42de-a044-1810eecc6a11
+- Company_CRM_Questions#43 bm25=None dense=None merged=None final=None
+  - Q: ایا کسی میتواند بدون اجازه من به محتویات گزارش اعتباریم دست پیدا کنه؟
+  - gold: c108882c-ff7e-485a-865c-fbff3694b6fd
+- Company_CRM_Questions#54 bm25=None dense=None merged=None final=None
+  - Q: من قسط یه وام 200 تومنی رو سه روز دیر دادم. چقد تو امتیازم موثره؟
+  - gold: 94fe2438-9296-4953-a7ab-afc13154608b
+- Company_CRM_Questions#55 bm25=None dense=None merged=None final=None
+  - Q: من قسط یه وام 700 تومنی صادرات رو با یه هفته تاخیر دادم. چقد تو امتیازم موثره؟
+  - gold: 031f4f10-5cb3-4b98-8603-a9318887a102
+
+## Examples: A' — fusion_loss (one leg, RRF killed)
+- Company_CRM_Questions#18 bm25=None dense=43 merged=None final=None
+  - Q: آیا تسهیلات جدید فوراً امتیاز اعتباری شرکت را بهتر می‌کند؟
+  - gold: 9aee6892-a95b-4d75-b300-431587de5a6f
+- Company_CRM_Questions#76 bm25=None dense=93 merged=None final=None
+  - Q: اگر شرکت در یک بانک خاص سابقه تاخیر در پرداخت بدهی داشته باشد، آیا این موضوع بر دریافت تسهیلات از سایر بانک‌ها تاثیر می‌گذارد؟
+  - gold: 99c6083b-827e-4d88-a1f6-95290d77124b
+- Company_CRM_Questions#130 bm25=None dense=68 merged=None final=None
+  - Q: آیا اعتبارات اسنادی صادر شده در محاسبه امتیاز اعتباری و رتبه اعتباری شرکت لحاظ می‌شوند؟
+  - gold: c8caac1a-0972-41ba-bcdc-dbd8cd37af5c
+- Company_CRM_Questions#172 bm25=35 dense=None merged=None final=None
+  - Q: نمی‌خوام این چکم که برگشت خورده تو سابقه‌م بیاد، چه طوری حذفش کنم؟
+  - gold: 2a943dd5-2262-4fbb-a549-8f1b2cecee22
+
+## Examples: B — reranker_failure
+- Company_CRM_Questions#30 bm25=None dense=17 merged=75 final=6
+  - Q: سابقه چک برگشتی تا چه مدت در گزارش اعتباری شرکت باقی می‌ماند؟
+  - gold: 66cac285-ab86-4d09-875d-536aad90bee8
+- Company_CRM_Questions#47 bm25=None dense=1 merged=15 final=24
   - Q: کدام دلایل برگشت چک در امتیاز کسب و کار اثرگذار است؟
-  - gold: ede6874e-e886-492e-8ed2-edaa955c27f2
-
-## Examples: B — fusion_failure
-- Company_CRM_Questions#141 bm25=None dense=15 merged=62 final=11
-  - Q: آیا رتبه اعتباری یا امتیاز اعتباری‌ اعضای یک شرکت، بر رتبه اعتباری یا امتیاز اعتباری شرکت تاثیر می‌گذارد؟
-  - gold: 2fcd88e5-a164-4fe3-bbde-3a524167879c
-- Company_CRM_Questions#202 bm25=None dense=80 merged=94 final=43
-  - Q: چه زمانی باید برای بهبود امتیاز اعتباری خود اقدام کنم؟
-  - gold: a38e0b96-c619-439e-9db2-8b2cf597e88e
-- PublicQuestions.xlsx#24 bm25=3 dense=None merged=39 final=10
-  - Q: امتیازم (مثال امتیاز) عوض شده ولی رتبم (مثال رتبه) عوض نشده. چرا؟
-  - gold: 4eea0b86-6a13-4a97-94f9-b59dab23e77d
-- IndividualCRMQuestions#63 bm25=31 dense=None merged=78 final=11
-  - Q: چک  شرکتم برگشت خورد، رتبه اعتباری من کم میشه؟
-  - gold: 09a98a64-7722-4767-a5b7-527728f0d7d0
-
-## Examples: C — reranker_failure
-- Company_CRM_Questions#151 bm25=28 dense=78 merged=14 final=20
-  - Q: چقدر طول می‌کشد تا گزارش اعتباری من به‌روز شود؟
-  - gold: c872d126-7ba7-41e2-83b8-976f55c86d22
-- ChequeQuestions#140 bm25=14 dense=14 merged=13 final=9
-  - Q: توی گزارش چک نوشته «میانگین موجودی حسابهای بانکی فرد در سال گذشته بسیار کم بوده است.». بسیار کم برای شما چقدره؟
-  - gold: 340a239e-7522-4ab0-8398-e98942a5c56c
+  - gold: 8dbd2f88-53ca-476a-95de-be01cc0d9adc
+- Company_CRM_Questions#59 bm25=5 dense=None merged=20 final=14
+  - Q: تعداد چک‌های برگشتی در محاسبه امتیاز اعتباری فرد تأثیر بیشتری داره یا مبلغ چک‌ها؟
+  - gold: cfc65fb5-f63a-439c-abf8-362ce64f90f0
+- Company_CRM_Questions#129 bm25=4 dense=None merged=12 final=6
+  - Q: آیا ضمانت‌نامه‌های صادر شده در محاسبه امتیاز اعتباری و رتبه اعتباری شرکت لحاظ می‌شوند؟
+  - gold: f372c8cb-0025-471c-8dfd-62a25695b6d5
 
 ## Skipped log (query_id, reason)
 - PublicQuestions.xlsx#20 no-gold-chunk :: PublicQuestions.xlsx.xlsx :: مهمترین درسی که باید در مورد اعتبارسنجی بدانم چیست؟
@@ -1019,3 +1045,60 @@
 - ChequeQuestions#137 no-gold-chunk :: ChequeQuestions.xlsx :: رتبه E3 یعنی چی؟
 - ChequeQuestions#138 no-gold-chunk :: ChequeQuestions.xlsx :: کدوم دلایل برگشت چک توی امتیاز مهمه؟
 - ChequeQuestions#145 no-gold-chunk :: ChequeQuestions.xlsx :: خطوط قرمز چیه؟
+
+## Errors
+- ChequeQuestions#64 OSError: The paging file is too small for this operation to complete. (os error 1455)
+- ChequeQuestions#65 MemoryError: 
+- ChequeQuestions#66 MemoryError: 
+- ChequeQuestions#67 MemoryError: 
+- ChequeQuestions#68 MemoryError: 
+- ChequeQuestions#69 MemoryError: 
+- ChequeQuestions#70 MemoryError: 
+- ChequeQuestions#71 MemoryError: 
+- ChequeQuestions#72 MemoryError: 
+- ChequeQuestions#73 MemoryError: 
+- ChequeQuestions#74 MemoryError: 
+- ChequeQuestions#75 MemoryError: 
+- ChequeQuestions#76 MemoryError: 
+- ChequeQuestions#77 MemoryError: 
+- ChequeQuestions#78 MemoryError: 
+- ChequeQuestions#79 MemoryError: 
+- ChequeQuestions#80 MemoryError: 
+- ChequeQuestions#81 MemoryError: 
+- ChequeQuestions#82 MemoryError: 
+- ChequeQuestions#83 MemoryError: 
+- ChequeQuestions#84 MemoryError: 
+- ChequeQuestions#85 MemoryError: 
+- ChequeQuestions#86 MemoryError: 
+- ChequeQuestions#87 MemoryError: 
+- ChequeQuestions#88 MemoryError: 
+- ChequeQuestions#89 MemoryError: 
+- ChequeQuestions#90 MemoryError: 
+- ChequeQuestions#91 MemoryError: 
+- ChequeQuestions#92 MemoryError: 
+- ChequeQuestions#93 MemoryError: 
+- ChequeQuestions#94 MemoryError: 
+- ChequeQuestions#95 MemoryError: 
+- ChequeQuestions#96 MemoryError: 
+- ChequeQuestions#97 MemoryError: 
+- ChequeQuestions#98 MemoryError: 
+- ChequeQuestions#99 MemoryError: 
+- ChequeQuestions#100 MemoryError: 
+- ChequeQuestions#101 MemoryError: 
+- ChequeQuestions#103 MemoryError: 
+- ChequeQuestions#104 MemoryError: 
+- ChequeQuestions#105 MemoryError: 
+- ChequeQuestions#106 MemoryError: 
+- ChequeQuestions#107 MemoryError: 
+- ChequeQuestions#108 MemoryError: 
+- ChequeQuestions#109 MemoryError: 
+- ChequeQuestions#110 MemoryError: 
+- ChequeQuestions#111 MemoryError: 
+- ChequeQuestions#116 MemoryError: 
+- ChequeQuestions#117 MemoryError: 
+- ChequeQuestions#139 MemoryError: 
+- ChequeQuestions#140 MemoryError: 
+- ChequeQuestions#141 MemoryError: 
+- ChequeQuestions#142 MemoryError: 
+- ChequeQuestions#143 MemoryError: 
+- ChequeQuestions#144 MemoryError: 
