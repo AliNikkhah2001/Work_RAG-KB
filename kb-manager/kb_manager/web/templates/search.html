@@ -29,7 +29,24 @@
 <div class="card">
     <form id="search-form" onsubmit="return performSearch(event)">
         <div class="form-group" style="display:flex; gap:0.5rem;">
-            <input type="text" id="filter-input" class="form-control" placeholder="Sub-space Folder (e.g. اشخاص حقوقی)" style="max-width: 250px; font-size: 1.1rem; padding: 10px;">
+            <select id="filter-input" class="form-control" style="max-width: 250px; font-size: 1.1rem; padding: 10px;">
+                <option value="">All Knowledge (Global)</option>
+                <optgroup label="اشخاص حقوقی (Legal Entities)">
+                    <option value="اشخاص حقوقی">All Legal Entities</option>
+                    <option value="اعتبارسنجی تسهیلات"> - اعتبارسنجی تسهیلات</option>
+                    <option value="عضویت در پایگاه داده اعتباری به عنوان تامین کننده اطلاعات"> - تامین کننده اطلاعات</option>
+                    <option value="گزارش اعتبارسنجی مشتریان من"> - مشتریان من</option>
+                </optgroup>
+                <optgroup label="اشخاص حقیقی (Individuals)">
+                    <option value="اشخاص حقیقی">All Individuals</option>
+                    <option value="گزارش اعتبارسنجی چک"> - اعتبارسنجی چک</option>
+                    <option value="گزارش اعتبارسنجی مشتریان من (مرتبط با کسب‌وکارها)"> - مشتریان من (کسب‌وکارها)</option>
+                    <option value="اعتبارسنجی تسهیلات"> - اعتبارسنجی تسهیلات</option>
+                </optgroup>
+                <optgroup label="عمومی (General)">
+                    <option value="پایگاه دانش عمومی">پایگاه دانش عمومی</option>
+                </optgroup>
+            </select>
             <input type="text" id="search-input" class="form-control" placeholder="Enter test query to observe..." required style="flex:1; font-size: 1.1rem; padding: 10px;">
             <button type="submit" class="btn btn-primary" id="search-btn" style="padding: 10px 20px;">Run Retrieval Pipeline</button>
         </div>

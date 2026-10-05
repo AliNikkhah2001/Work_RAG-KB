@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from sqlalchemy import select
 
 from kb_manager.models.database import Chunk as DBChunk
-from kb_manager.models.database import Document, IngestionJob
+from kb_manager.models.database import Document, IngestionJob, EntityList
 from kb_manager.parsers.registry import get_parser
 from kb_manager.pipeline.quality import QualityGate, QualityThresholds
 from kb_manager.pipeline.versioning import VersionManager, compute_content_hash
