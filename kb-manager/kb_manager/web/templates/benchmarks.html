@@ -40,66 +40,7 @@
     <div id="job-area" style="display:none; margin-top: 1rem;"></div>
 </div>
 
-<div class="card">
-    <h3>RAGAS Quality Evaluation</h3>
-    <p style="opacity:0.85;">Evaluate retrieval quality with LLM-based metrics: faithfulness, answer relevance, and context recall. Requires RAGAS + OpenAI API key.</p>
-    <form method="post" action="/benchmarks/ragas" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
-        <div class="form-group">
-            <label>Test Dataset</label>
-            <select name="dataset" class="form-control">
-                {% for ds in datasets %}
-                <option value="{{ ds }}" {% if ds == 'test_questions.json' %}selected{% endif %}>{{ ds }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Top-K</label>
-            <input type="number" name="top_k" value="5" min="1" max="20" class="form-control" style="width:90px;">
-        </div>
-        <div class="form-group">
-            <label>Sample Size</label>
-            <input type="number" name="sample_size" value="10" min="1" max="120" class="form-control" style="width:90px;">
-        </div>
-        <button type="submit" class="btn btn-primary" id="ragas-btn">Run RAGAS</button>
-    </form>
-</div>
 
-<div class="card">
-    <h3>Query Formats</h3>
-    <p style="opacity:0.85;">Each ground-truth question is transformed into these formats to stress-test retrieval robustness:</p>
-    <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
-        {% for fmt in formats %}
-        <span class="badge badge-active">{{ fmt }}</span>
-        {% endfor %}
-    </div>
-</div>
-
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-value" id="stat-queries">
-            {% if results %}{{ results.total_queries | default(0) }}{% else %}-{% endif %}
-        </div>
-        <div class="stat-label">Queries Evaluated</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" id="stat-hit">
-            {% if results %}{{ "%.1f"|format((results.overall.hit_rate|default(0)) * 100) }}%{% else %}-{% endif %}
-        </div>
-        <div class="stat-label">Overall Hit@K</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" id="stat-mrr">
-            {% if results %}{{ "%.3f"|format(results.overall.mrr|default(0)) }}{% else %}-{% endif %}
-        </div>
-        <div class="stat-label">Overall MRR</div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-value" id="stat-lat">
-            {% if results %}{{ "%.0f"|format(results.overall.avg_latency_ms|default(0)) }} ms{% else %}-{% endif %}
-        </div>
-        <div class="stat-label">Avg Latency</div>
-    </div>
-</div>
 
 {% if results %}
 <div class="card">

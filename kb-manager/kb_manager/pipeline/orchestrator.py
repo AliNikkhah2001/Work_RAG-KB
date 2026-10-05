@@ -16,6 +16,7 @@ from kb_manager.models.database import Document, IngestionJob
 from kb_manager.parsers.registry import get_parser
 from kb_manager.pipeline.quality import QualityGate, QualityThresholds
 from kb_manager.pipeline.versioning import VersionManager, compute_content_hash
+from kb_manager.pipeline.artifact_mgr import ArtifactManager
 from kb_manager.preprocessor.pipeline import PreprocessingPipeline, PreprocessingResult
 
 if TYPE_CHECKING:
@@ -130,9 +131,16 @@ class PipelineOrchestrator:
         summary = PipelineSummary(job_id=job.id, job_type="full_rebuild")
         summary.documents_processed = len(files)
 
+
         # F36 fix: reset dedup state at start of rebuild so queries are isolated per job
+
         if self._chunker is not None and hasattr(self._chunker, "reset_dedup"):
             self._chunker.reset_dedup()
+            
+
+            
+        self.artifact_mgr = ArtifactManager(commit_hash)
+
 
         async with self._db.session() as session:
             for file_path in files:
@@ -191,8 +199,11 @@ class PipelineOrchestrator:
         summary = PipelineSummary(job_id=job.id, job_type="incremental")
         summary.documents_processed = len(files)
 
+
         if self._chunker is not None and hasattr(self._chunker, "reset_dedup"):
             self._chunker.reset_dedup()
+            
+
 
         async with self._db.session() as session:
             for file_path in files:
@@ -297,6 +308,18 @@ class PipelineOrchestrator:
 
         # --- Parse ---
         parsed = self._parse_file(file_path)
+        
+        if hasattr(self, "artifact_mgr"):
+            self.artifact_mgr.save("raw", file_path, {"title": parsed.title, "metadata": parsed.metadata, "content": parsed.content, "sheets": parsed.sheets})
+
+        # --- Check for Entity Bypass ---
+        is_entity_list = "ضمیمه پایگاه دانش" in file_path or "لیست" in file_path
+        if is_entity_list:
+            logger.info("Bypassing chunking/embedding for Entity List: %s", file_path)
+            if hasattr(self, "artifact_mgr"):
+                self.artifact_mgr.save("entity_lists", file_path, {"title": parsed.title, "sheets": parsed.sheets})
+            result["skipped"] = 1
+            return result
 
         # --- Content hash ---
         content_hash = compute_content_hash(parsed.content)
@@ -334,6 +357,8 @@ class PipelineOrchestrator:
 
         # --- Preprocess ---
         prep: PreprocessingResult = self._preprocessor.run(parsed.content)
+        if hasattr(self, "artifact_mgr"):
+            self.artifact_mgr.save("preprocessed", file_path, {"normalised": prep.normalised_text})
 
         # --- Determine doc_type from schema detection ---
         doc_type = "body"
@@ -369,6 +394,9 @@ class PipelineOrchestrator:
         # Capture skipped incomplete QA rows
         if hasattr(self._chunker, "get_skipped_incomplete"):
             result["chunks_skipped_incomplete"] = self._chunker.get_skipped_incomplete()
+            
+        if hasattr(self, "artifact_mgr"):
+            self.artifact_mgr.save("chunked", file_path, [{"text": c.content, "metadata": c.metadata} for c in chunks])
 
         if not chunks:
             logger.warning("No chunks produced for %s", file_path)
