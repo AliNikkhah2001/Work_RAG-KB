@@ -8,7 +8,14 @@
 {% block content %}
 {% set results = latest_results %}
 
+
+<div style="margin-bottom: 1.5rem; display: flex; gap: 1rem;">
+    <a href="/benchmarks/comparison" class="btn btn-primary" style="text-decoration: none;">View Version Comparisons</a>
+    <a href="/benchmarks/massive" class="btn btn-primary" style="text-decoration: none;">View Massive QA</a>
+</div>
+
 <div class="card">
+
     <h3>Run a Retrieval Benchmark</h3>
     <p style="opacity:0.85;">Each dataset query is searched against the live KB (BM25 + Dense + RRF fusion, top-k returned). Hit@K and MRR are computed against expected chunk ids, then broken down by query format and difficulty.</p>
     <form method="post" action="/benchmarks/run" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">

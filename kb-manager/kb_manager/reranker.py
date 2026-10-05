@@ -253,8 +253,17 @@ class CrossEncoderReranker:
         if pad_id is None and self._tokenizer.eos_token_id is not None:
             self._tokenizer.pad_token_id = self._tokenizer.eos_token_id
             self._tokenizer.pad_token = self._tokenizer.eos_token
-        # Phase 1 fix F11: use float16 only on non-CPU (cuda) — None must not imply float16.
-        actual_device = self._device or ("cuda" if torch.cuda.is_available() else "cpu")
+        # Phase 1 fix F11: use float16 only on non-CPU (cuda/mps) — None must not imply float16.
+        if self._device:
+            actual_device = self._device
+        else:
+            if torch.cuda.is_available():
+                actual_device = "cuda"
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                actual_device = "mps"
+            else:
+                actual_device = "cpu"
+                
         dtype = torch.float16 if actual_device != "cpu" else torch.float32
         self._model = AutoModelForSequenceClassification.from_pretrained(
             self._model_name,
@@ -398,7 +407,8 @@ class CrossEncoderReranker:
                 inputs = {k: v.to(self._device) for k, v in inputs.items()}
             else:
                 import torch
-                inputs = {k: v.to("cuda" if torch.cuda.is_available() else "cpu") for k, v in inputs.items()}
+                _dev = "cuda" if torch.cuda.is_available() else ("mps" if hasattr(torch.backends, "mps") and torch.backends.mps.is_available() else "cpu")
+                inputs = {k: v.to(_dev) for k, v in inputs.items()}
 
             with torch.no_grad():
                 logits = self._model(**inputs).logits

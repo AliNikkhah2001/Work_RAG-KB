@@ -1,104 +1,77 @@
 {% extends "base.html" %}
-{% block title %}Search - KB Manager{% endblock %}
+{% block title %}Retrieval Testing & Observation - KB Manager{% endblock %}
 
 {% block header %}
-<h1>Search & Test Query</h1>
+<h1>Retrieval Observation Sandbox</h1>
 {% endblock %}
 
 {% block content %}
+<style>
+    .latency-bar-container { display: flex; width: 100%; height: 25px; border-radius: 5px; overflow: hidden; background: #eee; margin-top: 10px; margin-bottom: 20px;}
+    .latency-segment { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; font-weight: bold; overflow: hidden; white-space: nowrap; }
+    .bg-bm25 { background: #3498db; }
+    .bg-semantic { background: #2ecc71; }
+    .bg-hybrid { background: #f1c40f; color: black; }
+    .bg-rerank { background: #9b59b6; }
+    
+    .source-bm25 { border-left: 5px solid #3498db; }
+    .source-semantic { border-left: 5px solid #2ecc71; }
+    .source-both { border-left: 5px solid #e67e22; }
+    .source-rerank { border-left: 5px solid #9b59b6; background: rgba(155, 89, 182, 0.05); }
+
+    .score-badge { padding: 3px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin-right: 5px; }
+    .score-badge.bm25 { background: #e3f2fd; color: #1565c0; }
+    .score-badge.sem { background: #e8f5e9; color: #2e7d32; }
+    .score-badge.rrf { background: #fff3e0; color: #e65100; }
+    .score-badge.rerank { background: #f3e5f5; color: #6a1b9a; }
+</style>
+
 <div class="card">
     <form id="search-form" onsubmit="return performSearch(event)">
         <div class="form-group" style="display:flex; gap:0.5rem;">
-            <input type="text" id="search-input" class="form-control" placeholder="Enter your search query..." required style="flex:1;">
-            <button type="submit" class="btn btn-primary" id="search-btn">Search</button>
+            <input type="text" id="search-input" class="form-control" placeholder="Enter test query to observe..." required style="flex:1; font-size: 1.1rem; padding: 10px;">
+            <button type="submit" class="btn btn-primary" id="search-btn" style="padding: 10px 20px;">Run Retrieval Pipeline</button>
         </div>
     </form>
 </div>
 
 <div id="results-area" style="display:none;">
+    
+    <!-- LATENCY VISUALIZATION -->
+    <div class="card">
+        <h3>Pipeline Latency Breakdown</h3>
+        <p>Total Elapsed: <strong id="total-time">0</strong> ms</p>
+        <div class="latency-bar-container" id="latency-bar">
+            <!-- segments injected by JS -->
+        </div>
+        <div style="font-size: 12px; display: flex; gap: 15px; margin-top: 5px;">
+            <div><span style="display:inline-block; width:12px; height:12px; background:#3498db;"></span> BM25 (Sparse)</div>
+            <div><span style="display:inline-block; width:12px; height:12px; background:#2ecc71;"></span> Dense Semantic</div>
+            <div><span style="display:inline-block; width:12px; height:12px; background:#f1c40f;"></span> RRF Merge</div>
+            <div><span style="display:inline-block; width:12px; height:12px; background:#9b59b6;"></span> Cross-Encoder Rerank</div>
+        </div>
+    </div>
+
     <details open>
-        <summary><h3 style="display:inline;">Step 1: Query Processing</h3></summary>
+        <summary><h3 style="display:inline;">Step 1: Parsing & Tokens</h3></summary>
         <div class="card">
-            <div class="detail-list">
-                <div class="detail-item">
-                    <span class="detail-label">Normalized Query:</span>
-                    <span class="detail-value" id="normalized-query">-</span>
-                </div>
-            </div>
+            <p><strong>Normalized:</strong> <span id="normalized-query"></span></p>
+            <p><strong>Sparse Tokens Extracted:</strong> <span id="bm25-tokens" style="font-family: monospace; background:#eee; padding:2px 5px; border-radius:3px;"></span></p>
         </div>
     </details>
 
     <details open>
-        <summary><h3 style="display:inline;">Step 2: BM25 Results</h3></summary>
+        <summary><h3 style="display:inline;">Final Result: Promoted by Reranker</h3></summary>
         <div class="card">
-            <div class="table-container">
-                <table class="data-table" id="bm25-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Document Title</th>
-                            <th>Chunk Preview</th>
-                            <th>BM25 Score</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary><h3 style="display:inline;">Step 3: Semantic Results</h3></summary>
-        <div class="card">
-            <div class="table-container">
-                <table class="data-table" id="semantic-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Document Title</th>
-                            <th>Chunk Preview</th>
-                            <th>Similarity Score</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary><h3 style="display:inline;">Step 4: Merged Candidates</h3></summary>
-        <div class="card">
-            <div class="table-container">
-                <table class="data-table" id="merged-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Document Title</th>
-                            <th>Chunk Preview</th>
-                            <th>BM25 Score</th>
-                            <th>Semantic Score</th>
-                            <th>Hybrid Score</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </details>
-
-    <details open>
-        <summary><h3 style="display:inline;">Step 5: Final Results</h3></summary>
-        <div class="card">
+            <p style="opacity:0.85;">This table shows the final selection. The left border color indicates the original source (Blue=BM25 only, Green=Semantic only, Orange=Both). Notice how the Reranker often promotes chunks that scored lower in earlier steps.</p>
             <div class="table-container">
                 <table class="data-table" id="final-table">
                     <thead>
                         <tr>
                             <th>Rank</th>
-                            <th>Document Title</th>
                             <th>Chunk Preview</th>
+                            <th>Observation Metrics</th>
                             <th>Final Score</th>
-                            <th>Explanation</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -106,6 +79,27 @@
             </div>
         </div>
     </details>
+    
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <!-- BM25 Side -->
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <h3 style="color:#2980b9;">Sparse (BM25) Candidates</h3>
+            <table class="data-table" id="bm25-table">
+                <thead><tr><th>Rank</th><th>Preview</th><th>BM25</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <!-- Semantic Side -->
+        <div class="card" style="flex: 1; min-width: 300px;">
+            <h3 style="color:#27ae60;">Dense (Semantic) Candidates</h3>
+            <table class="data-table" id="semantic-table">
+                <thead><tr><th>Rank</th><th>Preview</th><th>Cosine</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -116,7 +110,7 @@ async function performSearch(e) {
 
     var btn = document.getElementById('search-btn');
     btn.disabled = true;
-    btn.textContent = 'Searching...';
+    btn.textContent = 'Running Pipeline...';
 
     try {
         var resp = await fetch('/search/api', {
@@ -128,43 +122,75 @@ async function performSearch(e) {
 
         document.getElementById('results-area').style.display = 'block';
 
+        // 1. Parsing
         document.getElementById('normalized-query').textContent = data.normalized_query || query;
+        document.getElementById('bm25-tokens').textContent = (data.tokens || []).join(', ');
 
+        // 2. Latency Bar
+        const t_bm25 = (data.stage_ms && data.stage_ms.bm25) || 0;
+        const t_sem = (data.stage_ms && data.stage_ms.semantic) || 0;
+        const t_rrf = (data.stage_ms && data.stage_ms.hybrid) || 0;
+        const t_rerank = (data.stage_ms && data.stage_ms.rerank) || 0;
+        const total = t_bm25 + t_sem + t_rrf + t_rerank + 0.1; // avoid zero div
+        
+        document.getElementById('total-time').textContent = data.elapsed_ms.toFixed(1);
+        
+        const bar = document.getElementById('latency-bar');
+        bar.innerHTML = `
+            <div class="latency-segment bg-bm25" style="width: ${(t_bm25/total)*100}%">${t_bm25.toFixed(1)}ms</div>
+            <div class="latency-segment bg-semantic" style="width: ${(t_sem/total)*100}%">${t_sem.toFixed(1)}ms</div>
+            <div class="latency-segment bg-hybrid" style="width: ${(t_rrf/total)*100}%">${t_rrf.toFixed(1)}ms</div>
+            <div class="latency-segment bg-rerank" style="width: ${(t_rerank/total)*100}%">${t_rerank.toFixed(1)}ms</div>
+        `;
+
+        // 3. Final Table
+        var finalBody = document.querySelector('#final-table tbody');
+        finalBody.innerHTML = '';
+        (data.final_results || []).forEach(function(r, i) {
+            let srcClass = 'source-both';
+            if (r.bm25_score > 0 && r.semantic_score === 0) srcClass = 'source-bm25';
+            if (r.semantic_score > 0 && r.bm25_score === 0) srcClass = 'source-semantic';
+            
+            let badges = `
+                <div class="score-badge bm25">BM25: ${(r.bm25_score||0).toFixed(2)}</div>
+                <div class="score-badge sem">Dense: ${(r.semantic_score||0).toFixed(2)}</div>
+                <div class="score-badge rrf">RRF: ${(r.hybrid_score||0).toFixed(3)}</div>
+            `;
+            
+            let finalScore = r.rerank_score !== undefined ? r.rerank_score.toFixed(4) : r.hybrid_score.toFixed(4);
+            
+            finalBody.innerHTML += `<tr class="${srcClass}">
+                <td><strong>${i+1}</strong></td>
+                <td><small style="color:gray;">${esc(r.doc_title)}</small><br>${esc(r.content_preview)}</td>
+                <td>${badges}</td>
+                <td><div class="score-badge rerank" style="font-size:14px;">Score: ${finalScore}</div></td>
+            </tr>`;
+        });
+
+        // 4. Raw Candidates
         var bm25Body = document.querySelector('#bm25-table tbody');
         bm25Body.innerHTML = '';
         (data.bm25_results || []).forEach(function(r, i) {
-            bm25Body.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.bm25_score.toFixed(4) + '</td></tr>';
+            bm25Body.innerHTML += `<tr><td>${i+1}</td><td><small>${esc(r.content_preview.substring(0, 80))}...</small></td><td>${r.bm25_score.toFixed(2)}</td></tr>`;
         });
 
         var semBody = document.querySelector('#semantic-table tbody');
         semBody.innerHTML = '';
         (data.semantic_results || []).forEach(function(r, i) {
-            semBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.semantic_score.toFixed(4) + '</td></tr>';
+            semBody.innerHTML += `<tr><td>${i+1}</td><td><small>${esc(r.content_preview.substring(0, 80))}...</small></td><td>${r.semantic_score.toFixed(2)}</td></tr>`;
         });
 
-        var mergedBody = document.querySelector('#merged-table tbody');
-        mergedBody.innerHTML = '';
-        (data.merged_candidates || []).forEach(function(r, i) {
-            mergedBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + (r.bm25_score||0).toFixed(4) + '</td><td>' + (r.semantic_score||0).toFixed(4) + '</td><td>' + r.hybrid_score.toFixed(4) + '</td></tr>';
-        });
-
-        var finalBody = document.querySelector('#final-table tbody');
-        finalBody.innerHTML = '';
-        (data.final_results || []).forEach(function(r, i) {
-            var expl = 'BM25=' + (r.bm25_score||0).toFixed(4) + ' Sem=' + (r.semantic_score||0).toFixed(4) + ' RRF=' + r.hybrid_score.toFixed(4);
-            finalBody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + esc(r.doc_title) + '</td><td>' + esc(r.content_preview) + '</td><td>' + r.hybrid_score.toFixed(4) + '</td><td>' + esc(expl) + '</td></tr>';
-        });
     } catch (err) {
         alert('Search failed: ' + err.message);
     } finally {
         btn.disabled = false;
-        btn.textContent = 'Search';
+        btn.textContent = 'Run Retrieval Pipeline';
     }
 }
 
 function esc(s) {
     var d = document.createElement('div');
-    d.textContent = s;
+    d.textContent = s || '';
     return d.innerHTML;
 }
 </script>

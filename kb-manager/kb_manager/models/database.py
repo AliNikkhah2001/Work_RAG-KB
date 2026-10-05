@@ -23,9 +23,14 @@ from sqlalchemy import (
 
 try:
     from pgvector.sqlalchemy import Vector
-
-    _HAS_PGVECTOR = True
-    _VECTOR_TYPE = Vector(384)
+    import os
+    # If SQLite mode is explicitly requested, don't use pgvector
+    if os.getenv("KB_DB_MODE") == "sqlite":
+        _HAS_PGVECTOR = False
+        _VECTOR_TYPE = JSON
+    else:
+        _HAS_PGVECTOR = True
+        _VECTOR_TYPE = Vector(384)
 except ImportError:
     _HAS_PGVECTOR = False
     _VECTOR_TYPE = JSON  # fallback for sqlite/dev without pgvector

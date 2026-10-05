@@ -598,7 +598,11 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     for cid, s in bm25_raw_content_all:
         bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), s)
     for cid, s in bm25_raw_kw_all:
-        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), keyword_boost * s) if cid not in bm25_scores_combined else bm25_scores_combined[cid] + keyword_boost * s
+        if cid not in bm25_scores_combined:
+            bm25_scores_combined[cid] = keyword_boost * s
+        else:
+            # Fix: don't sum keyword boosts across multiple beam expansions, take the max.
+            bm25_scores_combined[cid] = max(bm25_scores_combined[cid], keyword_boost * s)
     # if single beam, keep original sum behavior; else max already
     if len(beam_queries) == 1:
         # recompute exact sum for single-query case (preserve original)

@@ -109,7 +109,7 @@ class PipelineOrchestrator:
     # Public API
     # ------------------------------------------------------------------
 
-    async def run_full_rebuild(self, source_dir: str) -> PipelineSummary:
+    async def run_full_rebuild(self, source_dir: str, commit_hash: str = None) -> PipelineSummary:
         """Full rebuild: parse all files, re-chunk, re-embed, store.
 
         1. Scan *source_dir* for supported files.
@@ -137,7 +137,7 @@ class PipelineOrchestrator:
         async with self._db.session() as session:
             for file_path in files:
                 try:
-                    result = await self._process_file(file_path, session, force=True)
+                    result = await self._process_file(file_path, session, force=True, commit_hash=commit_hash)
                     summary.documents_created += result["created"]
                     summary.documents_updated += result["updated"]
                     summary.chunks_created += result["chunks"]
@@ -154,7 +154,20 @@ class PipelineOrchestrator:
                         }
                     )
 
+
+            # Cleanup orphaned documents
+            from sqlalchemy import select
+            from kb_manager.models.database import Document as DBDocument
+            db_docs = await session.execute(select(DBDocument))
+            db_paths = {doc.source_path: doc for doc in db_docs.scalars().all()}
+            for path, doc in db_paths.items():
+                if path not in files:
+                    logger.info("Deleting orphaned document: %s", path)
+                    await session.delete(doc)
+            await session.flush()
+
             await self._finalize_job(job, summary, session, status="completed")
+
 
         summary.elapsed_seconds = time.monotonic() - start
         logger.info("Full rebuild finished: %s", summary.to_dict())
@@ -204,7 +217,20 @@ class PipelineOrchestrator:
                         }
                     )
 
+
+            # Cleanup orphaned documents
+            from sqlalchemy import select
+            from kb_manager.models.database import Document as DBDocument
+            db_docs = await session.execute(select(DBDocument))
+            db_paths = {doc.source_path: doc for doc in db_docs.scalars().all()}
+            for path, doc in db_paths.items():
+                if path not in files:
+                    logger.info("Deleting orphaned document: %s", path)
+                    await session.delete(doc)
+            await session.flush()
+
             await self._finalize_job(job, summary, session, status="completed")
+
 
         summary.elapsed_seconds = time.monotonic() - start
         logger.info("Incremental run finished: %s", summary.to_dict())
@@ -249,6 +275,7 @@ class PipelineOrchestrator:
         session: AsyncSession,
         *,
         force: bool = False,
+        commit_hash: str = None,
     ) -> dict[str, int]:
         """Parse, preprocess, chunk, embed, and store a single file.
 
@@ -466,7 +493,7 @@ class PipelineOrchestrator:
             await self._version_mgr.create_snapshot(
                 doc.id,
                 session,
-                change_summary=f"{'Initial indexing' if is_new else 'Updated content'}",
+                change_summary=f"{'Initial indexing' if is_new else 'Updated content'} (Commit: {commit_hash})" if commit_hash else f"{'Initial indexing' if is_new else 'Updated content'}",
                 changed_by="pipeline",
             )
             result["versions"] = 1

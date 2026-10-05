@@ -17,6 +17,7 @@
                 <tr>
                     <th>Version</th>
                     <th>Content Hash</th>
+                    <th>Change Summary</th>
                     <th>Chunk Count</th>
                     <th>Created At</th>
                     <th>Actions</th>
@@ -27,6 +28,7 @@
                 <tr>
                     <td>{{ v.version }}</td>
                     <td><code>{{ v.content_hash[:16] }}...</code></td>
+                    <td>{{ v.change_summary or 'No description' }}</td>
                     <td>{{ v.chunk_count or '-' }}</td>
                     <td>{{ v.created_at }}</td>
                     <td>
