@@ -52,8 +52,20 @@ async def main():
         if not os.path.isdir(kdir):
             logger.warning("Skipping missing source dir: %s", kdir)
             continue
+        
+        commit_hash = None
+        try:
+            import subprocess
+            commit_hash = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=kdir, stderr=subprocess.DEVNULL
+            ).decode("utf-8").strip()
+            logger.info("Found git commit %s for %s", commit_hash, kdir)
+        except Exception:
+            pass
+
         logger.info("Starting full rebuild from %s", kdir)
-        summary = await orchestrator.run_full_rebuild(kdir)
+        summary = await orchestrator.run_full_rebuild(kdir, commit_hash=commit_hash)
+
         for k in ("documents_processed", "documents_created", "chunks_created", "documents_failed"):
             combined[k] += getattr(summary, k)
         combined["errors"].extend(summary.errors or [])
