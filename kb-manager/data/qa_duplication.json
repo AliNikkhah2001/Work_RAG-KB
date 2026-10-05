@@ -1,9 +1,9 @@
 {
-  "documents": 69,
-  "chunks_total": 3626,
-  "qa_chunks": 432,
-  "body_chunks": 3194,
-  "distinct_questions": 432,
+  "documents": 18,
+  "chunks_total": 1122,
+  "qa_chunks": 776,
+  "body_chunks": 346,
+  "distinct_questions": 776,
   "duplicate_instances": 0,
   "questions_with_gt1_copies": 0,
   "questions_with_gt5_copies": 0

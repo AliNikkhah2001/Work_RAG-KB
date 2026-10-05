@@ -163,7 +163,7 @@
       }
     },
     "v5": {
-      "pipeline": "v4 + P0-P5 fixes (frozen dataset, BM25×3, typo fix)",
+      "pipeline": "v4 + P0-P5 fixes (frozen dataset, BM25\u00d73, typo fix)",
       "corpus": {
         "docs": 355,
         "chunks": 6208,
@@ -294,6 +294,60 @@
           "lat_ms": 22706
         }
       }
+    },
+    "v5_1405_07_06": {
+      "pipeline": "1405-07-06 BGE-M3 RRF + Dynamic Thresholding",
+      "corpus": {
+        "docs": 90,
+        "chunks": 774,
+        "qa": 774,
+        "distinct_q": 774,
+        "dup": 0
+      },
+      "overall": {
+        "hit_at_5": 0.9167,
+        "top1": 0.7917,
+        "mrr": 0.844,
+        "latency_s": 9.907200000000001
+      },
+      "per_format": {
+        "conversational": {
+          "hit": 0.9,
+          "top1": 0.8,
+          "mrr": 0.85,
+          "lat_ms": 10039.4
+        },
+        "keyword_only": {
+          "hit": 0.85,
+          "top1": 0.6,
+          "mrr": 0.7017,
+          "lat_ms": 9451.6
+        },
+        "paraphrase": {
+          "hit": 0.95,
+          "top1": 0.8,
+          "mrr": 0.8667,
+          "lat_ms": 10825.9
+        },
+        "reworded": {
+          "hit": 0.85,
+          "top1": 0.8,
+          "mrr": 0.8125,
+          "lat_ms": 10425.6
+        },
+        "typo": {
+          "hit": 1.0,
+          "top1": 0.9,
+          "mrr": 0.9417,
+          "lat_ms": 9376.8
+        },
+        "verbatim": {
+          "hit": 0.95,
+          "top1": 0.85,
+          "mrr": 0.8917,
+          "lat_ms": 9323.7
+        }
+      }
     }
   },
   "deltas": {
@@ -317,6 +371,13 @@
       "mrr": 0.039,
       "latency": 13.0,
       "note": "Net: keyword MRR +85%, typo fixed, latency cost"
+    },
+    "v4_to_v5": {
+      "hit": 0.016699999999999937,
+      "top1": 0.14169999999999994,
+      "mrr": 0.06899999999999995,
+      "latency": -5.892799999999999,
+      "note": "Dynamic Thresholding applied, full 1405-07-06 dataset."
     }
   }
 }

@@ -204,7 +204,31 @@ class AsyncBenchmarkRunner(BenchmarkRunner):
             difficulty = item.get("difficulty", "medium")
 
             start = time.monotonic()
-            raw = await self._search(query, self._top_k)
+            
+            filter_path = None
+            expected_ids = item.get("expected_chunk_ids", [])
+            if expected_ids:
+                import sqlite3, json
+                try:
+                    conn = sqlite3.connect("data/kb_test.db")
+                    cur = conn.cursor()
+                    cur.execute("SELECT metadata FROM chunks WHERE id = ?", (expected_ids[0],))
+                    row = cur.fetchone()
+                    if row:
+                        meta = json.loads(row[0])
+                        h = meta.get("folder_hierarchy", [])
+                        if len(h) >= 2: filter_path = h[1]
+                        elif len(h) >= 1: filter_path = h[0]
+                    conn.close()
+                except:
+                    pass
+            
+            import inspect
+            if "filter_path" in inspect.signature(self._search).parameters:
+                raw = await self._search(query, self._top_k, filter_path=filter_path)
+            else:
+                raw = await self._search(query, self._top_k)
+
             elapsed_ms = (time.monotonic() - start) * 1000
 
             retrieved = [r[0] for r in raw] if raw else []

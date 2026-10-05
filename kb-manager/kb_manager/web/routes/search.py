@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from kb_manager.config import PROJECT_ROOT
+from kb_manager.settings import load_settings
 from kb_manager.dense import DenseSemanticIndex, load_or_build
 try:
     from kb_manager.hyde import HyDEGenerator
@@ -41,7 +42,7 @@ _SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "tru
 _SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
 
 # keyword heuristic boost – tunable via env, also per-request override
-_KEYWORD_BOOST_DEFAULT = float(os.getenv("KB_KEYWORD_BOOST", "3.0"))
+_KEYWORD_BOOST_DEFAULT = load_settings().keyword_boost
 
 # rerank/RRF score fusion weight – tunable via env (restart required)
 _RERANK_FUSION_ALPHA = float(os.getenv("KB_RERANK_FUSION_ALPHA", "0.7"))
@@ -376,6 +377,7 @@ class SearchSteps(BaseModel):
     dense_results: list[SearchResult]
     merged_candidates: list[SearchResult]
     final_results: list[SearchResult]
+    injected_entities: list[dict] = []
     elapsed_ms: float
     rerank_ms: float = 0.0
     # Per-stage breakdown (ms) for transparency diagram + analytics
@@ -383,9 +385,9 @@ class SearchSteps(BaseModel):
     config: dict = {}
 
 
-async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int, list[str]]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
     """Load all chunks + docs and build BM25 + dense indexes + reranker + HyDE."""
-    from kb_manager.models.database import Chunk, Document
+    from kb_manager.models.database import Chunk, Document, EntityList
     from kb_manager.web.deps import db
 
     async with db.session() as session:
@@ -402,7 +404,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
 
     docs_for_bm25_content = []
     docs_for_bm25_kw = []
-    chunk_data: list[tuple[str, str, str, str, str, str, int]] = []
+    chunk_data: list[tuple[str, str, str, str, str, str, int, list[str]]] = []
     dense_titles = []
     dense_headings = []
     dense_chunk_types = []
@@ -413,7 +415,8 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
         # F10 fix: separate BM25 indexes for content and keywords (no length-penalized duplication)
         docs_for_bm25_content.append((c.id, c.content))
         docs_for_bm25_kw.append((c.id, keyword_text))
-        chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type, c.ordinal))
+        hierarchy = doc_map[c.document_id].doc_metadata.get("folder_hierarchy", [])
+        chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type, c.ordinal, hierarchy))
         dense_titles.append(title)
         dense_headings.append(c.heading_path)
         dense_chunk_types.append(c.chunk_type)
@@ -455,7 +458,7 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int]]
     return chunk_data, bm25, dense, reranker, hyde
 
 
-_index_cache: tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
+_index_cache: tuple[list[tuple[str, str, str, str, str, str, int, list[str]]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
 _index_cache_count: int = 0
 _index_cache_fp: str | None = None
 _index_lock = asyncio.Lock()
@@ -469,14 +472,15 @@ def _invalidate_index_cache() -> None:
     _index_cache_fp = None
 
 
-async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int, list[str]]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
     """Return the cached index, building it on first use (thread-safe, F5 fix)."""
     global _index_cache, _index_cache_count, _index_cache_fp
 
     from sqlalchemy import func, select
 
-    from kb_manager.models.database import Chunk, Document
+    from kb_manager.models.database import Chunk, Document, EntityList
     from kb_manager.web.deps import db
+    from kb_manager.settings import load_settings
     from kb_manager.dense import DenseSemanticIndex
 
     async with db.session() as session:
@@ -535,7 +539,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int]], 
         return _index_cache
 
 
-async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None) -> SearchSteps:
+async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None, filter_path: str | None = None) -> SearchSteps:
     """Run full search pipeline with step tracking.
 
     Pipeline: BM25 + Dense + [HyDE] → RRF → Cross-encoder reranker
@@ -585,6 +589,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     except:
         use_pgvector = False
 
+    
     # --- Step 2: BM25 (weighted content + keywords, tunable boost) ---
     beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
     bm25_raw_content_all: list[tuple[str, float]] = []
@@ -620,6 +625,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             continue
         cd = bm25_id_map.get(chunk_id)
         if cd is None:
+            continue
+        if filter_path and filter_path not in cd[7]:
             continue
         bm25_scores[chunk_id] = score
         bm25_results.append(SearchResult(
@@ -685,6 +692,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     for chunk_id, score in dense_raw:
         cd = bm25_id_map.get(chunk_id)
         if cd is None:
+            continue
+        if filter_path and filter_path not in cd[7]:
             continue
         dense_results.append(SearchResult(
             chunk_id=chunk_id,
@@ -810,7 +819,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         # min-max normalized over the rerank input set. Ordering only;
         # rerank_score/hybrid_score fields are left untouched for transparency.
         try:
-            _alpha = float(os.getenv("KB_RERANK_FUSION_ALPHA", str(_RERANK_FUSION_ALPHA)))
+            _alpha = load_settings().fusion_alpha
         except ValueError:
             _alpha = 0.7
         _alpha = min(1.0, max(0.0, _alpha))
@@ -854,8 +863,20 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     if rerank_ms:
         stage_ms["rerank"] = rerank_ms
     t_mark = time.monotonic()
-    # --- Step 7: Final top-k ---
-    final = reranked_results[:top_k]
+    # --- Step 7: Final top-k (DYNAMIC THRESHOLDING) ---
+    settings = load_settings()
+    final = []
+    for r in reranked_results:
+        if r.rerank_score >= settings.min_relevance_score:
+            final.append(r)
+    
+    # Fallback to Top-1 if nothing passes the threshold but results exist
+    if not final and reranked_results:
+        final = [reranked_results[0]]
+        
+    # Cap at top_k if dynamic filter is still too large
+    if len(final) > settings.top_k:
+        final = final[:settings.top_k]
     elapsed = (time.monotonic() - start) * 1000
     stage_ms["build_context"] = round((time.monotonic() - t_mark) * 1000, 1)
     stage_ms["total"] = round(elapsed, 1)
@@ -877,6 +898,46 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     }
     depth = stage_depth or top_k
 
+
+    # --- Step 8: Semantic Intent Entity Injection ---
+    injected_entities = []
+    try:
+        from kb_manager.web.deps import db
+        import numpy as np
+        async with db.session() as session:
+            from sqlalchemy import select
+            from kb_manager.models.database import EntityList
+            ents_res = await session.execute(select(EntityList))
+            entity_lists = ents_res.scalars().all()
+            
+            
+            q_emb = None
+            try:
+                if dense is not None and hasattr(dense, 'model') and dense.model is not None:
+                    q_emb = dense.model.encode([query], normalize_embeddings=True)[0]
+            except Exception:
+                pass
+            if q_emb is not None and entity_lists:
+
+                q_vec = np.array(q_emb)
+                q_norm = np.linalg.norm(q_vec)
+                for ent in entity_lists:
+                    if not ent.description_embedding: continue
+                    ent_vec = np.array(ent.description_embedding)
+                    ent_norm = np.linalg.norm(ent_vec)
+                    if q_norm > 0 and ent_norm > 0:
+                        sim = np.dot(q_vec, ent_vec) / (q_norm * ent_norm)
+                        if sim > 0.6:  # Threshold for triggering the list
+                            injected_entities.append({
+                                "list_name": ent.list_name,
+                                "description": ent.description,
+                                "content": ent.content_json,
+                                "similarity": float(sim)
+                            })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to inject entities: %s", e)
+
     return SearchSteps(
         query=query,
         normalized_query=normalized,
@@ -891,6 +952,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         rerank_ms=rerank_ms,
         stage_ms=stage_ms,
         config=config,
+        injected_entities=injected_entities,
     )
 
 
@@ -911,9 +973,9 @@ def _run_sync(coro):
         return fut.result()
 
 
-def search_knowledge_base_sync(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None) -> SearchSteps:
+def search_knowledge_base_sync(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None, filter_path: str | None = None) -> SearchSteps:
     """Synchronous wrapper — safe from both sync and async callers."""
-    return _run_sync(search_knowledge_base(query, top_k, keyword_boost=keyword_boost, stage_depth=stage_depth))
+    return _run_sync(search_knowledge_base(query, top_k, keyword_boost=keyword_boost, stage_depth=stage_depth, filter_path=filter_path))
 
 @router.get("")
 async def search_page(request: Request):
@@ -949,6 +1011,7 @@ async def search_api(request: Request):
         except:
             keyword_boost = None
 
+    filter_path = body.get("filter_path") if isinstance(body, dict) else None
     if not query:
         return {"error": "Empty query"}
 
@@ -967,7 +1030,7 @@ async def search_api(request: Request):
     try:
         # F2/F29 fix: directly await async pipeline — no to_thread/_sync_loop indirection
         # (asyncpg pool binds to the loop that first uses it; a worker thread breaks it)
-        steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost)
+        steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost, filter_path=filter_path)
         out = steps.model_dump()
         out["keyword_boost_used"] = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
         # store only on success — do not cache errors

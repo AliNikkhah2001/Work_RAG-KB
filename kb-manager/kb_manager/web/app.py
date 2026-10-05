@@ -85,8 +85,10 @@ from kb_manager.web.routes import (
     transparency,
     versions,
     zip_browser,
+    settings,
 )  # noqa: E402
 
+app.include_router(settings.router, prefix="/settings", tags=["settings"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(chunks.router, prefix="/chunks", tags=["chunks"])
 app.include_router(pipeline.router, prefix="/pipeline", tags=["pipeline"])

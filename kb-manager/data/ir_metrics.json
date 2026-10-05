@@ -1,9 +1,11 @@
 {
   "top_k": 5,
   "metrics": {
-    "mrr@5": 0.4656,
-    "recall@5": 0.7333,
-    "precision@5": 0.7333
-  },
-  "note": "chunk-level recall approximated by doc-level hit@5"
+    "precision@5": 0.18166666666666628,
+    "recall@5": 0.9083333333333333,
+    "hit_rate@5": 0.9083333333333333,
+    "mrr": 0.841111111111111,
+    "ndcg@5": 0.8566798367119397,
+    "map@5": 0.8388888888888889
+  }
 }

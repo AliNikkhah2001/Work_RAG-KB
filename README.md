@@ -264,3 +264,8 @@ python -m kb_manager.cli ingest --full   # (once) build the KB from kb-source
 ## License
 
 See parent repository `LICENSE` and the submodule's own obligations (`kb-manager` is private — ICS Credit Scoring).
+## Metadata Filtering
+The pipeline extracts the folder hierarchy from `kb-source` and attaches it as `folder_hierarchy` metadata to all chunks. Use the `filter_path` argument in the search API to restrict retrieval to specific directories (e.g. `filter_path='اشخاص حقوقی'`).
+
+## Supplementary Data
+See `kb-manager/data/supplementary_architecture.md` for how `ضمیمه پایگاه دانش` files are handled via semantic injection instead of dense embedding.

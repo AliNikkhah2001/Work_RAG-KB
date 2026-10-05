@@ -29,6 +29,7 @@
 <div class="card">
     <form id="search-form" onsubmit="return performSearch(event)">
         <div class="form-group" style="display:flex; gap:0.5rem;">
+            <input type="text" id="filter-input" class="form-control" placeholder="Sub-space Folder (e.g. اشخاص حقوقی)" style="max-width: 250px; font-size: 1.1rem; padding: 10px;">
             <input type="text" id="search-input" class="form-control" placeholder="Enter test query to observe..." required style="flex:1; font-size: 1.1rem; padding: 10px;">
             <button type="submit" class="btn btn-primary" id="search-btn" style="padding: 10px 20px;">Run Retrieval Pipeline</button>
         </div>
@@ -106,6 +107,7 @@
 async function performSearch(e) {
     e.preventDefault();
     var query = document.getElementById('search-input').value.trim();
+    var filter_path = document.getElementById('filter-input').value.trim();
     if (!query) return;
 
     var btn = document.getElementById('search-btn');
@@ -116,7 +118,7 @@ async function performSearch(e) {
         var resp = await fetch('/search/api', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query })
+            body: JSON.stringify({ query: query, filter_path: filter_path || null })
         });
         var data = await resp.json();
 

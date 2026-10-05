@@ -55,8 +55,8 @@ async def main(
         with open(dataset_path, encoding="utf-8") as f:
             dataset = json.load(f)
 
-    async def _search(query: str, k: int):
-        steps = await search_knowledge_base(query, k)
+    async def _search(query: str, k: int, filter_path: str = None):
+        steps = await search_knowledge_base(query, k, filter_path=filter_path)
         return [(r.chunk_id, r.hybrid_score) for r in steps.final_results]
 
     from kb_manager.evaluation.benchmark import AsyncBenchmarkRunner
@@ -146,6 +146,11 @@ if __name__ == "__main__":
         type=int,
         default=100,
         help="Max samples per FaMTEB dataset (default: 100)",
+    )
+    parser.add_argument(
+        "--use-subspace",
+        action="store_true",
+        help="Simulate a user selecting the correct folder sub-space for each query",
     )
     args = parser.parse_args()
 

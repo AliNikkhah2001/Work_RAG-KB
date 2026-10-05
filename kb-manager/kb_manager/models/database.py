@@ -40,7 +40,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Session, relationship
+from sqlalchemy.orm import DeclarativeBase, Session, relationship, Mapped, mapped_column
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -245,3 +245,14 @@ class Database:
                 return fn(session)
         finally:
             engine.dispose()
+
+class EntityList(Base):
+    """Supplementary key-value lists parsed from Excel (e.g. Bank Names)."""
+    __tablename__ = "entity_lists"
+    
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    list_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    description_embedding: Mapped[list[float]] = mapped_column(JSON, nullable=True)
+    content_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
