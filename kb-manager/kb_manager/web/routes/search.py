@@ -60,8 +60,8 @@ _mem_cache: dict[str, tuple[float, dict]] = {}  # key -> (expire_ts, value)
 _log = logging.getLogger(__name__)
 
 
-def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None) -> str:
-    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost)."""
+def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None, filter_path: str | None = None) -> str:
+    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost | filter_path)."""
     # include keyword_boost so different boosts don't collide (preserves accuracy)
     kb = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
     try:
@@ -502,7 +502,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int, li
                 titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
                 headings = [c.heading_path for c in all_chunks]
                 ctypes = [c.chunk_type for c in all_chunks]
-                cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
+                cur_fp = DenseSemanticIndex.fingerprint(texts, [c.id for c in all_chunks], titles, headings, ctypes, _DENSE_MODEL, False)
                 if cur_fp == _index_cache_fp:
                     return _index_cache
                 # fingerprint mismatch → stale, fall through to rebuild
@@ -523,7 +523,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int, li
                     titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
                     headings = [c.heading_path for c in all_chunks]
                     ctypes = [c.chunk_type for c in all_chunks]
-                    cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
+                    cur_fp = DenseSemanticIndex.fingerprint(texts, [c.id for c in all_chunks], titles, headings, ctypes, _DENSE_MODEL, False)
                     if cur_fp == _index_cache_fp:
                         return _index_cache
         chunk_data, bm25, dense, reranker, hyde = await _build_index()
@@ -532,7 +532,7 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int, li
         titles = [cd[2] for cd in chunk_data]
         headings = [cd[3] for cd in chunk_data]
         ctypes = [cd[5] for cd in chunk_data]
-        cur_fp = DenseSemanticIndex.fingerprint(texts, titles, headings, ctypes, _DENSE_MODEL, False)
+        cur_fp = DenseSemanticIndex.fingerprint(texts, [cd[0] for cd in chunk_data], titles, headings, ctypes, _DENSE_MODEL, False)
         _index_cache = (chunk_data, bm25, dense, reranker, hyde)
         _index_cache_count = chunk_count
         _index_cache_fp = cur_fp
@@ -1018,7 +1018,7 @@ async def search_api(request: Request):
     # --- cache lookup (must not hurt recall/accuracy: key includes top_k + boost) ---
     ckey: str | None = None
     try:
-        ckey = _cache_key(query, top_k, keyword_boost)
+        ckey = _cache_key(query, top_k, keyword_boost, filter_path)
         cached = await _cache_get(ckey)
         if cached is not None:
             return cached

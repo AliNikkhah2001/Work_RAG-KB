@@ -117,6 +117,7 @@ class DenseSemanticIndex:
     @staticmethod
     def fingerprint(
         texts: list[str],
+        ids: list[str] = [],
         titles: Optional[list[str]] = None,
         headings: Optional[list[str]] = None,
         chunk_types: Optional[list[str]] = None,
@@ -263,7 +264,7 @@ def load_or_build(
     rebuild.  When ``embed_fn`` is provided (e.g. a test double) it is used
     instead of the sentence-transformer model and caching is skipped.
     """
-    fp = DenseSemanticIndex.fingerprint(texts, titles, headings, chunk_types, model_name, use_context)
+    fp = DenseSemanticIndex.fingerprint(texts, ids, titles, headings, chunk_types, model_name, use_context)
     index = DenseSemanticIndex(
         model_name=model_name, batch_size=batch_size, embed_fn=embed_fn, use_context=use_context, device=device
     )

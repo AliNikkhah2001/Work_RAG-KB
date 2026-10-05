@@ -37,11 +37,13 @@ async def main():
     logger.info("Tables created")
 
     chunker = SemanticChunker(max_tokens=512, min_tokens=100)
+    from kb_manager.embedder.registry import get_embedder
+    embedder = get_embedder("sentence-transformer", model_name=config.embedding.model_name)
     orchestrator = PipelineOrchestrator(
         database=db,
         preprocessor=None,
         chunker=chunker,
-        embedder=None,
+        embedder=embedder,
     )
 
     combined = {"documents_processed": 0, "documents_created": 0, "chunks_created": 0,
