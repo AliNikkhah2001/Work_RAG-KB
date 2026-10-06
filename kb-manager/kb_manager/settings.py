@@ -13,6 +13,7 @@ class SearchSettings(BaseModel):
     synonym_enabled: bool = True
     synonym_beam: int = 5
     rerank_pool: int = 100
+    use_splade_fallback: bool = False
 
 def load_settings() -> SearchSettings:
     if SETTINGS_FILE.exists():
