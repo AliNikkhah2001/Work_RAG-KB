@@ -231,7 +231,7 @@ class DenseSemanticIndex:
     def is_built(self) -> bool:
         return self._matrix is not None and len(self._ids) > 0
 
-    def search(self, query: str, top_k: int = 30) -> list[tuple[str, float]]:
+    def search(self, query: str, top_k: int = 30, allowed_ids: set[str] | None = None) -> list[tuple[str, float]]:
         """Return ``[(chunk_id, cosine_sim)]`` sorted best-first."""
         if not self.is_built:
             return []
@@ -241,8 +241,15 @@ class DenseSemanticIndex:
             return []
         qv = qv / qn
         sims = self._matrix @ qv  # rows already normalised -> cosine
+        
+        if allowed_ids is not None:
+            # Mask out non-allowed ids by setting their similarity to -inf
+            # use a simple list comprehension for boolean mask to avoid complex numpy string ops
+            mask = np.array([cid not in allowed_ids for cid in self._ids])
+            sims[mask] = -np.inf
+            
         order = np.argsort(-sims)[:top_k]
-        return [(self._ids[i], float(sims[i])) for i in order]
+        return [(self._ids[i], float(sims[i])) for i in order if sims[i] != -np.inf]
 
 
 def load_or_build(

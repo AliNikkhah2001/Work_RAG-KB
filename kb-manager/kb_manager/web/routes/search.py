@@ -318,11 +318,14 @@ class BM25:
             score += idf * num / den
         return score
 
-    def search(self, query: str, top_k: int = 20) -> list[tuple[str, float]]:
+    def search(self, query: str, top_k: int = 20, allowed_ids: set[str] | None = None) -> list[tuple[str, float]]:
         q_tokens = _tokenize(query)
         if not q_tokens or self.doc_count == 0:
             return []
-        scored = [(self.doc_ids[i], self.score(q_tokens, i)) for i in range(self.doc_count)]
+        if allowed_ids is not None:
+            scored = [(self.doc_ids[i], self.score(q_tokens, i)) for i in range(self.doc_count) if self.doc_ids[i] in allowed_ids]
+        else:
+            scored = [(self.doc_ids[i], self.score(q_tokens, i)) for i in range(self.doc_count)]
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored[:top_k]
 
@@ -595,9 +598,9 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     bm25_raw_content_all: list[tuple[str, float]] = []
     bm25_raw_kw_all: list[tuple[str, float]] = []
     for bq in beam_queries:
-        bm25_raw_content_all.extend(bm25_content.search(bq, top_k=top_k * 3))
+        bm25_raw_content_all.extend(bm25_content.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids))
         if bm25_kw is not None:
-            bm25_raw_kw_all.extend(bm25_kw.search(bq, top_k=top_k * 3))
+            bm25_raw_kw_all.extend(bm25_kw.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids))
     # aggregate max score per doc across beams
     bm25_scores_combined: dict[str, float] = {}
     for cid, s in bm25_raw_content_all:
@@ -612,9 +615,9 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     if len(beam_queries) == 1:
         # recompute exact sum for single-query case (preserve original)
         bm25_scores_combined = {}
-        for cid, s in bm25_content.search(normalized, top_k=top_k * 3):
+        for cid, s in bm25_content.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids):
             bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + s
-        for cid, s in (bm25_kw.search(normalized, top_k=top_k * 3) if bm25_kw else []):
+        for cid, s in (bm25_kw.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids) if bm25_kw else []):
             bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + keyword_boost * s
     bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     bm25_id_map = {cd[0]: cd for cd in chunk_data}
@@ -661,7 +664,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             # fallback to file dense
             dense_raw_base = None
     if dense_raw_base is None:
-        dense_raw_base = dense.search(normalized, top_k=top_k * 3)
+        dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
     if _SYNONYM_ENABLED and len(beam_queries) > 1:
         dense_pool: dict[str, float] = dict(dense_raw_base)
         for bq in beam_queries[1:]:
@@ -681,7 +684,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                             continue
                 except:
                     pass
-            for cid, sc in dense.search(bq, top_k=top_k * 3):
+            for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
                 if cid not in dense_pool or sc > dense_pool[cid]:
                     dense_pool[cid] = sc
         dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
