@@ -147,8 +147,8 @@ async function performSearch(e) {
 
         // 2. Latency Bar
         const t_bm25 = (data.stage_ms && data.stage_ms.bm25) || 0;
-        const t_sem = (data.stage_ms && data.stage_ms.semantic) || 0;
-        const t_rrf = (data.stage_ms && data.stage_ms.hybrid) || 0;
+        const t_sem = (data.stage_ms && data.stage_ms.dense) || 0;
+        const t_rrf = (data.stage_ms && data.stage_ms.rrf) || 0;
         const t_rerank = (data.stage_ms && data.stage_ms.rerank) || 0;
         const total = t_bm25 + t_sem + t_rrf + t_rerank + 0.1; // avoid zero div
         
