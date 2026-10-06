@@ -593,6 +593,10 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         use_pgvector = False
 
     
+    allowed_ids = None
+    if filter_path:
+        allowed_ids = {cd[0] for cd in chunk_data if filter_path in cd[7]}
+
     # --- Step 2: BM25 (weighted content + keywords, tunable boost) ---
     beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
     bm25_raw_content_all: list[tuple[str, float]] = []
