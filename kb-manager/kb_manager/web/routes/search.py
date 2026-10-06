@@ -361,6 +361,7 @@ class SearchResult(BaseModel):
     doc_id: str
     doc_title: str
     heading_path: str
+    folder_hierarchy: list[str] = []
     content_preview: str
     bm25_score: float = 0.0
     semantic_score: float = 0.0
