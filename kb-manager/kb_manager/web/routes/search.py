@@ -68,7 +68,7 @@ def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = 
         kb = float(kb)
     except Exception:
         kb = _KEYWORD_BOOST_DEFAULT
-    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}"
+    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}|{filter_path or ''}"
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
     return f"kb:search:{h}"
 
@@ -595,7 +595,15 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     
     allowed_ids = None
     if filter_path:
-        allowed_ids = {cd[0] for cd in chunk_data if filter_path in cd[7]}
+        # Check if filter_path is a path (contains '/')
+        if '/' in filter_path:
+            parts = filter_path.split('/')
+            # A chunk matches if its folder hierarchy contains ALL parts of the filter path IN ORDER
+            # But the simplest way is just to join cd[7] back into a path
+            allowed_ids = {cd[0] for cd in chunk_data if filter_path in "/".join(cd[7])}
+        else:
+            allowed_ids = {cd[0] for cd in chunk_data if filter_path in cd[7]}
+        print(f"DEBUG: filter_path='{filter_path}', len(allowed_ids)={len(allowed_ids)}")
 
     # --- Step 2: BM25 (weighted content + keywords, tunable boost) ---
     beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
