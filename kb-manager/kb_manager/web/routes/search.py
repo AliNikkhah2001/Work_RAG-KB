@@ -37,6 +37,22 @@ from kb_manager.reranker import (
     get_reranker_model_name,
 )
 
+# Rust tantivy BM25 (RAM-resident, ~50x faster than Python BM25)
+try:
+    from kb_manager.tantivy_bm25 import TantivyBM25  # type: ignore
+
+    _HAS_TANTIVY = True
+except Exception as _e:  # pragma: no cover
+    TantivyBM25 = None  # type: ignore
+    _HAS_TANTIVY = False
+    _TANTIVY_IMPORT_ERROR = str(_e)
+else:
+    _TANTIVY_IMPORT_ERROR = ""
+
+_USE_TANTIVY = os.getenv("KB_USE_TANTIVY", "true").lower() in ("1", "true", "yes", "on") and _HAS_TANTIVY
+# Force visible startup log (uvicorn captures print)
+print(f"[search] tantivy HAS={_HAS_TANTIVY} USE={_USE_TANTIVY} err={_TANTIVY_IMPORT_ERROR!r} beam={os.getenv('KB_SYNONYM_BEAM','5')}")
+
 # query expansion (Phase 11: synonym + multi-query beam5)
 _SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
 _SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
@@ -425,12 +441,24 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int, 
         dense_headings.append(c.heading_path)
         dense_chunk_types.append(c.chunk_type)
 
-    bm25_content = BM25()
-    bm25_content.index(docs_for_bm25_content)
-    bm25_kw = BM25()
-    bm25_kw.index(docs_for_bm25_kw)
+    # RAM-first: tantivy (Rust) if available, else Python fallback
+    if _USE_TANTIVY:
+        print(f"[search] building tantivy indexes {len(docs_for_bm25_content)}/{len(docs_for_bm25_kw)} docs (RAM)")
+        bm25_content = TantivyBM25()  # type: ignore
+        bm25_content.index(docs_for_bm25_content)
+        bm25_kw = TantivyBM25()  # type: ignore
+        bm25_kw.index(docs_for_bm25_kw)
+        print(f"[search] BM25 backend: tantivy (Rust, RAM, heap 50MB) {len(docs_for_bm25_content)}/{len(docs_for_bm25_kw)} docs")
+        _log.warning("BM25 backend: tantivy (Rust, RAM, heap 50MB) %d/%d docs", len(docs_for_bm25_content), len(docs_for_bm25_kw))
+    else:
+        print(f"[search] BM25 backend: python (fallback) HAS={_HAS_TANTIVY} USE={_USE_TANTIVY}")
+        bm25_content = BM25()
+        bm25_content.index(docs_for_bm25_content)
+        bm25_kw = BM25()
+        bm25_kw.index(docs_for_bm25_kw)
+        _log.warning("BM25 backend: python (fallback) HAS=%s USE=%s err=%r", _HAS_TANTIVY, _USE_TANTIVY, _TANTIVY_IMPORT_ERROR)
     # Keep combined tuple for backward compat; search will use weighted sum
-    bm25 = (bm25_content, bm25_kw)
+    bm25 = (bm25_content, bm25_kw)  # type: ignore
 
     dense_texts = [cd[4] for cd in chunk_data]
     dense_ids = [cd[0] for cd in chunk_data]
@@ -492,7 +520,14 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int, li
             select(func.count(Chunk.id)).where(~Chunk.chunk_type.like("%_parent"))
         )).scalar_one()
 
-    # Fast path: count mismatch → rebuild; count match but need fingerprint check for same-count content change (F5)
+    # RAM-first fast cache: trust count, skip heavy fingerprint scan on hot path.
+    # This removes the 2.7s per-search fingerprint (full SELECT + hash) that dominated BM25 stage.
+    # Same-count content changes are handled by explicit invalidation after ingestion (restart or POST /invalidate).
+    _FAST_CACHE = os.getenv("KB_FAST_CACHE", "true").lower() in ("1", "true", "yes", "on")
+    if _FAST_CACHE and _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+        return _index_cache
+
+    # Slow path: fingerprint check for same-count content change (F5) – only when FAST_CACHE off
     if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
         # Compute current fingerprint via lightweight DB scan to detect stale cache
         async with db.session() as session:
@@ -513,7 +548,9 @@ async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int, li
             # else count actually changed → rebuild
 
     async with _index_lock:
-        # Double-check after acquiring lock
+        # Double-check after acquiring lock (fast path again)
+        if _FAST_CACHE and _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+            return _index_cache
         if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
             # Re-check fingerprint under lock to avoid race
             async with db.session() as session:
@@ -1075,6 +1112,9 @@ async def search_config():
         "synonym_beam": _SYNONYM_BEAM,
         "dense_model": _DENSE_MODEL,
         "reranker_model": _RERANKER_MODEL,
+        "bm25_backend": "tantivy" if _USE_TANTIVY else "python",
+        "tantivy_available": _HAS_TANTIVY,
+        "tantivy_error": _TANTIVY_IMPORT_ERROR if not _HAS_TANTIVY else "",
     }
 
 
