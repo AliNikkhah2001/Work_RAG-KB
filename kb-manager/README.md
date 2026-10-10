@@ -22,6 +22,7 @@
 - [Latency](#latency)
 - [LLM-as-judge feedback & root causes](#llm-as-judge-feedback--root-causes)
 - [Evaluation reports](#evaluation-reports)
+- [Testing on Open WebUI — end to end](#testing-on-open-webui--end-to-end-rag--filter_path--clarifying)
 - [Development](#development)
 
 ## Features
@@ -236,6 +237,64 @@ flowchart LR
 </details>
 
 > All labels are UTF-8 Persian; keep them quoted in mermaid (`"…"`) and avoid mixing inline `»` with the `mermaid` plugin's RTL quirks by using `پایگاه دانش` as a plain `subgraph` title. Tested on GitHub mermaid rendering (Chrome 120, `v13_1405-07-06`).
+
+### Testing on Open WebUI — end to end (RAG + filter_path + clarifying)
+
+#### Prerequisites
+
+- WebUI at `http://127.0.0.1:13000` (Open WebUI — ICS Helper, NOT Arena — Arena is disabled)
+- Tracing fallback `:3000` and KB `:8000` running
+- `OPENAI_API_BASE_URL=http://host.docker.internal:8100/v1` + `rag_trace_capture` filter installed (global, is_global True)
+
+#### Smoke (no scope)
+
+```bash
+curl -s http://127.0.0.1:8100/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"ics-helper-agent","messages":[{"role":"user","content":"امتیاز اعتباری چیست؟"}]}' | jq '.audit.stage_timing_ms, .rag.citations[0] // .audit.retrieved_chunks[0].folder_hierarchy'
+curl -s http://127.0.0.1:3000/api/observability/pipeline/{request_id} | jq '.timeline' # same id as trace
+```
+
+#### Conditional scope — KB tester
+
+`http://127.0.0.1:8000/search` tester: fill `filter_path: گزارش اعتباری چک` (or `اشخاص حقیقی/اعتبارسنجی تسهیلات`) → `POST /search/api {"query":"...","filter_path":"...","top_k":5}` → only that subtree's `allowed_ids` survive.
+
+#### Conditional scope — Open WebUI
+
+Two equivalent ways (both hit `filter_path`):
+
+*Method A — body extra field (explicit):*
+
+```bash
+curl -s http://127.0.0.1:8100/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"ics-helper-agent","filter_path":"گزارش اعتباری چک","messages":[{"role":"user","content":"وضعیت من چطور است"}]}' | jq .rag
+```
+
+→ `audit.applied_subspace: "cheque"` + leaf-pure `retrieved_chunks[].folder_hierarchy`.
+
+*Method B — scope picker (no API change):*
+
+Open WebUI → chat with **ICS Helper** → Integrations (bottom bar) → `rag trace` chip → chip's `UserValves.scope` dropdown (cheque / facilities person / facilities legal / general / auto) → the `rag_trace_capture` filter's `_inject_scope` writes `body["filter_path"]` (`rag_trace_capture.py:108`) before the request hits the orchestrator — fail-silent if already set.
+
+#### Clarifying flow — scattered + sticky
+
+1. First scattered query (e.g. `وضعیت اعتباری چطور است` mixed across 709 تسهیلات + 227 چک): history insufficient → LLM judge `is_specification` (`nodes/infer_specification.py`) returns `question` → no sticky → `generate_clarification` asks one Persian pill `چک / تسهیلات / شرکت`.
+2. Next message `چک` → `is_specification` returns `true` → overwrites `applied_subspace = cheque` (sticky in `MemorySaver` keyed by `chat_id → thread_id`), filtered re-retrieve (`KnowledgebaseClient.retrieve(..., filter_path="گزارش اعتباری چک")`) → generate.
+3. Third generic `بدهکار شدم چیکار کنم` → `is_specification: false`, keeps sticky `cheque`, still filtered. Re-specify `شرکت` flips to `facilities_legal`.
+
+Test:
+
+```bash
+# 1. scattered -> clarify
+curl -s http://127.0.0.1:8100/v1/chat/completions -d '{"model":"ics-helper-agent","messages":[{"role":"user","content":"وضعیت اعتباری چطور است"}]}' | jq '.choices[0].finish_reason' # expect "clarify"
+# 2. specify -> filtered
+curl -s http://127.0.0.1:8100/v1/chat/completions -d '{"model":"ics-helper-agent","messages":[{"role":"user","content":"وضعیت اعتباری چطور است"},{"role":"assistant","content":"clarifying?"},{"role":"user","content":"چک"}]}' | jq '.audit.applied_subspace'
+```
+
+#### Verifying persistence
+
+- Every RAG turn writes `traces` + `evaluations` with `created_at`, `applied_subspace`, `available_subspaces`, `filter_path` → visible in `http://127.0.0.1:3000/dashboard/observability` as subspace badge + clarifying state and exportable as JSONL.
 
 ### Web service
 
