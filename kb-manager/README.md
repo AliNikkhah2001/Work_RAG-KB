@@ -113,6 +113,130 @@ Source ZIP hierarchy → `Document.doc_metadata.folder_hierarchy: list[str]` (`d
 
 *How to use a branch:* KB tester `filter_path: "شاخه/چک"` (last version, `search.html:127`) now yields only that subtree (`search.py:634` `allowed_ids` = `{chunk_id | filter_path in "/".join(hierarchy)}`). The Open WebUI scope picker + clarifying question in the next milestone will reuse the same `filter_path` key on `POST /v1/chat/completions` (`schemas.py` → `knowledgebase.py` → `retrieve.py:141`), with each chunk rendered as `from which part (which tree leaf) + which content` plus a `rag.supplemental: EntityList[]` envelope for the list rows.
 
+#### Diagrams — detail tree (UTF-8 RTL friendly, mermaid)
+
+<details>
+<summary>1) Folder hierarchy — 18 docs / 1,123 chunks (v13, <code>folder_hierarchy</code>)</summary>
+
+```mermaid
+flowchart TB
+    Root["پایگاه دانش<br/>(18 docs, 1123 chunks)"]
+
+    subgraph T1["اشخاص حقیقی — اعتبارسنجی تسهیلات"]
+        direction TB
+        QA["بانک سوالات<br/>Q&A 337 + نسخۀ اصلی 244 + جایگزین 0"]
+        DESC_A["توضیح بخش‌های گزارش افراد<br/>37 (article)"]
+        REASON_A["دلایل کاهش امتیاز<br/>مدل اصلی 80 + جایگزین 11 (reason_detail)"]
+    end
+
+    subgraph T2["اشخاص حقیقی — گزارش چک"]
+        direction TB
+        QA_C["بانک سوالات مباحث چک<br/>118 (q/a)"]
+        DESC_C1["بخش‌های مختلف گزارش چک<br/>12 (article)"]
+        NOTE_C["نکات قابل توجه چک<br/>10 (article/kv)"]
+        REASON_C["دلایل کاهش امتیاز چک<br/>87 (reason_detail)"]
+    end
+
+    subgraph T3["اشخاص حقوقی — اعتبارسنجی تسهیلات"]
+        direction TB
+        CORP_A["رسا — بخش‌های گزارش اعتباری شرکتها<br/>24 (article)"]
+        CORP_B["بخش‌های مختلف شرکتها<br/>16 (article)"]
+        CORP_REASON["دلایل کاهش امتیاز شرکتها<br/>24 (reason_detail)"]
+    end
+
+    subgraph T4["پایگاه دانش عمومی — بدون برگه سوم"]
+        direction TB
+        CORP_INTRO["معرفی شرکت<br/>4"]
+        BOARD["هیات مدیره<br/>5"]
+        P16["16 کاربرد اعتبارسنجی<br/>17"]
+        PUB_QA["سوالات عمومی<br/>81 (q/a + body)"]
+        LINKS["لینک‌ها<br/>16 (kv_pair)"]
+    end
+
+    Root --> T1
+    Root --> T2
+    Root --> T3
+    Root --> T4
+```
+
+</details>
+
+<details>
+<summary>2) Supplements — 5 EntityList (ضمیمه، NOT chunks)</summary>
+
+```mermaid
+flowchart LR
+    XLSX["XLSX sheet<br/>لیست بانک‌ها / عناوین وام"] --> PARSER["Importer: EntityList<br/>database.py:249"]
+    PARSER --> TBL["entity_lists<br/>list_name + description + description_embedding<br/>content_json"]
+    TBL --> STEP8["Search step 8<br/>search.py:960<br/>query×MiniLM-L12<br/>cosine vs description_embedding<br/>threshold 0.6"]
+    STEP8 --> INJ["SearchSteps.injected_entities<br/>search.py:989<br/>[{list_name, description, content: content_json, similarity}]"]
+    INJ --> API["POST /search/api<br/>returned with final_results<br/>orchestrator next: rag.supplemental: EntityList[]"]
+```
+
+</details>
+
+<details>
+<summary>3) Conditional subspace retrieval — <code>filter_path</code> → <code>allowed_ids</code></summary>
+
+```mermaid
+flowchart LR
+    UI["KB tester<br/>search.html:127<br/>filter_path: ش.چک / شاخه گزارش"]
+    Q["Query: مثلا چک برگشتی"]
+    HIER["Document.doc_metadata.folder_hierarchy<br/>database.py:81 → per-chunk cd[7]<br/>search.py:438"]
+    ALLOWED["allowed_ids = {chunk_id | filter_path in /join(hierarchy)}<br/>search.py:634"]
+    BM25["tantivy BM25 (content+kw)<br/>search(..., allowed_ids)<br/>search.py:651"]
+    DENSE["Dense (pgvector HNSW)<br/>search(..., allowed_ids)"]
+    RRF["RRF k=60 + cross-encoder rerank<br/>— only leaves under filter_path survive"]
+
+    UI --> ALLOWED
+    Q --> BM25
+    Q --> DENSE
+    HIER --> ALLOWED
+    ALLOWED --> BM25
+    ALLOWED --> DENSE
+    BM25 --> RRF
+    DENSE --> RRF
+```
+
+</details>
+
+<details>
+<summary>4) Idea — clarifying question when retrieval spreads across leaves</summary>
+
+```mermaid
+flowchart TB
+    Q2["User: مبهم (مثلا تسهیلات و چک هر دو می‌خورند)"]
+    RET1["POST /search/api → stripped leaves<br/>پس از retrieve.py:141<br/>sources = {شاخه تسهیلات, شاخه چک}"]
+    GATE{"چند برگ مختلف؟"}
+    CLAR["Orchestrator → Guardrails LLM<br/>guarded_generate.py:18<br/>«کدام برگ را ترجیح می‌دهید؟<br/>available_subtrees: [شاخه تسهیلات, شاخه چک]»<br/>finish_reason=clarify"]
+    NEXT["User specifies: چک<br/>→ fix filter_path = ش.چک → دومین retrieve"]
+    ANSWER["Build context + generate<br/>build_context.py:18 → format_response.py:38<br/>rag.supplemental + citation badge"]
+
+    Q2 --> RET1 --> GATE
+    GATE -- "یک برگ غالب →" --> ANSWER
+    GATE -- "پراکنده →" --> CLAR --> NEXT --> ANSWER
+```
+
+</details>
+
+<details>
+<summary>5) Idea — Open WebUI scope picker + per-chunk provenance</summary>
+
+```mermaid
+flowchart LR
+    SEL["WebUI picker<br/># Cheque / گزارش / تسهیلات / ضمیمه<br/>(GET /v1/models → folder_hierarchy tree)"]
+    BODY["POST /v1/chat/completions<br/>schemas.py:9<br/>{query, filter_path: ش.چک}"]
+    FILTER["retrieve.py:141 → KnowledgebaseClient<br/>knowledgebase.py:74<br/>json={query, top_k, filter_path: body.filter_path}"]
+    LEAF["search.py:634 allowed_ids<br/>— only ش.چک chunks survive"]
+    RENDER["Dashboard / Response<br/>renderChunkCard:<br/>from which part: ش.چک / Nex name<br/>+ content 600-char<br/>+ score bar<br/>+ citation badge<br/>+ supplemental envelope<br/>rag.supplemental: EntityList[]"]
+
+    SEL --> BODY --> FILTER --> LEAF --> RENDER
+```
+
+</details>
+
+> All labels are UTF-8 Persian; keep them quoted in mermaid (`"…"`) and avoid mixing inline `»` with the `mermaid` plugin's RTL quirks by using `پایگاه دانش` as a plain `subgraph` title. Tested on GitHub mermaid rendering (Chrome 120, `v13_1405-07-06`).
+
 ### Web service
 
 ```mermaid
