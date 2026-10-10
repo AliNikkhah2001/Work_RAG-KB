@@ -65,6 +65,54 @@ graph LR
     PG[(Postgres pgvector<br/>16GB shared_buffers<br/>800GB effective_cache<br/>pg_prewarm RAM)] -.-> DENSE
 ```
 
+### Knowledge tree — `folder_hierarchy` + supplements (`v13_1405-07-06` → 18 docs / 1,123 chunks)
+
+Source ZIP hierarchy → `Document.doc_metadata.folder_hierarchy: list[str]` (`database.py:81`) → per-chunk `cd[7]` at `search.py:438`. Leaf `allowed_ids` powers `POST /search/api` `filter_path` (`search.py:634`; tester at `search.html:127`). Chunk types in this KB: `qa_pair 776 · reason_detail 198 · body 71 · article 46 · kv_pair 19` (+ 13 parent chunks).
+
+```text
+پایگاه دانش
+├── اشخاص حقیقی
+│   ├── اعتبارسنجی تسهیلات
+│   │   ├── بانک سوالات (Q&A)
+│   │   │   ├── بانک سوالات افراد در زمینه گزارش اعتبارسنجی تسهیلات  (337 chunks, q/a schema)
+│   │   │   ├── بانک سوالات افراد — نسخۀ اصلی  (244, q/a)
+│   │   │   ├── بانک سوالات — جایگزین  (0 chunks, skeleton)
+│   │   │   └── — also credit-side alt docs above carry their own QA slots
+│   │   ├── توضیحات تشریحی — بخش‌های گزارش اعتبارسنجی افراد  (37, article)
+│   │   └── توضیحات تشریحی — دلایل کاهش امتیاز
+│   │       ├── مدل اصلی و روش بهبود  (80, reason_detail)
+│   │       └── مدل جایگزین و روش بهبود  (11, reason_detail)
+│   └── گزارش اعتبارسنجی چک
+│       ├── بانک سوالات مباحث مختلف چک  (118, q/a)
+│       ├── توضیحات تشریحی بخش‌های مختلف گزارش چک  (12, article)
+│       ├── نکات قابل توجه چک  (10, article/kv)
+│       └── توضیحات تشریحی دلایل کاهش امتیاز چک و روش بهبود  (87, reason_detail)
+├── اشخاص حقوقی
+│   └── اعتبارسنجی تسهیلات
+│       ├── رسا — بخش‌های مختلف گزارش اعتباری شرکتها  (24, article)
+│       ├── توضیحات بخش‌های مختلف گزارش اعتباری شرکتها  (16, article)
+│       └── توضیحات تشریحی دلایل کاهش امتیاز اعتباری شرکتها  (24, reason_detail)
+└── پایگاه دانش عمومی  (no 3rd-level leaf — filter by leaf title)
+    ├── معرفی شرکت اعتبارسنجی ایران  (4, article/body)
+    ├── هیات مدیره  (5, article)
+    ├── 16 کاربرد اعتبارسنجی در اقتصاد  (17, article)
+    ├── سوالات عمومی  (81, q/a + body)
+    └── لینک‌ها  (16, article/kv_pair)
+
+ضمیمه / Supplements — `EntityList` supplementary tables (`database.py:249`, NOT `Chunk`s)
+  (on-disk XLSX list sheets → entity_lists · search-time injected at `search.py:960` step 8:
+   query→MiniLM-L12 cosine vs EntityList.description_embedding, threshold 0.6
+   → SearchSteps.injected_entities[{list_name, description, content: content_json, similarity}]
+   POST /search/api returns them; orchestrator wires this next as rag.supplemental)
+  ├── استفاده کنندگان گزارش  — {"Sheet1": [[شرکت راهکارهای مالی هوشم...
+  ├── تامین‌کنندگان دیتا  — {"Sheet1": [[صندوق کارآفرینی امید, صندو...
+  ├── سهامداران  — {"Sheet1 (2)": [[بانک رفاه کارگران, بانک‌…
+  ├── لیست و عناوین وام ها  — {"وام‌ها": [[اسنپ پی, خرید اقساطی], …
+  └── Word Document  — {} (empty placeholder)
+```
+
+*How to use a branch:* KB tester `filter_path: "شاخه/چک"` (last version, `search.html:127`) now yields only that subtree (`search.py:634` `allowed_ids` = `{chunk_id | filter_path in "/".join(hierarchy)}`). The Open WebUI scope picker + clarifying question in the next milestone will reuse the same `filter_path` key on `POST /v1/chat/completions` (`schemas.py` → `knowledgebase.py` → `retrieve.py:141`), with each chunk rendered as `from which part (which tree leaf) + which content` plus a `rag.supplemental: EntityList[]` envelope for the list rows.
+
 ### Web service
 
 ```mermaid
