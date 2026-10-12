@@ -1130,3 +1130,151 @@ async def enhance_api(payload: EnhanceRequest):
     q = payload.query or ""
     res = enhance_query(q)
     return {"query": q, "enhanced": res["enhanced"], "beams": res["beams"]}
+
+
+class SupplementRequest(BaseModel):
+    query: str = ""
+    threshold: float = 0.4
+
+
+async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
+    """Direct EntityList tool search (embedding against list_name+description).
+
+    Used by POST /search/supplement and GET /search/supplement.
+    Threshold 0.4 (tool) vs 0.6 (hidden step-8 inject) so G5-type queries can
+    match list content via list_name+description embedding, not just description.
+    """
+    q = (query or "").strip()
+    try:
+        thr = float(threshold)
+    except Exception:
+        thr = 0.4
+    thr = max(0.0, min(1.0, thr))
+    if not q:
+        return {"results": [], "query": q, "threshold": thr, "count": 0}
+    try:
+        # reuse dense model from index cache (same embedding as step 8)
+        _, _, dense, _, _ = await _get_index()
+        q_emb = None
+        try:
+            if dense is not None and hasattr(dense, "model") and dense.model is not None:
+                q_emb = dense.model.encode([q], normalize_embeddings=True)[0]
+        except Exception:
+            q_emb = None
+
+        from kb_manager.web.deps import db
+        from sqlalchemy import select as _select
+
+        from kb_manager.models.database import EntityList
+
+        async with db.session() as session:
+            ents_res = await session.execute(_select(EntityList))
+            entity_lists = ents_res.scalars().all()
+            if not entity_lists:
+                return {"results": [], "query": q, "threshold": thr, "count": 0}
+
+            # fallback substring path when embedding unavailable
+            if q_emb is None:
+                q_low = q.lower()
+                results = []
+                for ent in entity_lists:
+                    text = f"{ent.list_name or ''} {ent.description or ''}"
+                    try:
+                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
+                    except Exception:
+                        content_str = str(ent.content_json).lower() if ent.content_json else ""
+                    if q_low in text.lower() or q_low in content_str:
+                        results.append({
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": 0.5,
+                        })
+                return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+
+            import numpy as np
+
+            q_vec = np.array(q_emb)
+            q_norm = np.linalg.norm(q_vec)
+            if q_norm == 0:
+                return {"results": [], "query": q, "threshold": thr, "count": 0}
+
+            results = []
+            q_low = q.lower()
+            for ent in entity_lists:
+                best_sim = -1.0
+                # 1) stored description_embedding (description-only, step-8 path)
+                if ent.description_embedding:
+                    try:
+                        ent_vec = np.array(ent.description_embedding)
+                        ent_norm = np.linalg.norm(ent_vec)
+                        if ent_norm > 0:
+                            sim = float(np.dot(q_vec, ent_vec) / (q_norm * ent_norm))
+                            if sim > best_sim:
+                                best_sim = sim
+                    except Exception:
+                        pass
+                # 2) list_name + description combined embedding (tool path, threshold 0.4)
+                try:
+                    combined = f"{ent.list_name or ''} {ent.description or ''}".strip()
+                    if combined:
+                        c_emb = dense.model.encode([combined], normalize_embeddings=True)[0]
+                        c_vec = np.array(c_emb)
+                        c_norm = np.linalg.norm(c_vec)
+                        if c_norm > 0:
+                            sim2 = float(np.dot(q_vec, c_vec) / (q_norm * c_norm))
+                            if sim2 > best_sim:
+                                best_sim = sim2
+                except Exception:
+                    pass
+                # 3) substring fallback: if query appears verbatim in list_name/description/content, ensure at least threshold
+                try:
+                    text_low = f"{ent.list_name or ''} {ent.description or ''}".lower()
+                    try:
+                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
+                    except Exception:
+                        content_str = str(ent.content_json).lower() if ent.content_json else ""
+                    if q_low in text_low or q_low in content_str:
+                        if best_sim < thr:
+                            best_sim = float(thr)
+                except Exception:
+                    pass
+
+                # also check that list_name token appears as substring (e.g. سهامداران)
+                try:
+                    if ent.list_name and ent.list_name.strip() in q:
+                        if best_sim < thr:
+                            best_sim = float(thr)
+                except Exception:
+                    pass
+
+                if best_sim >= thr:
+                    results.append({
+                        "list_name": ent.list_name,
+                        "description": ent.description,
+                        "content": ent.content_json,
+                        "similarity": float(best_sim),
+                    })
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+            return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+    except Exception as e:
+        logging.getLogger(__name__).warning("supplement search failed: %s", e)
+        return {"results": [], "query": q, "threshold": thr, "count": 0, "error": str(e)[:500]}
+
+
+@router.post("/supplement")
+async def supplement_api(payload: SupplementRequest, request: Request):
+    """Tool-callable supplement search: embedding similarity over entity_lists.
+
+    Direct tool path (threshold 0.4) vs hidden step-8 inject (threshold 0.6).
+    Searches list_name + description embedding, not just description, so
+    content like 'سهامداران' or 'سنپ پی' can match even when description fails.
+    Called by orchestrator KnowledgebaseClient.supplementary_search as a tool.
+    """
+    return await _supplement_search_impl(payload.query, payload.threshold)
+
+
+@router.get("/supplement")
+async def supplement_get(query: str = Query("", description="query text"), threshold: float = Query(0.4, description="cosine threshold 0.0-1.0")):
+    """GET variant of supplement tool for direct tool calling."""
+    return await _supplement_search_impl(query, threshold)
