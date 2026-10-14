@@ -37,6 +37,20 @@ from kb_manager.reranker import (
     get_reranker_model_name,
 )
 
+# Fast JSON serialization (~26 KB payloads per search) + Prometheus recording.
+from fastapi.responses import ORJSONResponse
+try:
+    from kb_manager.web.routes.metrics import (
+        record_cache_hit as _metrics_cache_hit,
+        record_request_outcome,
+        record_result_count,
+        record_stage_ms,
+    )
+except Exception:  # metrics module optional — never break search on it
+    record_stage_ms = record_request_outcome = record_result_count = _metrics_cache_hit = (
+        lambda *a, **k: None
+    )
+
 # Rust tantivy BM25 (RAM-resident, ~50x faster than Python BM25)
 try:
     from kb_manager.tantivy_bm25 import TantivyBM25  # type: ignore
@@ -55,6 +69,13 @@ print(f"[search] tantivy HAS={_HAS_TANTIVY} USE={_USE_TANTIVY} err={_TANTIVY_IMP
 
 # query expansion (Phase 11: synonym + multi-query beam5)
 _SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+# Dense query backend: "ram" (default) serves the dense leg from the in-process
+# cosine matrix with ONE batched GPU encode for query+beams; "pgvector" keeps
+# the legacy per-variant HNSW SQL roundtrip. The RAM path removes the DB from
+# the query hot path entirely (at ~1.1k chunks a numpy matmul is sub-ms).
+_DENSE_BACKEND = os.getenv("KB_DENSE_BACKEND", "ram").lower()
+# Memoized pgvector availability (probe = DB roundtrip; per-process constant).
+_PGVECTOR_OK: bool | None = None
 _SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
 
 # keyword heuristic boost – tunable via env, also per-request override
@@ -614,21 +635,28 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     else:
         bm25_content, bm25_kw = bm25_pair, None  # type: ignore[assignment]
 
-    # Check if pgvector is available and has embeddings (for hybrid pgvector search)
+    # Check if pgvector is available and has embeddings (for hybrid pgvector search).
+    # Memoized per-process: the probe itself is a DB roundtrip that used to run
+    # on EVERY search before the RAM dense fast path landed.
+    global _PGVECTOR_OK
     use_pgvector = False
-    try:
-        from kb_manager.config import load_config
-        cfg = load_config()
-        if cfg.db.is_pgvector:
-            # quick check: does chunks table have embedding column and at least one non-null?
-            from kb_manager.web.deps import db as _db
-            from sqlalchemy import text as _text
-            async with _db.session() as _s:
-                cnt = (await _s.execute(_text("SELECT count(*) FROM chunks WHERE embedding IS NOT NULL"))).scalar()
-                if cnt and cnt > 100:  # enough to use pgvector
-                    use_pgvector = True
-    except:
-        use_pgvector = False
+    if _PGVECTOR_OK is None:
+        try:
+            from kb_manager.config import load_config
+            cfg = load_config()
+            if cfg.db.is_pgvector:
+                # quick check: does chunks table have embedding column and at least one non-null?
+                from kb_manager.web.deps import db as _db
+                from sqlalchemy import text as _text
+                async with _db.session() as _s:
+                    cnt = (await _s.execute(_text("SELECT count(*) FROM chunks WHERE embedding IS NOT NULL"))).scalar()
+                    if cnt and cnt > 100:  # enough to use pgvector
+                        use_pgvector = True
+        except:
+            use_pgvector = False
+        _PGVECTOR_OK = use_pgvector
+    else:
+        use_pgvector = _PGVECTOR_OK
 
     
     allowed_ids = None
@@ -688,59 +716,154 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             doc_title=cd[2],
             heading_path=cd[3],
             folder_hierarchy=cd[7],
-            content_preview=cd[4][:300],
+            content_preview=cd[4][:800],
             bm25_score=round(score, 4),
             ordinal=cd[6] if isinstance(cd[6], int) else 0,
         ))
 
+
+    # --- Step 2b: rare-term rescue beam ---
+    # A rare (low document-frequency) query term is the discriminative signal
+    # (e.g. "جنگ" in "چک برگشتی تاثیر توی جنگ 12 روزه"). Common terms can drown it
+    # out of the BM25 ranking so the only chunks containing it never surface,
+    # which the agent then reports as "not found in the knowledge base".
+    # Detect rare word tokens; if the current top BM25 hits do NOT contain them,
+    # search the rare term alone and promote its top hits into the BM25 leg
+    # (both bm25_raw for RRF rank and bm25_results for fallback/pin paths).
+    try:
+        from kb_manager.preprocessor.regex_persian import TOKEN_RE as _RESCUE_TOKEN_RE
+        _qwords = [
+            t for t in _RESCUE_TOKEN_RE.findall(normalized.lower().translate(_PERSIAN_TRANSLATE_TABLE))
+            if t not in _STOPWORDS and len(t) > 2 and not t.isdigit()
+        ]
+        _qwords = list(dict.fromkeys(_qwords))[:12]
+        _rare_terms = []
+        _rare_max_df = max(8, int(0.02 * (len(chunk_data) or 1000)))
+        for _qt in _qwords:
+            _hits = bm25_content.search(_qt, top_k=30, allowed_ids=allowed_ids)
+            if 0 < len(_hits) <= _rare_max_df:
+                _rare_terms.append(_qt)
+        _log.info(
+            "rare-term debug qwords=%s rare=%s", _qwords, _rare_terms
+        )
+        if _rare_terms:
+            _top_blob = " ".join(
+                (bm25_id_map[r.chunk_id][4] if r.chunk_id in bm25_id_map else "")
+                for r in bm25_results[:top_k]
+            )
+            if not any(_rt in _top_blob for _rt in _rare_terms):
+                _rescue_q = " ".join(_rare_terms)
+                _rescue_hits = bm25_content.search(_rescue_q, top_k=3, allowed_ids=allowed_ids)
+                _existing_ids = {r.chunk_id for r in bm25_results}
+                _promoted = 0
+                for _rcid, _rscore in _rescue_hits:
+                    if _promoted >= 2:
+                        break
+                    if _rcid in _existing_ids:
+                        continue
+                    _rcd = bm25_id_map.get(_rcid)
+                    if _rcd is None:
+                        continue
+                    if filter_path and filter_path not in _rcd[7]:
+                        continue
+                    bm25_scores[_rcid] = _rscore
+                    bm25_raw.insert(1 + _promoted, (_rcid, _rscore))
+                    bm25_results.insert(1 + _promoted, SearchResult(
+                        chunk_id=_rcid,
+                        doc_id=_rcd[1],
+                        doc_title=_rcd[2],
+                        heading_path=_rcd[3],
+                        folder_hierarchy=_rcd[7],
+                        content_preview=_rcd[4][:800],
+                        bm25_score=round(_rscore, 4),
+                        ordinal=_rcd[6] if isinstance(_rcd[6], int) else 0,
+                    ))
+                    _promoted += 1
+                if _promoted:
+                    _log.info(
+                        "rare-term rescue promoted %d chunks for terms %s", _promoted, _rare_terms
+                    )
+    except Exception as _re:
+        _log.warning("rare-term rescue failed: %s", _re, exc_info=True)
+
     stage_ms["bm25"] = round((time.monotonic() - t_mark) * 1000, 1)
     t_mark = time.monotonic()
     # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
-    # Try pgvector first if available (HNSW), fallback to file dense
-    dense_raw_base = None
-    if use_pgvector:
+    # RAM fast path (default): one batched GPU encode for the normalized query
+    # plus every beam variant, one stacked cosine matmul, max-pool per chunk.
+    # The legacy path encoded and ran a pgvector HNSW query PER beam variant
+    # (up to 5 encodes + 5 SQL roundtrips per search) — this collapses that
+    # into a single encode + sub-ms matmul.
+    dense_raw_base: list[tuple[str, float]] | None = None
+    dense_raw: list[tuple[str, float]] = []
+    if _DENSE_BACKEND == "ram" and dense.is_built:
         try:
-            from kb_manager.web.deps import db as _db2
-            from sqlalchemy import text as _text2
-            # embed query via same model as dense
-            q_vec = dense.model.encode([normalized], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
-            if q_vec is not None:
-                q_str = "[" + ",".join(f"{float(x):.6f}" for x in q_vec) + "]"
-                async with _db2.session() as _s2:
-                    # pgvector cosine: 1 - (embedding <=> query)  (since <=> is cosine distance)
-                    # Use ORDER BY embedding <=> query for nearest
-                    rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
-                    dense_raw_base = [(r[0], float(r[1])) for r in rows]
+            queries = [normalized]
+            for bq in beam_queries[1:]:
+                if bq and bq != normalized and bq not in queries:
+                    queries.append(bq)
+            per_query = dense.search_batch(
+                queries, top_k=top_k * 3, allowed_ids=allowed_ids
+            )
+            dense_raw_base = per_query[0] if per_query else []
+            if _SYNONYM_ENABLED and len(per_query) > 1:
+                dense_pool: dict[str, float] = dict(dense_raw_base)
+                for res in per_query[1:]:
+                    for cid, sc in res:
+                        if cid not in dense_pool or sc > dense_pool[cid]:
+                            dense_pool[cid] = sc
+                dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+            else:
+                dense_raw = dense_raw_base
         except Exception as _e:
-            # fallback to file dense
+            _log.warning("RAM dense fast path failed (%s); falling back to legacy leg", _e)
             dense_raw_base = None
+            dense_raw = []
     if dense_raw_base is None:
-        dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
-    if _SYNONYM_ENABLED and len(beam_queries) > 1:
-        dense_pool: dict[str, float] = dict(dense_raw_base)
-        for bq in beam_queries[1:]:
-            # for pgvector, also need to handle beam queries via pgvector if use_pgvector
-            if use_pgvector:
-                try:
-                    from kb_manager.web.deps import db as _db3
-                    from sqlalchemy import text as _text3
-                    q_vec2 = dense.model.encode([bq], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
-                    if q_vec2 is not None:
-                        q_str2 = "[" + ",".join(f"{float(x):.6f}" for x in q_vec2) + "]"
-                        async with _db3.session() as _s3:
-                            rows2 = (await _s3.execute(_text3("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str2, "k": top_k * 3})).fetchall()
-                            for cid, sc in [(r[0], float(r[1])) for r in rows2]:
-                                if cid not in dense_pool or sc > dense_pool[cid]:
-                                    dense_pool[cid] = sc
-                            continue
-                except:
-                    pass
-            for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
-                if cid not in dense_pool or sc > dense_pool[cid]:
-                    dense_pool[cid] = sc
-        dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
-    else:
-        dense_raw = dense_raw_base
+        # --- Legacy dense leg: pgvector HNSW (if available) -> file dense ---
+        if use_pgvector:
+            try:
+                from kb_manager.web.deps import db as _db2
+                from sqlalchemy import text as _text2
+                # embed query via same model as dense
+                q_vec = dense.model.encode([normalized], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+                if q_vec is not None:
+                    q_str = "[" + ",".join(f"{float(x):.6f}" for x in q_vec) + "]"
+                    async with _db2.session() as _s2:
+                        # pgvector cosine: 1 - (embedding <=> query)  (since <=> is cosine distance)
+                        # Use ORDER BY embedding <=> query for nearest
+                        rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
+                        dense_raw_base = [(r[0], float(r[1])) for r in rows]
+            except Exception as _e:
+                # fallback to file dense
+                dense_raw_base = None
+        if dense_raw_base is None:
+            dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
+        if _SYNONYM_ENABLED and len(beam_queries) > 1:
+            dense_pool = dict(dense_raw_base)
+            for bq in beam_queries[1:]:
+                # for pgvector, also need to handle beam queries via pgvector if use_pgvector
+                if use_pgvector:
+                    try:
+                        from kb_manager.web.deps import db as _db3
+                        from sqlalchemy import text as _text3
+                        q_vec2 = dense.model.encode([bq], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+                        if q_vec2 is not None:
+                            q_str2 = "[" + ",".join(f"{float(x):.6f}" for x in q_vec2) + "]"
+                            async with _db3.session() as _s3:
+                                rows2 = (await _s3.execute(_text3("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str2, "k": top_k * 3})).fetchall()
+                                for cid, sc in [(r[0], float(r[1])) for r in rows2]:
+                                    if cid not in dense_pool or sc > dense_pool[cid]:
+                                        dense_pool[cid] = sc
+                                continue
+                    except:
+                        pass
+                for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
+                    if cid not in dense_pool or sc > dense_pool[cid]:
+                        dense_pool[cid] = sc
+            dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+        else:
+            dense_raw = dense_raw_base
     dense_scores = dict(dense_raw)
     dense_results = []
     for chunk_id, score in dense_raw:
@@ -755,7 +878,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             doc_title=cd[2],
             heading_path=cd[3],
             folder_hierarchy=cd[7],
-            content_preview=cd[4][:300],
+            content_preview=cd[4][:800],
             dense_score=round(score, 4),
             semantic_score=round(score, 4),  # repurpose semantic_score for dense
             ordinal=cd[6] if isinstance(cd[6], int) else 0,
@@ -802,7 +925,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                     doc_title=cd[2],
                     heading_path=cd[3],
                     folder_hierarchy=cd[7],
-                    content_preview=cd[4][:300],
+                    content_preview=cd[4][:800],
                     bm25_score=round(bm25_scores.get(chunk_id, 0), 4),
                     semantic_score=round(dense_scores.get(chunk_id, 0), 4),
                     dense_score=round(dense_scores.get(chunk_id, 0), 4),
@@ -838,7 +961,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("reranker offline fallback: %s", e)
+        _log.warning("reranker offline fallback: %s", e)
         reranked = [c.model_dump() for c in rerank_input[:top_k]]
         for r in reranked:
             r["rerank_score"] = r.get("hybrid_score", 0)
@@ -852,20 +975,29 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
 
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
-    # Fallback: if reranker gives uniformly low scores for very short queries (<=4 tokens), use BM25
+    # Fallback: if reranker gives uniformly low scores (offline cross-encoder copies RRF ~0.03),
+    # fall back to BM25 magnitude ordering for ALL query lengths.
     _fallback_used = False
     try:
         max_rerank = max((r.rerank_score for r in reranked_results), default=0)
-        if max_rerank < 0.2 and len(bm25_results) > 0 and len(tokens) <= 4:
+        if max_rerank < 0.2 and len(bm25_results) > 0:
             # Use BM25 top as final, but pull from merged to preserve all stage scores
             fallback = []
-            for idx, r in enumerate(bm25_results[:top_k]):
+            _doc_counts: dict = {}
+            idx = 0
+            for r in bm25_results:
+                if len(fallback) >= top_k:
+                    break
                 if r.chunk_id in merged:
+                    if _doc_counts.get(r.doc_id, 0) >= 3:
+                        continue
+                    _doc_counts[r.doc_id] = _doc_counts.get(r.doc_id, 0) + 1
                     nr = merged[r.chunk_id].model_copy()
                     # Assign a synthetic confidence score that passes threshold (e.g. 0.50 descending)
                     # so the UI shows ~50% confidence instead of 2300% (BM25 score)
                     nr.rerank_score = max(0.05, 0.5 - (idx * 0.05))
                     fallback.append(nr)
+                    idx += 1
             reranked_results = fallback
             _fallback_used = True
     except Exception:
@@ -994,7 +1126,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                             })
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Failed to inject entities: %s", e)
+        _log.warning("Failed to inject entities: %s", e)
 
     return SearchSteps(
         query=query,
@@ -1079,7 +1211,8 @@ async def search_api(request: Request):
         ckey = _cache_key(query, top_k, keyword_boost, filter_path)
         cached = await _cache_get(ckey)
         if cached is not None:
-            return cached
+            _metrics_cache_hit("redis")
+            return ORJSONResponse(cached)
     except Exception:
         # never block search on cache errors
         ckey = ckey or _cache_key(query, top_k, keyword_boost)
@@ -1091,14 +1224,26 @@ async def search_api(request: Request):
         steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost, filter_path=filter_path)
         out = steps.model_dump()
         out["keyword_boost_used"] = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
+        # Prometheus: stage latency + outcome + result count (never raises).
+        try:
+            for stage, ms in (steps.stage_ms or {}).items():
+                record_stage_ms(stage, float(ms))
+            record_request_outcome("success")
+            record_result_count(len(out.get("final_results", [])))
+        except Exception:
+            pass
         # store only on success — do not cache errors
         if ckey is not None:
             try:
                 await _cache_set(ckey, out, _REDIS_TTL)
             except Exception:
                 pass
-        return out
+        return ORJSONResponse(out)
     except Exception as e:
+        try:
+            record_request_outcome("error")
+        except Exception:
+            pass
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
@@ -1258,7 +1403,7 @@ async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
             results.sort(key=lambda x: x["similarity"], reverse=True)
             return {"results": results, "query": q, "threshold": thr, "count": len(results)}
     except Exception as e:
-        logging.getLogger(__name__).warning("supplement search failed: %s", e)
+        _log.warning("supplement search failed: %s", e)
         return {"results": [], "query": q, "threshold": thr, "count": 0, "error": str(e)[:500]}
 
 
