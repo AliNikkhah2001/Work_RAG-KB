@@ -4,6 +4,71 @@ Persian knowledge-base lifecycle, hybrid retrieval (RAM-first, Rust tantivy, GPU
 
 > Status: **implemented, operational, RAM-first.** The retrieval pipeline and Web UI run from `kb-manager/` (see [kb-manager/README.md](kb-manager/README.md) for current benchmark numbers and quick start). Current release **v13_1405-07-06** — 18 docs / 1,123 chunks, full rebuild 2026-10-07 (`pgvector` HNSW 384d, vectors + HNSW fully in RAM `shared_buffers=16GB`, Rust tantivy BM25 50 MB RAM, GPU dense/rerank on H200). Previous **v11_1405-06-23** — 35 docs / 2,227 chunks, Hit@5 0.9306 (see [kb-manager/README.md#version-history](kb-manager/README.md#version-history) for full history). Top-level docs ([`KB_ARCHITECTURE.md`](KB_ARCHITECTURE.md), [`retrieval-evaluation-research.md`](retrieval-evaluation-research.md)) hold the architecture plan and IR theory; new latency plots below live in `kb-manager/data/plots/`.
 
+<!-- docs-toc:start -->
+## Documentation Index
+
+> Auto-generated from this repository's tracked Markdown notes (**43** files). Refresh with `python scripts/gen_readme_toc.py` — the `docs-toc` workflow does this automatically on push.
+
+### Repository root
+
+- [ICS Knowledge Base Architecture & Processing Plan](KB_ARCHITECTURE.md) — 1. Current KB Analysis
+- [Claude Code Configuration - OpenCode Orchestrator](SKILL.md) — coder, reviewer, tester, planner, researcher
+- [Retrieval Evaluation Methods, Frameworks & Metrics](retrieval-evaluation-research.md) — where rel(k) is 1 if document at rank k is relevant, 0 otherwise
+
+### `.agent/`
+
+- [Plan: Fix All Weak Spots (W1-W5) — One-by-One with Benchmark Regeneration](.agent/plans/abstract-dreaming-ostrovsky.md) — User requested comprehensive fix for all retrieval weak spots across v2→v4, with per-fix benchmark regeneration, across all complexities (Low/Med/Hig…
+
+### `archive/`
+
+- [KB Manager Retrieval Benchmark Comparison: v2 → v3 → v4](archive/BENCHMARK_COMPARISON.md) — 1. Cross-encoder reranker significantly improves ranking quality
+- [KB Manager - Retrieval System v4 Implementation Plan](archive/IMPLEMENTATION_PLAN.md) — Complete overhaul of the retrieval system with 7 improvement methods, synthetic data generation pipeline, and comprehensive documentation.
+- [Persian NLP Resources for KB Manager](archive/PERSIAN_RESOURCES.md) — Comprehensive catalog of Persian (Farsi) datasets, models, and tools relevant to the KB Manager retrieval system.
+- [KB Manager — Implementation Plan v3](archive/PLAN.md)
+
+### `docs/`
+
+- [Benchmark Debug — Case-by-Case Analysis](docs/BENCHMARK_DEBUG_REPORT.md) — For each miss, GT was either:
+- [Research: Efficient Chunking & Ingestion for Varied Tabular KB](docs/TABULAR_CHUNKING_RESEARCH.md) — Inspected via /transparency (live parse: XlsxParser + _normalize_col overlap ≥60%):
+
+### `kb-manager/`
+
+- [KB Manager — Persian RAG Knowledge Base](kb-manager/README.md) — Source ZIP hierarchy → Document.doc_metadata.folder_hierarchy: list[str] (database.py:81) → per-chunk cd[7] at search.py:438. Leaf allowed_ids powers…
+- [v10 failure group: A_company (24 samples)](kb-manager/artifacts/retrieval_training/rca/group_A_company.md) — 1. [Company_CRM_Questions] score=447.2601 :: ...‌از زمان دقیق بروزرسانی، میتوانید به لینک زیر مراجعه کنید: https://ics24.ir/about/updatecreditor کلید…
+- [v10 failure group: A_individual (12 samples)](kb-manager/artifacts/retrieval_training/rca/group_A_individual.md) — 1. [Cheque_ReasonCode_for_Chatbot] score=525.2788 :: ...‌کلیدواژه‌ها: تاخیر,چک برگشتی,رفع سوءاثر کد دلیل: -‌... | کلیدواژه‌ها: تاخیر,چک برگشتی,رفع سو…
+- [v10 failure group: A_public (10 samples)](kb-manager/artifacts/retrieval_training/rca/group_A_public.md) — 1. [ChequeQuestions] score=472.1116 :: ...‌که در نهایت باعث کسب رتبه A برایش شده است. کلیدواژه‌ها: تعداد زیاد چک، مبلغ زیاد چک، تعهدات بالا، ریسک بال…
+- [v10 failure group: BC (8 samples)](kb-manager/artifacts/retrieval_training/rca/group_BC.md) — 1. [Company_CRM_Questions] score=901.47 :: ...‌همان شناسه ملی ارسال شود، گزارش اعتباری شرکت به‌صورت خودکار به‌روزرسانی خواهد شد. کلیدواژه‌ها: شناسه م…
+- [LLM-judge corpus — A_company (24 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_company.md)
+- [LLM-judge corpus — A_individual (12 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_individual.md)
+- [LLM-judge corpus — A_public (10 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_public.md)
+- [LLM-judge corpus — BC (8 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_BC.md)
+- [KV / Tree / Variable Chunking Plan — KB 1405-06-23 (41 files)](kb-manager/docs/KV_CHUNKING_PLAN.md) — Audit tool: kb_manager/parsers/{xlsx_parser,docx_parser,pdf_parser}.py (existing code).
+- [KB Manager — Evidence-Based Remediation Plan](kb-manager/docs/REMEDIATION_PLAN.md) — This plan verifies every reported finding, maps system flows, and provides a phased implementation roadmap an engineer can execute safely. Untracked…
+- [KB Manager Technical Documentation](kb-manager/docs/index.md) — Persian RAG Knowledge Base — Technical Reports
+- [Synthetic Generation — Remote 2×GPU Gemma 30B Execution Guide](kb-manager/docs/reports/SYNTHETIC_GEMMA_REMOTE.md)
+- [Comprehensive Report — W1 Keyword-only & W5 Evaluation Coverage](kb-manager/docs/reports/W1_W5_comprehensive_report.md) — Keyword-only benchmark queries (format_keyword_only) have Hit@5 33-45% across v2→v4 (vs 90% overall). MRR 0.180→0.333 (+85% after v4 char n-grams) bu…
+- [Root-Cause Analysis — v10 1405-06-23 retrieval failures](kb-manager/docs/retrieval_training/RCA_v10_README.md) — This document analyses all 54 failures (46 A + 6 B + 2 C) sample-by-sample. Every failure was dumped with its full gold text, its actual retrieved te…
+- [Evaluation (design stub)](kb-manager/docs/retrieval_training/evaluation.md) — Reuse kb_manager/evaluation/metrics.py: RetrievalMetrics.compute_all
+- [Retrieval failure analysis (Agent 2 — v10 frozen baseline)](kb-manager/docs/retrieval_training/failure_analysis.md)
+- [Retrieval failure analysis (Agent 2 — v10_1405-06-23 corpus)](kb-manager/docs/retrieval_training/failure_analysis_v10_1405-06-23.md)
+- [Hard-Negative Mining (tier design + proportions + provenance)](kb-manager/docs/retrieval_training/hard_negative_mining.md) — Mined per query against the frozen pipeline
+- [Repository Audit (from code inspection, 2026-09-12)](kb-manager/docs/retrieval_training/repository_audit.md) — Source of truth is the code cited per row; the brief's "verified facts" were
+- [Training (design stub)](kb-manager/docs/retrieval_training/training.md) — Two fine-tuning tracks consume the stage-3 dataset; both are contract-only
+- [Synthetic Data Generation with Gemma 30B](kb-manager/docs/synthetic-generation.md) — Complete guide for generating synthetic Persian QA and conversational data using Gemma-2-27B on dual-GPU setup.
+- [Technical Report](kb-manager/docs/technical-report.md) — Embedding Model, Retrieval Methods & Evaluation Metrics for Persian RAG Knowledge Base
+- [KB Version Snapshots](kb-manager/versions/README.md) — Archived KB exports — each v/ is a full kb_export.json + manifest.json at a pipeline checkpoint.
+- [KB Version v1](kb-manager/versions/v1/README.md)
+- [KB Version v10_1405-06-23](kb-manager/versions/v10_1405-06-23/README.md)
+- [v10 — KB 1405-06-23 ingest report (2026-09-16)](kb-manager/versions/v10_1405-06-23/V10_REPORT.md) — Source: 1405-06-23.zip (41 files) staged with cleanup:
+- [Knowledge Base Version 11 — 1405-06-23 (Post-Chunkfix Rebuild)](kb-manager/versions/v11_1405-06-23/README.md) — This is version 11 of the Persian RAG Knowledge Base, built from the source directory data/v10_source/1405-06-23 (41 xlsx files → 35 documents after…
+- [KB Version v2](kb-manager/versions/v2/README.md)
+- [KB Version v4_retrieval](kb-manager/versions/v4_retrieval/README.md)
+- [KB Version v6](kb-manager/versions/v6/README.md)
+- [IVA Test — v7 (1405-05-31 KB)](kb-manager/versions/v7_iva_1405-05-31/IVA_REPORT.md) — Source: kb-source/1405-05-31 (34 docs, 2074 chunks)
+- [KB Version v7_iva_1405-05-31](kb-manager/versions/v7_iva_1405-05-31/README.md)
+
+<!-- docs-toc:end -->
+
 ## 1. Summary
 
 The Knowledgebase component owns **source documents, ingestion, indexing, retrieval, reranking, and KB evaluation**. It does **not** own model lifecycle, safety policy, conversation orchestration, or the frontend.
