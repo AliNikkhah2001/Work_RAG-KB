@@ -938,6 +938,148 @@ query → MiniLM-L12 embed → 7-dim subspace features → SVM-RBF → ambiguous
 
 ---
 
+## Mizan System-1 Model & Hybrid Architecture (v13.1)
+
+### Mizan Model Overview
+
+| Property | Value |
+|---|---|
+| **Model** | `mizan-v3-3b` (System-1) |
+| **Format** | GGUF Q4_K_M (977 MB) |
+| **Path** | `offline-prep/models/huggingface/Nimruz_Mizan-v3-3B-GGUF/mizan-v3-3b-Q4_K_M.gguf` |
+| **API Endpoint** | `/v1/systemone` (via Manager :9000 or direct :8083) |
+| **Status** | **Model available, not currently deployed** (see Deployment Status below) |
+| **Capabilities** | System-1 calibrated decisions: choice/noul/score with probabilities |
+
+### Mizan Deployment Status (2026-10-14)
+
+| Component | Status | Details |
+|---|---|---|
+| **Model File** | ✅ Available | `offline-prep/models/huggingface/Nimruz_Mizan-v3-3B-GGUF/mizan-v3-3b-Q4_K_M.gguf` (977 MB, Q4_K_M) |
+| **Manager (:9000)** | ⚠️ Not loaded | 3 models loaded (gemma-4-31b, gemma-3-27b, qwen3.8-27b); Mizan not in registry |
+| **Direct Port (:8083)** | ❌ Not running | No process listening on 8083 |
+| **TRT-LLM (:8010)** | ✅ Running | Gemma-4-31B on 8010 (used for generation) |
+| **LLM Manager (:9000)** | ✅ Running | 3 models loaded; no `/v1/systemone` endpoint |
+
+**Current Integration:** The codebase has full Mizan client (`clients/mizan.py`), guardrails integration (`judge.py`), retrieval judge (`mizan_retrieval_judge.py`), and subspace routing (`mizan_subspace_route`), but **Mizan model is not currently deployed**. The hybrid resolver falls back to Gemma LLM when Mizan is unavailable.
+
+### Mizan Hybrid Architecture (Production Design)
+
+The hybrid resolver combines **Mizan System-1** (fast, calibrated) with **Gemma LLM** (flexible, fallback):
+
+```mermaid
+flowchart TD
+    Q[User Query] --> CLASSIFY[3-way Classifier<br/>greeting / specification / question]
+    CLASSIFY -->|greeting| GREET[Return greeting]
+    CLASSIFY -->|specification| SPEC[Lock subspace]
+    CLASSIFY -->|question| T5[is_scattered_ambiguous?]
+    T5 -->|no| RETRIEVE[Retrieve + rerank]
+    T5 -->|yes| CLASSIFIER[SVM-RBF<br/>7-dim features → ambiguous?]
+    CLASSIFIER -->|not ambiguous| RETRIEVE[Retrieve + rerank]
+    CLASSIFIER -->|ambiguous| MIZAN[Mizan System-1<br/>/v1/systemone<br/>subspace routing + ambiguous flag]
+    MIZAN -->|confident<br/>p > 0.7| ROUTE[Route to subspace]
+    MIZAN -->|ambiguous| GEMMA[Gemma LLM<br/>scattered detection + clarify]
+    GEMMA -->|scattered| CLARIFY[Ask clarification<br/>چک / تسهیلات / شرکت / عمومی]
+    GEMMA -->|not scattered| ROUTE[Route to subspace]
+    ROUTE --> RETRIEVE[Retrieve with subspace]
+```
+
+### Mizan vs. Classifier: Side-by-Side Comparison
+
+| Aspect | **SVM-RBF Classifier** | **Mizan System-1** |
+|---|---|---|
+| **Primary Role** | Fast ambiguity gate (binary) | Full System-1 decision engine |
+| **Output** | Binary: ambiguous / not | Choice probs + noul + score |
+| **Subspace Routing** | ❌ | ✅ 4-way choice + probs |
+| **Guardrails** | ❌ | ✅ Safety/Scope/Severity |
+| **Retrieval Judge** | ❌ | ✅ Relevance/Subspace/Sufficiency |
+| **Subspace Change** | ❌ | ✅ Multi-turn tracking |
+| **Latency** | **~1 ms** (local) | **~50-100 ms** (HTTP + GPU) |
+| **Calibration** | SVM decision function | Native System-1 calibration |
+| **Training** | 1000 samples (7-dim features) | Pre-trained System-1 (Mizan-v3-3B) |
+| **Fallback** | Heuristic keywords | Gemma LLM |
+| **Deployment** | Local joblib (~2 MB) | HTTP service (Manager :9000 → Mizan :8083) |
+
+### Mizan Integration Points in Pipeline
+
+| Pipeline Stage | Mizan Function | Endpoint |
+|---|---|---|
+| **Guardrails** | Safety/Scope/Severity judge | `mizan_guardrails_judge()` |
+| **Subspace Routing** | Subspace choice + ambiguous flag | `mizan_subspace_route()` |
+| **Retrieval Judge** | Relevance/Subspace/Sufficiency/Quality | `mizan_retrieval_judge()` |
+| **Subspace Change** | Conversation-level change decision | `mizan_subspace_change_decision()` |
+
+### Mizan API Specification
+
+**Endpoint:** `POST {MIZAN_BASE_URL}/systemone`
+
+**Request:**
+```json
+{
+  "model": "mizan-v3-3b",
+  "record": {"text": "...", "stage": "input"},
+  "questions": [
+    {"id": "safety", "question": "Is this input safe?", "type": "choice", "options": ["allow","block","clarify"]},
+    {"id": "scope", "question": "Is this in-domain?", "type": "noul"},
+    {"id": "severity", "question": "Rate severity 0-10", "type": "score", "min_value": 0, "max_value": 10}
+  ],
+  "temperature": 0.0
+}
+```
+
+**Response:**
+```json
+{
+  "answers": [
+    {"question_id": "safety", "type": "choice", "choice": "allow", "choice_probs": {"allow": 0.95}},
+    {"question_id": "scope", "type": "noul", "noul": true, "noul_probs": {"true": 0.98}},
+    {"question_id": "severity", "type": "score", "score": 1.2, "score_distribution": {...}}
+  ]
+}
+```
+
+### Mizan Deployment (To Activate)
+
+```bash
+# 1. Launch Mizan via llama.cpp (GGUF) on port 8083
+cd /splunk-data/v1/Work_RAG-Server-Setup
+nohup /tmp/llama-venv/bin/python scripts/services/llama_chat_server.py \
+  --model offline-prep/models/huggingface/Nimruz_Mizan-v3-3B-GGUF/mizan-v3-3b-Q4_K_M.gguf \
+  --host 0.0.0.0 --port 8083 --model-id mizan-v3-3b --n-ctx 4096 > /tmp/mizan.log 2>&1 &
+
+# 2. Verify
+curl -s http://127.0.0.1:8083/health
+curl -s -X POST http://127.0.0.1:8083/v1/systemone -H 'Content-Type: application/json' \
+  -d '{"model":"mizan-v3-3b","record":{"text":"test"},"questions":[{"id":"test","question":"test","type":"choice","options":["a","b"]}]}'
+
+# 3. Update guardrails/orchestrator env
+export MIZAN_BASE_URL=http://127.0.0.1:8083/v1
+export GUARD_JUDGE_BACKEND=mizan
+```
+
+### Mizan vs. Classifier: When Each Is Used
+
+| Pipeline Stage | Component | Reason |
+|---|---|---|
+| **Classify** | 3-way LLM (Gemma) | Fast 3-way: greeting/specification/question |
+| **Scattered Check** | `_is_scattered_ambiguous` (heuristic) | Fast T5 check |
+| **Ambiguity Gate** | **SVM-RBF** (7-dim) | **Fast binary gate** (~1 ms) |
+| **Subspace Routing** | **Mizan System-1** | Calibrated 4-way choice + probs |
+| **Retrieval Judge** | **Mizan System-1** | Multi-dim: relevance/scope/sufficiency |
+| **Guardrails** | **Mizan System-1** | Safety/Scope/Severity |
+| **Subspace Change** | **Mizan System-1** | Conversation-level decision |
+
+### Mizan Benchmarks (Planned)
+
+| Metric | Target | Status |
+|---|---|---|
+| Subspace routing accuracy | > 85% | Pending deployment |
+| Ambiguous detection F1 | > 0.75 | Pending deployment |
+| Latency (p50) | < 100 ms | Pending deployment |
+| Calibration error (ECE) | < 0.05 | Pending deployment |
+
+---
+
 ### Restart Runbook (Never Regress to CPU)
 
 ```bash
