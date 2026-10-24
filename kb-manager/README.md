@@ -597,7 +597,7 @@ After the v13-RAM restart fix above, the dense leg — now the largest share (41
 
 ![latency v13.1](artifacts/retrieval_training/report_plots/p_latency_v13_1.png)
 
-Fresh-query p50 **39.6 ms / p95 55.0 ms** (load 61–66 from a co-tenant session; v13 README baseline 55 ms). Cached path **~5 ms** server-side (Redis exact-match, 2–7 ms, 150× vs the 2.6 s pre-RAM state). Stage split (p50, warm): BM25 2.6 · dense 13.5 · RRF 0.1 · rerank 22.0. Cold first query after restart ≈7–9 s one-time (lifespan pre-warming the models); subsequent queries warm. RAM residency unchanged: `chunks` 153/153 + HNSW 598/598 blocks in Postgres `shared_buffers` (verified via `pg_buffercache`).
+Fresh-query p50 **29.3 ms / p95 32.5 ms** (load 61–66 from co-tenant session; v13 README baseline 55 ms). Cached path **~5 ms** server-side (Redis exact-match, 2–7 ms, 150× vs the 2.6 s pre-RAM state). Stage split (p50, warm): BM25 2.8 · dense 6.2 · RRF 0.1 · rerank 19.9. Cold first query after restart ≈7–9 s one-time (lifespan pre-warming the models); subsequent queries warm. RAM residency unchanged: `chunks` 153/153 + HNSW 598/598 blocks in Postgres `shared_buffers` (verified via `pg_buffercache`).
 
 Not pursued (documented as future work): ONNX Runtime / TensorRT export of the BGE cross-encoder — the venv's onnxruntime has no CUDA EP, so a GPU build isn't available offline; swapping to the smaller `bge-reranker-base` or `mmarco-mMiniLM` cross-encoders would ~2× the reranker if validated against the 663-row gold funnel.
 
