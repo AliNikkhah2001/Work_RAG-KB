@@ -203,6 +203,24 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+def _default_torch_device() -> str:
+    """Prefer CUDA whenever torch reports an available GPU, else CPU.
+
+    2026-10-12 incident: a bare service restart without KB_EMBED_DEVICE /
+    KB_RERANKER_DEVICE silently fell back to the "cpu" dataclass default,
+    turning 55 ms retrieval into ~2.6 s (dense leg) — GPU must be the
+    *default*, not an env opt-in. Explicit KB_* env still wins.
+    """
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:  # noqa: BLE001 - torch missing / driver issue
+        pass
+    return "cpu"
+
+
 def load_config() -> AppConfig:
     """Load config from environment variables with sensible defaults."""
     _db_mode, _db_url_override, _sqlite_path = _resolve_db_mode_and_url()
@@ -228,8 +246,13 @@ def load_config() -> AppConfig:
             ),
             dimensions=int(os.getenv("KB_EMBED_DIM", "384")),
             batch_size=int(os.getenv("KB_EMBED_BATCH", "64")),
-            device=os.getenv("KB_EMBED_DEVICE", os.getenv("KB_DEVICE", "cpu")),
-            reranker_device=os.getenv("KB_RERANKER_DEVICE", os.getenv("KB_EMBED_DEVICE", os.getenv("KB_DEVICE", "cpu"))),
+            device=os.getenv("KB_EMBED_DEVICE", os.getenv("KB_DEVICE")) or _default_torch_device(),
+            reranker_device=(
+                os.getenv("KB_RERANKER_DEVICE")
+                or os.getenv("KB_EMBED_DEVICE")
+                or os.getenv("KB_DEVICE")
+                or _default_torch_device()
+            ),
         ),
         chunking=ChunkingConfig(
             strategy=os.getenv("KB_CHUNK_STRATEGY", "semantic"),

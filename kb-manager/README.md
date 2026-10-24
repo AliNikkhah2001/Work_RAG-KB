@@ -534,6 +534,37 @@ Host: 1.0 TiB RAM (867 Gi free) · 2× NVIDIA H200 143 GB HBM · Postgres `share
 
 Tuning to keep everything on RAM/GPU: `ALTER SYSTEM SET shared_buffers='16GB'` `effective_cache_size='800GB'` `work_mem='256MB'` `maintenance_work_mem='4GB'` + `CREATE EXTENSION pg_prewarm; SELECT pg_prewarm('chunks')`; `tantivy` RAMDirectory heap 50 MB; `KB_FAST_CACHE=true` eliminates per-search fingerprint scan; `KB_USE_TANTIVY=true` (fallback Python if `tantivy` missing).
 
+### Restart runbook — never regress to CPU / offline reranker (2026-10-13)
+
+**Incident:** after a 2026-10-12 restart (NVIDIA module reload + `restore_services.sh`), a bare relaunch (a) dropped `KB_EMBED_DEVICE`/`KB_RERANKER_DEVICE`, so the old `"cpu"` dataclass default turned 55 ms retrieval into ~2.6 s (dense leg on CPU), and (b) set `HF_HOME=/tmp/hf_clean` (nonexistent) + `HF_HUB_OFFLINE=1`, so transformers 4.57's `is_base_mistral()` network probe hard-failed and the cross-encoder reranker was **silently offline on every query** (`"reranker offline fallback"` log lines; RRF-only results; `stage_ms.rerank≈0.7` is the passthrough timer, not real scoring). Note `HF_HUB_CACHE` must point at the `…/huggingface/hub` subdirectory, not its parent (huggingface_hub 0.36 resolves `models--*` directly inside it).
+
+**Fixes (all in code now — defaults are safe):**
+- `config.py` `_default_torch_device()`: device defaults are **GPU-first** (`cuda` when `torch.cuda.is_available()`), explicit `KB_*_DEVICE` env still wins — a bare restart can no longer land on CPU.
+- `kb_manager/model_cache.py` `resolve_local_model_path()`: reranker/dense/embedder loads resolve repo ids to local dirs first (offline-prep mirror `Work_RAG-Server-Setup/offline-prep/models/huggingface/<org_model>`, then HF cache snapshot) — local paths set `_is_local` in transformers and skip the offline-mode network probe entirely. Reranker weights are mirrored at `offline-prep/models/huggingface/BAAI_bge-reranker-v2-m3` (2.2 GB).
+- Canonical launcher: `Work_Credit-RAG_Phase1/deploy/h200/start_kb.sh` + `kb_env.sh` (idempotent restart, health/GPU/reranker post-checks, warm-up query); `/tmp/reload_backup/restore_services.sh` sources the same env.
+
+**Benchmark after fix (2026-10-13, 30 unique queries, warm):** p50 **44.0 ms** / p95 56.2 ms (normal load) — beats the 55 ms v13 baseline; under concurrent host load ≈60 (other GPU work), p50 55 ms / p95 76 ms. Stage split (normal load): BM25 3.7 · dense 17.8 · RRF 0.1 · rerank 19.3 (all p50, ms). RAM residency verified via `pg_buffercache`: `chunks` 153/153 blocks, `chunks_embedding_hnsw` 598/598 blocks resident; KB GPU footprint ~2.5–2.9 GB (`nvidia-smi`); Redis hits ~29 ms wall (curl overhead). Cold first query after restart ≈7–9 s one-time (lazy GPU model load) — subsequent queries warm.
+
+**Verify a restart is healthy:** `nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader | grep <kb_pid>` (expect ~2.5 GB), `grep -c "reranker offline fallback" /tmp/kb-logs/kb_8000.log` (expect 0), then one uncached `POST /search/api` and check `stage_ms` dense/rerank ≈20 ms each.
+
+### Optimization pass 2026-10-13 (dense leg)
+
+After the v13-RAM restart fix above, the dense leg — now the largest share (41%) — was optimized from **20.5 ms → 13.5 ms** p50 without touching quality:
+
+| Change | Dense p50 | Quality guard |
+|---|---|---|
+| In-process RAM cosine matrix replaces per-beam **pgvector SQL roundtrip** (1 encode + `(1110×384) @ (n_beam×384)`; HNSW now only at ingestion) | 20.5 → 15.1 ms | 100% top-5 overlap vs pgvector (60/60, 12 queries) |
+| All beam variants encoded in **one batched GPU call** (was 1 GPU round-trip per variant) | + | identical |
+| **fp16** encode via `model.half()` (corpus matrix stays float32; query cast back) | +2–3 ms (load) | fp16 query vs fp32 corpus, 100% overlap |
+| **Reranker score memoization**: `(query,passage)`-keyed TTL cache (600 s); repeated candidate pairs skip the forward pass | rerank repeats → ~0 ms | order identical (reranker is deterministic) |
+| `ORJSONResponse` on the search route (26 KB payloads) | ~−1 ms serialization | — |
+
+![latency v13.1](artifacts/retrieval_training/report_plots/p_latency_v13_1.png)
+
+Fresh-query p50 **39.6 ms / p95 55.0 ms** (load 61–66 from a co-tenant session; v13 README baseline 55 ms). Cached path **~5 ms** server-side (Redis exact-match, 2–7 ms, 150× vs the 2.6 s pre-RAM state). Stage split (p50, warm): BM25 2.6 · dense 13.5 · RRF 0.1 · rerank 22.0. Cold first query after restart ≈7–9 s one-time (lifespan pre-warming the models); subsequent queries warm. RAM residency unchanged: `chunks` 153/153 + HNSW 598/598 blocks in Postgres `shared_buffers` (verified via `pg_buffercache`).
+
+Not pursued (documented as future work): ONNX Runtime / TensorRT export of the BGE cross-encoder — the venv's onnxruntime has no CUDA EP, so a GPU build isn't available offline; swapping to the smaller `bge-reranker-base` or `mmarco-mMiniLM` cross-encoders would ~2× the reranker if validated against the 663-row gold funnel.
+
 ## LLM-as-judge feedback & root causes
 
 Judge corpus: `artifacts/retrieval_training/rca_judge/judge_*.md` (gold full text vs retrieved-winner full text + token-Jaccard) with group RCAs in `rca/`. Note the judge files were built pre-fix, so their gold excerpts still show the old `...` prefix and `کلیدواژه‌ها:` label — itself evidence of the pollution v11 removed.
@@ -556,6 +587,226 @@ Ranked root causes (final 663-row run): (1) true retriever misses A=25 in Compan
 - `artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl` — 663 rows with per-stage top-k (plus `.pre_cheque_rebuild.jsonl`, the 714-row OOM-episode backup)
 - `artifacts/retrieval_training/live_dashboard.py` — live funnel TUI
 - `docs/retrieval_training/RCA_v10_README.md` — consolidated RCA
+
+## Dataset — ICS Credit Scoring Knowledge Base (v13)
+
+This section documents the corpus, retrieval pipeline, model architecture, evaluation methodology, and all benchmark results.
+
+### Corpus Overview (v13_1405-07-06)
+
+| Metric | Value |
+|---|---|
+| **Version** | `v13_1405-07-06` (commit `5741927`) |
+| **Documents** | 18 |
+| **Chunks** | 1,123 |
+| **Chunk Types** | `qa_pair` 776 · `reason_detail` 198 · `body` 71 · `article` 46 · `kv_pair` 19 (+ 13 parent chunks) |
+| **Language** | Persian (Farsi) |
+| **Domain** | Iranian credit scoring (check reports, facility reports, CRM Q&A) |
+| **Source** | `kb-source` submodule (`1405-07-06` folder, full rebuild 2026-10-07) |
+| **KB DB** | PostgreSQL + pgvector (HNSW 384-d) + `shared_buffers=16GB` + `pg_prewarm` |
+
+### Knowledge Tree (Folder Hierarchy)
+
+```
+پایگاه دانش (18 docs / 1123 chunks)
+├── اشخاص حقیقی — اعتبارسنجی تسهیلات
+│   ├── بانک سوالات (Q&A) — 337 + 244 + 0 chunks
+│   ├── توضیحات تشریحی بخش‌های گزارش افراد — 37
+│   └── دلایل کاهش امتیاز — 80 + 11
+├── اشخاص حقیقی — گزارش چک
+│   ├── بانک سوالات چک — 118
+│   ├── توضیحات بخش‌های گزارش چک — 12
+│   ├── نکات قابل توجه چک — 10
+│   └── دلایل کاهش امتیاز چک — 87
+├── اشخاص حقوقی — اعتبارسنجی تسهیلات
+│   ├── رسا — بخش‌های گزارش اعتباری شرکتها — 24
+│   ├── توضیحات بخش‌های مختلف گزارش اعتباری شرکتها — 16
+│   └── دلایل کاهش امتیاز اعتباری شرکتها — 24
+└── پایگاه دانش عمومی
+    ├── معرفی شرکت اعتبارسنجی ایران — 4
+    ├── هیات مدیره — 5
+    ├── 16 کاربرد اعتبارسنجی در اقتصاد — 17
+    ├── سوالات عمومی — 81 (q/a + body)
+    └── لینک‌ها — 16
+```
+
+**Supplements (EntityList tables, not chunks):** 5 lists (report users, data providers, shareholders, loan titles, Word docs) — injected at search step 8 via cosine similarity vs `description_embedding` (threshold 0.6).
+
+### Retrieval Pipeline Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Persian Query                                 │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Query Normalize → Synonym/Beam Expansion (beam=5) → HyDE (opt)    │
+│  colloquial→formal map (93 entries) + typo corrections              │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+┌─────────────────────────┐       ┌─────────────────────────┐
+│  BM25 (Rust Tantivy)    │       │  Dense (MiniLM-L12)     │
+│  RAM 50MB heap          │       │  pgvector HNSW 384d     │
+│  Keyword×3 + char 3-gram│       │  GPU (fp16, 18 ms)      │
+│  ~4 ms                  │       │  ~14 ms (batched)       │
+└───────────┬─────────────┘       └───────────┬─────────────┘
+            │                                 │
+            └───────────────┬─────────────────┘
+                            ▼
+               ┌─────────────────────────┐
+               │  RRF Fusion (k=60)      │
+               │  merged top-100         │
+               └───────────┬─────────────┘
+                           ▼
+               ┌─────────────────────────┐
+               │  Cross-Encoder Rerank   │
+               │  BGE-v2-m3 (GPU fp16)   │
+               │  pool=100 → top-5       │
+               │  ~24 ms (memoized)      │
+               └───────────┬─────────────┘
+                           ▼
+               ┌─────────────────────────┐
+               │  Filter Path / Pin Top-3│
+               │  Final top-5 + scores   │
+               └─────────────────────────┘
+```
+
+### Model Details
+
+| Component | Model | Device | Precision | Latency (p50) |
+|---|---|---|---|---|
+| **BM25** | Tantivy (Rust) | CPU (RAM) | — | 2.6 ms |
+| **Dense Encoder** | `paraphrase-multilingual-MiniLM-L12-v2` (384-d) | GPU (cuda:0) | fp16 encode / fp32 matmul | 13.5 ms (batched beam-5) |
+| **Reranker** | `BAAI/bge-reranker-v2-m3` (568M) | GPU (cuda:1) | fp16 | 22.0 ms (memoized) |
+| **HyDE** | Off by default | — | — | — |
+
+**Key Optimizations (v13.1, 2026-10-13):**
+- In-RAM cosine matrix replaces pgvector HNSW SQL roundtrip
+- Single batched GPU encode for query + all beam variants (beam-5)
+- fp16 encode (corpus fp32, query cast back) — identical quality
+- Query embedding LRU cache (2048 entries, ~186× repeat speedup)
+- Reranker score memoization (8192 entries, 600s TTL) — repeat pairs → 0 ms
+- Single GPU sync per rerank call
+- Model prewarm in lifespan — no cold first user (was 7–9 s)
+
+### Evaluation Methodology
+
+**Gold Set:** 663 Persian QA pairs (0 errors), classified A / A′ / B / D:
+- **D success**: gold in final top-5 (617 = 93.06%)
+- **A retriever miss**: gold in neither BM25 nor dense top-100 (25 = 3.77%)
+- **A′ fusion loss**: one leg found gold, RRF dropped it (8 = 1.21%)
+- **B reranker loss**: merged top-100 → dropped from top-5 (13 = 1.96%)
+
+**Per-File Hit@5 (663 rows):**
+
+| File | n | Hit@5 | Funnel |
+|---|---|---|---|
+| Company_CRM_Questions | 332 | 0.9157 | D=304 A=14 A′=6 B=8 |
+| IndividualCRMQuestions | 179 | 0.9330 | D=167 A=7 A′=1 B=4 |
+| PublicQuestions.xlsx | 55 | 0.9273 | D=51 A=4 |
+| Individual_CRM_Questions_categorized | 10 | 0.9000 | D=9 A′=1 |
+| DisputeQuestions / EtebaritoProblems / مباحثی | 21 | 1.0000 | D=21 |
+| **ChequeQuestions** | 66 | **0.9848** | D=65 B=1 |
+
+**Stage Funnel (663 rows):**
+
+| Stage | Hit@5 | Recall@100 |
+|---|---|---|
+| BM25 | 382 (0.576) | 576 (0.869) |
+| Dense | 399 (0.602) | 552 (0.833) |
+| Merged RRF | 437 (0.659) | 630 (0.950) |
+| **Final Rerank** | **617 (0.931)** | — |
+
+### Latency Benchmarks (v13.1, 2026-10-13)
+
+**Fresh Queries (30 queries, load 61–66):**
+
+| Metric | p50 | Mean | p95 | Max |
+|---|---|---|---|---|
+| **Total** | **39.6 ms** | 41.1 ms | 55.0 ms | 86.7 ms |
+| BM25 | 2.6 ms | 3.1 ms | 5.6 ms | 13.4 ms |
+| **Dense** | **13.5 ms** | 14.8 ms | 24.2 ms | 41.7 ms |
+| RRF | 0.1 ms | 0.1 ms | 0.2 ms | 0.2 ms |
+| **Rerank** | **22.0 ms** | 25.5 ms | 33.6 ms | 44.7 ms |
+
+**Cached Path (Redis exact-match):**
+- Server-side: **2–7 ms** (150× vs cold 2.6 s)
+- Wall time (curl): ~26 ms / query
+
+**Quality Guard:** **100% top-5 overlap** (60/60 queries) between RAM-dense path and legacy pgvector path.
+
+### Benchmark Plots
+
+| Plot | Description | Path |
+|---|---|---|
+| Latency Comparison | Stage p50 bars: v13 README / before / after | `artifacts/retrieval_training/report_plots/p_latency_v13_1.png` |
+| Failure Funnel | A/A′/B/D counts | `artifacts/retrieval_training/report_plots/p_funnel.png` |
+| Stage Funnel | Per-stage Hit@5 / Recall@100 | `artifacts/retrieval_training/report_plots/p_stages.png` |
+| Per-File Hit@5 | By source file | `artifacts/retrieval_training/report_plots/p_perfile.png` |
+| Ablation (Title Removal) | Dense recall@100 0.822 → 0.962 | `artifacts/retrieval_training/report_plots/p_ablation.png` |
+| Errors (OOM) | Before vs after Cheque fix | `artifacts/retrieval_training/report_plots/p_errors.png` |
+
+**Data Files:**
+- `artifacts/retrieval_training/latency_v13_1.json` — machine-readable latency data
+- `artifacts/retrieval_training/report_metrics.json` — funnel/stage/latency summary
+- `artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl` — 663 rows with per-stage top-k
+- `artifacts/retrieval_training/cheque_eval_report.html/pdf` — full breakdown with Persian samples
+
+### Evaluation Reports
+
+- `artifacts/retrieval_training/cheque_eval_report.html` — full breakdown with Persian samples + plots (218 KB)
+- `artifacts/retrieval_training/cheque_eval_report.pdf` — plots + tables, ASCII-safe (168 KB)
+- `artifacts/retrieval_training/report_metrics.json` — machine-readable funnel/stage/latency summary
+- `artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl` — 663 rows with per-stage top-k (plus `.pre_cheque_rebuild.jsonl`, 714-row OOM backup)
+- `artifacts/retrieval_training/live_dashboard.py` — live funnel TUI
+- `docs/retrieval_training/RCA_v10_README.md` — consolidated RCA
+
+### Training / Build Process
+
+The KB is **not a trained model** but a retrieval index built from source documents:
+
+1. **Ingest** (`kb_manager.cli ingest --full`):
+   - Parse `.xlsx` / `.docx` / `.pdf` via parser registry
+   - Preprocess: clean + Persian normalization + validators
+   - Semantic chunking (max 512 / min 100 tokens, overlap 50)
+   - Quality gates + Question dedup + MinHash LSH dedup
+   - Embed via `MiniLM-L12` (GPU fp16) → npz cache + pgvector HNSW
+
+2. **Index Build** (lifespan pre-warm):
+   - Tantivy BM25 RAM index (50 MB heap, 1110 docs, ~5 ms)
+   - Dense npz fingerprint → load or rebuild
+   - Cross-encoder reranker warmup (fp16 on cuda:1)
+   - Total pre-warm: ~30–60 s first run
+
+3. **Incremental / Rebuild**:
+   - `--incremental` flag for new/changed files
+   - Fingerprint-based invalidation (model + texts + chunk types)
+   - Versioning via `versions/` snapshots
+
+### Restart Runbook (Never Regress to CPU)
+
+```bash
+# Stop
+fuser -k 8000/tcp; sleep 3
+
+# Start (with optimized env)
+KB_DB_MODE=pgvector KB_DB_URL=postgresql+asyncpg://postgres:postgres@127.0.0.1:5433/kb_manager \
+KB_EMBED_DEVICE=cuda KB_RERANKER_DEVICE=cuda KB_DENSE_BACKEND=ram \
+KB_USE_TANTIVY=true KB_FAST_CACHE=true KB_SYNONYM_BEAM=5 \
+KB_REDIS_URL=redis://127.0.0.1:16379/0 KB_REDIS_TTL=600 \
+HF_HOME=/root/.cache/huggingface HF_HUB_CACHE=/root/.cache/huggingface/hub HF_HUB_OFFLINE=1 \
+nohup /tmp/kb-venv/bin/python -m uvicorn kb_manager.web.app:app --host 0.0.0.0 --port 8000 > /tmp/kb.log 2>&1 &
+
+# Verify
+nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader | grep <pid>
+grep -c "reranker offline fallback" /tmp/kb-logs/kb_8000.log  # expect 0
+curl --noproxy "*" -X POST :8000/search/api -d '{"query":"اعتبارسنجی چیست","top_k":5}' | jq .stage_ms
+```
+
+---
 
 ## Development
 

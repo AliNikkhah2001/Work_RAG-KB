@@ -69,7 +69,12 @@ class SentenceTransformerEmbedder(BaseEmbedder):
             ) from exc
 
         logger.info("Loading sentence-transformer model %s …", self._model_name)
-        self._model = SentenceTransformer(self._model_name, device=self._device)
+        from kb_manager.model_cache import resolve_local_model_path
+
+        model_path = resolve_local_model_path(self._model_name)
+        if model_path != self._model_name:
+            logger.info("Resolved embed model %s -> %s", self._model_name, model_path)
+        self._model = SentenceTransformer(model_path, device=self._device)
 
         # Read actual dimensions from the model if not overridden.
         actual_dim = self._model.get_sentence_embedding_dimension()

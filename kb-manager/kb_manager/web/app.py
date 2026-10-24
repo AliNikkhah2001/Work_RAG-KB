@@ -58,9 +58,25 @@ async def lifespan(app: FastAPI):
 
 
 async def _prewarm_search_index():
-    """Load BM25 index + dense embeddings + cross-encoder reranker."""
+    """Load BM25 index + dense embeddings + cross-encoder reranker.
+
+    Also runs the dense/reranker warmup encodes so the GPU kernels and CUDA
+    context are live before the first user query (otherwise the first search
+    pays the lazy model load, ~7-9 s one-time).
+    """
+    import logging
+
     from kb_manager.web.routes.search import _get_index
-    await _get_index()
+
+    chunk_data, bm25_pair, dense, reranker, hyde = await _get_index()
+    for warmer, label in ((getattr(dense, "warmup", None), "dense"),
+                          (getattr(reranker, "warmup", None), "reranker")):
+        if callable(warmer):
+            try:
+                warmer()
+                logging.getLogger(__name__).info("%s model warmed up", label)
+            except Exception as exc:  # warmup is best-effort
+                logging.getLogger(__name__).warning("%s warmup failed: %s", label, exc)
 
 
 app = FastAPI(
@@ -79,6 +95,7 @@ from kb_manager.web.routes import (
     documents,
     ingestion_suite,
     kb_history,
+    metrics,
     monitoring,
     pipeline,
     search,
@@ -87,6 +104,12 @@ from kb_manager.web.routes import (
     zip_browser,
     settings,
 )  # noqa: E402
+
+# /metrics (no prefix) — Prometheus already scrapes this path.
+try:
+    app.include_router(metrics.router)
+except Exception:  # noqa: BLE001 - observability must never block startup
+    pass
 
 app.include_router(settings.router, prefix="/settings", tags=["settings"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])

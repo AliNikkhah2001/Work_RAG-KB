@@ -13,12 +13,24 @@ Supports contextual retrieval (Anthropic-style): prepend chunk context
 from __future__ import annotations
 
 import hashlib
+import logging
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
 
+from kb_manager.model_cache import resolve_local_model_path
+
 _MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+# Query-embedding LRU bounds.  Batches larger than this are treated as
+# corpus-build traffic (see build()) and bypass the cache so a full
+# re-embedding never evicts the hot query set.
+_QUERY_CACHE_MAX = 2048
+_QUERY_CACHE_MAX_BATCH = 8
+
+logger = logging.getLogger(__name__)
 
 
 class DenseSemanticIndex:
@@ -49,6 +61,11 @@ class DenseSemanticIndex:
         self._ids: list[str] = []
         self._matrix: np.ndarray | None = None  # (n, dim), L2-normalised rows
         self._model = None
+        self._fp16 = False
+        # Bounded LRU of query text -> 1-D float32 embedding (row-normalised).
+        # Plain single-threaded access from the event loop; OrderedDict
+        # move_to_end/popitem keeps it cheap without locks.
+        self._query_cache: OrderedDict[str, np.ndarray] = OrderedDict()
 
     # ------------------------------------------------------------------
     # Contextual text building
@@ -93,22 +110,99 @@ class DenseSemanticIndex:
                 "Install it with: pip install sentence-transformers"
             ) from exc
         if self._device:
-            self._model = SentenceTransformer(self._model_name, device=self._device)
+            self._model = SentenceTransformer(
+                resolve_local_model_path(self._model_name), device=self._device
+            )
         else:
-            self._model = SentenceTransformer(self._model_name)
+            self._model = SentenceTransformer(resolve_local_model_path(self._model_name))
+        # fp16 halves VRAM and speeds up the encode pass on CUDA.  Checking
+        # the *loaded* model's device (rather than self._device) also covers
+        # the auto-select path where device was left None.
+        if str(getattr(self._model.device, "type", "")) == "cuda":
+            try:
+                self._model.half()
+                self._fp16 = True
+            except Exception:  # noqa: BLE001 - keeps service alive in fp32
+                logger.warning("model.half() failed; keeping float32", exc_info=True)
         return self._model
+
+    def _model_encode(self, model, texts: list[str]) -> np.ndarray:
+        try:
+            vecs = model.encode(
+                texts,
+                batch_size=self._batch_size,
+                normalize_embeddings=True,
+                convert_to_numpy=True,
+            )
+        except Exception:  # noqa: BLE001 - fp16 revert guard
+            if not self._fp16:
+                raise
+            # half() can succeed at load time yet break encode for some
+            # pipeline combos; revert weights and retry once in float32.
+            logger.warning(
+                "encode failed with fp16 weights; reverting model to float32",
+                exc_info=True,
+            )
+            model.float()
+            self._fp16 = False
+            vecs = model.encode(
+                texts,
+                batch_size=self._batch_size,
+                normalize_embeddings=True,
+                convert_to_numpy=True,
+            )
+        # The corpus .npz is float32, so fp16-computed vectors are cast back
+        # to float32 here: this keeps the search-time matmul
+        # (matrix @ qv) dtype-homogeneous, which is both correct for numpy
+        # (mixed dtypes upcast) and faster than casting the whole corpus to
+        # fp16 for a single query dot-product.  The fp16 win is purely in the
+        # encode pass on the GPU.
+        return np.asarray(vecs, dtype=np.float32)
+
+    def _cache_get(self, text: str) -> np.ndarray | None:
+        vec = self._query_cache.get(text)
+        if vec is not None:
+            self._query_cache.move_to_end(text)  # LRU: refresh recency
+        return vec
+
+    def _cache_put(self, text: str, vec: np.ndarray) -> None:
+        # copy() so later downstream arithmetic can never mutate the cache
+        self._query_cache[text] = vec.copy()
+        self._query_cache.move_to_end(text)
+        while len(self._query_cache) > _QUERY_CACHE_MAX:
+            self._query_cache.popitem(last=False)  # evict least-recent
+
+    def warmup(self) -> None:
+        """Pre-load the model with one dummy encode at startup.
+
+        No-op when an external embed_fn is supplied or the model is already
+        loaded, so callers can call it unconditionally during lifespan
+        pre-warm.
+        """
+        if self._embed_fn is not None or self._model is not None:
+            return
+        # Goes through _model_encode (not _encode) so a broken fp16 model is
+        # detected and reverted here, and the dummy text stays out of the LRU.
+        self._model_encode(self._ensure_model(), ["warmup"])
 
     def _encode(self, texts: list[str]) -> np.ndarray:
         if self._embed_fn is not None:
             return np.asarray(self._embed_fn(texts), dtype=np.float32)
         model = self._ensure_model()
-        vecs = model.encode(
-            texts,
-            batch_size=self._batch_size,
-            normalize_embeddings=True,
-            convert_to_numpy=True,
-        )
-        return np.asarray(vecs, dtype=np.float32)
+        # LRU fast path for small (query-sized) batches: serve repeat queries
+        # from cache and only send the misses to the GPU.
+        if 1 <= len(texts) <= _QUERY_CACHE_MAX_BATCH:
+            rows: list[np.ndarray | None] = [self._cache_get(t) for t in texts]
+            miss_idx = [i for i, v in enumerate(rows) if v is None]
+            if miss_idx:
+                new_vecs = self._model_encode(model, [texts[i] for i in miss_idx])
+                if new_vecs.ndim == 1:
+                    new_vecs = new_vecs.reshape(1, -1)
+                for i, v in zip(miss_idx, new_vecs):
+                    rows[i] = v
+                    self._cache_put(texts[i], v)
+            return np.asarray(np.stack(rows), dtype=np.float32)
+        return self._model_encode(model, texts)
 
     # ------------------------------------------------------------------
     # Index construction / persistence
@@ -241,15 +335,50 @@ class DenseSemanticIndex:
             return []
         qv = qv / qn
         sims = self._matrix @ qv  # rows already normalised -> cosine
-        
+
         if allowed_ids is not None:
             # Mask out non-allowed ids by setting their similarity to -inf
             # use a simple list comprehension for boolean mask to avoid complex numpy string ops
             mask = np.array([cid not in allowed_ids for cid in self._ids])
             sims[mask] = -np.inf
-            
+
         order = np.argsort(-sims)[:top_k]
         return [(self._ids[i], float(sims[i])) for i in order if sims[i] != -np.inf]
+
+    def search_batch(
+        self,
+        queries: list[str],
+        top_k: int = 30,
+        allowed_ids: set[str] | None = None,
+    ) -> list[list[tuple[str, float]]]:
+        """Batched multi-query search: one GPU encode + one stacked matmul.
+
+        The beam-5 query path used to encode each variant separately (5 GPU
+        round-trips) — a single batched encode plus a ``(n_q, n_chunks)``
+        matmul is 3-5x faster and shares the query-embedding LRU cache.
+        Returns one ``search()``-shaped list per input query, same order.
+        """
+        if not queries:
+            return []
+        if not self.is_built:
+            return [[] for _ in queries]
+        qv = self._encode(list(queries)).astype(np.float32)  # (n_q, dim)
+        norms = np.linalg.norm(qv, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        qv = qv / norms
+        sims = qv @ self._matrix.T  # (n_q, n_chunks) cosine
+
+        if allowed_ids is not None:
+            mask = np.array([cid not in allowed_ids for cid in self._ids])
+            sims[:, mask] = -np.inf
+
+        results: list[list[tuple[str, float]]] = []
+        for row in sims:
+            order = np.argsort(-row)[:top_k]
+            results.append(
+                [(self._ids[i], float(row[i])) for i in order if row[i] != -np.inf]
+            )
+        return results
 
 
 def load_or_build(
