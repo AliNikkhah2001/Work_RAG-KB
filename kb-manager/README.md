@@ -57,13 +57,49 @@ graph LR
 graph LR
     Q[Persian query] --> QX[query enhance / expansion beam5 / reform<br/>HyDE optional, off by default]
     QX --> BM25[tantivy BM25 (Rust, RAM)<br/>keyword x3 + char 3-grams<br/>~4 ms, 50 MB heap]
-    QX --> DENSE[Dense cosine (GPU)<br/>MiniLM-L12 384d pgvector HNSW<br/>~24 ms, HBM]
+    QX --> DENSE[Dense cosine (GPU)<br/>MiniLM-L12 384d in-RAM cosine<br/>~14 ms, batched fp16]
     BM25 --> RRF[RRF fusion k=60<br/>merged top-100<br/>~0.1 ms]
     DENSE --> RRF
-    RRF --> RERANK[cross-encoder rerank (GPU)<br/>BGE-v2-m3, 100-pool<br/>~24 ms, HBM]
-    RERANK --> TOP[final top-5 + scores<br/>~55 ms total]
+    RRF --> RERANK[cross-encoder rerank (GPU)<br/>BGE-v2-m3, 100-pool<br/>~24 ms, memoized]
+    RERANK --> TOP[final top-5 + scores<br/>~40 ms total]
     Q -.->|cache lookup / store<br/>TTL 600 s, 2-7 ms hits<br/>errors never cached| RC[(Redis + in-memory<br/>KB_REDIS_URL)]
-    PG[(Postgres pgvector<br/>16GB shared_buffers<br/>800GB effective_cache<br/>pg_prewarm RAM)] -.-> DENSE
+```
+
+### Query Classification & Ambiguity Resolution (v13.1)
+
+The pipeline now includes a **3-way LLM classifier** (`nodes/classify.py`) that routes every query into one of three categories before retrieval, plus an **Mizan System-1 + Gemma hybrid ambiguity resolver** (`mizan.py` + `mizan.py:234-280`) for subspace routing:
+
+```mermaid
+flowchart TD
+    Q[Persian query] --> CLASSIFY[3-way LLM classifier<br/>greeting / specification / question]
+    CLASSIFY -->|greeting| GREET[return greeting<br/>no retrieval]
+    CLASSIFY -->|specification| SPEC[extract subspace<br/>cheque/facilities_person/legal/general]
+    CLASSIFY -->|question| T5[is_scattered_ambiguous?]
+    T5 -->|no| RETRIEVE[retrieve + rerank]
+    T5 -->|yes| AMBIG[Mizan System-1<br/>subspace routing + ambiguous flag]
+    AMBIG -->|confident| RETRIEVE
+    AMBIG -->|ambiguous| CLARIFY[ask clarifying question<br/>چک / تسهیلات / شرکت / عمومی]
+    CLARIFY --> SPEC
+    SPEC --> RETRIEVE
+```
+
+**Classification categories:**
+- **greeting**: سلام، تشکر، خداحافظی — no KB lookup
+- **specification**: user names a subspace (چک، تسهیلات، شرکت، عمومی) — locks subspace
+- **question**: real query needing retrieval — passes to ambiguity resolver
+
+**Ambiguity resolver (Mizan System-1 + Gemma hybrid):**
+- **Mizan System-1** (`mizan.py:234-280`): calibrated subspace routing with choice probabilities + ambiguous flag
+- **Gemma LLM** (`infer_specification.py`): scattered detection + clarifying question generation
+- **Fallback**: heuristic keyword-based subspace detection when LLMs unavailable
+
+```mermaid
+flowchart LR
+    Q[Question] --> MIZAN[Mizan System-1<br/>subspace routing + ambiguous flag]
+    MIZAN -->|confident| ROUTE[route to subspace]
+    MIZAN -->|ambiguous| GEMMA[Gemma LLM<br/>scattered detection]
+    GEMMA -->|scattered| CLARIFY[ask clarification]
+    GEMMA -->|not scattered| ROUTE
 ```
 
 ### Knowledge tree — `folder_hierarchy` + supplements (`v13_1405-07-06` → 18 docs / 1,123 chunks)
@@ -785,6 +821,122 @@ The KB is **not a trained model** but a retrieval index built from source docume
    - `--incremental` flag for new/changed files
    - Fingerprint-based invalidation (model + texts + chunk types)
    - Versioning via `versions/` snapshots
+
+---
+
+## Ambiguity Resolver & Classifier Evaluation (v13.1)
+
+The ambiguity resolution system uses a **hybrid Mizan System-1 + Gemma LLM** approach with a trained SVM-RBF classifier on 7-dimensional subspace features.
+
+### Architecture: Mizan System-1 + Gemma Hybrid Resolver
+
+```mermaid
+flowchart TD
+    Q[User Query] --> CLASSIFY[3-way LLM Classifier<br/>greeting / specification / question]
+    CLASSIFY -->|greeting| GREET[Return greeting<br/>no retrieval]
+    CLASSIFY -->|specification| SPEC[Extract subspace label<br/>cheque/facilities_person/legal/general]
+    CLASSIFY -->|question| T5[is_scattered_ambiguous?]
+    T5 -->|no| RETRIEVE[Retrieve + rerank]
+    T5 -->|yes| MIZAN[Mizan System-1<br/>subspace routing + ambiguous flag]
+    MIZAN -->|confident| ROUTE[Route to subspace]
+    MIZAN -->|ambiguous| GEMMA[Gemma LLM<br/>scattered detection + clarify]
+    GEMMA -->|scattered| CLARIFY[Ask clarification<br/>چک / تسهیلات / شرکت / عمومی]
+    GEMMA -->|not scattered| ROUTE
+    ROUTE --> RETRIEVE[Retrieve with subspace]
+```
+
+**Components:**
+- **3-way LLM Classifier** (`nodes/classify.py`): greeting / specification / question
+- **Mizan System-1** (`mizan.py:234-280`): calibrated subspace routing with choice probabilities + ambiguous flag via `/v1/systemone`
+- **Gemma LLM** (`infer_specification.py`): scattered detection + clarifying question generation
+- **Trained SVM-RBF Classifier** (`train_eval_ambiguity.py`): 7-dim subspace features → ambiguity binary decision
+- **Fallback**: heuristic keyword-based when LLMs unavailable
+
+### Classifier Training & Evaluation
+
+**Dataset Construction** (`scripts/build_ambiguity_dataset.py`):
+- 800 real KB questions extracted from `qa_pair` chunks with ground-truth subspace labels
+- 200 ambiguous questions generated via cross-subspace mixing, negation patterns, aliases
+- Total 1000 samples (800 per-subspace × 4 + 200 ambiguous) → 80/10/10 train/test/eval split
+- Judge: Gemma 4-31B validates each sample for subspace membership / ambiguity
+
+**Feature Engineering** (`build_subspace_protos.py`):
+- 7-dimensional subspace features: 4 cosine similarities to subspace prototypes + margin + top1 + entropy
+- Extracted via MiniLM-L12 (384-d) → cosine similarity to 4 subspace prototypes
+- Interpretable, computationally efficient (no raw embeddings)
+
+### Trained Classifier Performance (svm_rbf — Best Model)
+
+| Metric | Value (Eval Set) |
+|---|---|
+| **Multiclass Balanced Accuracy** | **0.7006** |
+| **Binary Balanced Accuracy (Ambiguous vs Non)** | **0.7804** |
+| **Binary F1 (Ambiguous)** | 0.6190 |
+| **Binary ROC-AUC** | 0.4211 |
+
+**Model Comparison (Eval Set):**
+
+| Model | Multiclass Bal Acc | Binary Bal Acc | Binary F1 |
+|---|---|---|---|
+| **svm_rbf** | **0.7006** | **0.7804** | **0.6190** |
+| lr | 0.6835 | 0.7680 | 0.5909 |
+| svm_linear | 0.6585 | 0.7804 | 0.6190 |
+| mlp | 0.6560 | 0.7417 | 0.5581 |
+| rf | 0.6292 | 0.7277 | 0.5500 |
+
+### Classifier Evaluation Plots
+
+| Plot | Description | Path |
+|---|---|---|
+| Confusion Matrix | 5-class confusion matrix (eval set) | `components/orchestrator/data/model_eval/plots/confusion_matrices.png` |
+| Model Comparison | Eval set balanced accuracy comparison | `components/orchestrator/data/model_eval/plots/model_comparison_eval.png` |
+| Learning Curves | Test balanced accuracy vs train size | `components/orchestrator/data/model_eval/plots/learning_curves.png` |
+| Learning Curves (Balanced) | Balanced accuracy learning curves | `components/orchestrator/data/model_eval/plots/learning_curves_test_bal.png` |
+| CV vs Eval | Cross-validation vs eval balanced accuracy | `components/orchestrator/data/model_eval/plots/cv_vs_eval.png` |
+| Per-Class F1 | Per-class F1 scores by model | `components/orchestrator/data/model_eval/plots/per_class_f1.png` |
+
+**Confusion Matrix (Best Model: svm_rbf, Eval Set):**
+
+| | ambiguous | cheque | facilities_legal | facilities_person | general |
+|---|---|---|---|---|---|
+| **ambiguous** | 13 | 1 | 0 | 1 | 4 |
+| **cheque** | 1 | 22 | 0 | 0 | 0 |
+| **facilities_legal** | 1 | 2 | 5 | 1 | 2 |
+| **facilities_person** | 5 | 1 | 0 | 15 | 3 |
+| **general** | 3 | 0 | 1 | 1 | 18 |
+
+**Per-Class F1 (svm_rbf):**
+- cheque: 0.8980 (support 23)
+- facilities_person: 0.7143 (support 24)
+- general: 0.7200 (support 23)
+- ambiguous: 0.6190 (support 19)
+- facilities_legal: 0.5882 (support 11)
+
+### Classifier Integration in Pipeline
+
+The trained `svm_rbf` model is serialized to `data/model_eval/best_ambiguity_model.joblib` and loaded at runtime. It operates on the 7-dim subspace features extracted from query embeddings, providing a fast (~1 ms) ambiguity decision that complements the Mizan+Gemma resolver:
+
+```python
+# Inference path (nodes/classify.py → mizan.py → train_eval_ambiguity.py)
+query → MiniLM-L12 embed → 7-dim subspace features → SVM-RBF → ambiguous? → Mizan/Gemma resolver
+```
+
+### Classifier Training Artifacts
+
+- **Best model:** `components/orchestrator/data/model_eval/best_ambiguity_model.joblib` (svm_rbf, eval bal acc 0.7006)
+- **Evaluation report:** `components/orchestrator/data/model_eval/evaluation_report.md`
+- **Results JSON:** `components/orchestrator/data/model_eval/evaluation_results.json`
+- **Plots:** `components/orchestrator/data/model_eval/plots/*.png`
+
+### Key Findings (from `evaluation_report.md`)
+
+1. **Best model:** `svm_rbf` (eval balanced accuracy 0.7006)
+2. **Binary classification:** `svm_linear` / `svm_rbf` tied at 0.7804 balanced accuracy
+3. **Overfitting check:** All models show minimal overfitting (CV vs Eval diff < 0.05)
+4. **Feature efficiency:** 7-dim subspace features achieve 70% balanced accuracy with only 7 interpretable features
+5. **Data efficiency:** Learning curves show diminishing returns after ~400 samples
+
+---
 
 ### Restart Runbook (Never Regress to CPU)
 
