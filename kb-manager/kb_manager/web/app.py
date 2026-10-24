@@ -69,6 +69,12 @@ async def _prewarm_search_index():
     from kb_manager.web.routes.search import _get_index
 
     chunk_data, bm25_pair, dense, reranker, hyde = await _get_index()
+    if not chunk_data:
+        log.error(
+            "Search index is EMPTY (0 chunks); retrieval will return nothing. "
+            "Check KB_DB_URL / KB_DB_MODE (sqlite fallback is likely pointing at an empty DB)."
+        )
+        return
     for warmer, label in ((getattr(dense, "warmup", None), "dense"),
                           (getattr(reranker, "warmup", None), "reranker")):
         if callable(warmer):

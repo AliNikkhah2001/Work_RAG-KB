@@ -1,0 +1,1280 @@
+"""Search / query testing routes with step-by-step transparency."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
+import logging
+import math
+import os
+import re
+import time
+from collections import Counter
+from typing import TYPE_CHECKING
+
+import numpy as np
+
+from fastapi import APIRouter, Query, Request
+from pydantic import BaseModel
+from sqlalchemy import select
+
+from kb_manager.config import PROJECT_ROOT
+from kb_manager.settings import load_settings
+from kb_manager.dense import DenseSemanticIndex, load_or_build
+try:
+    from kb_manager.hyde import HyDEGenerator
+except ImportError:
+    try:
+        from kb_manager.query_reform import HyDEGenerator
+    except ImportError:
+        HyDEGenerator = None  # type: ignore[assignment]
+
+from kb_manager.reranker import (
+    CrossEncoderReranker,
+    get_rerank_pool,
+    get_reranker,
+    get_reranker_model_name,
+)
+
+# Rust tantivy BM25 (RAM-resident, ~50x faster than Python BM25)
+try:
+    from kb_manager.tantivy_bm25 import TantivyBM25  # type: ignore
+
+    _HAS_TANTIVY = True
+except Exception as _e:  # pragma: no cover
+    TantivyBM25 = None  # type: ignore
+    _HAS_TANTIVY = False
+    _TANTIVY_IMPORT_ERROR = str(_e)
+else:
+    _TANTIVY_IMPORT_ERROR = ""
+
+_USE_TANTIVY = os.getenv("KB_USE_TANTIVY", "true").lower() in ("1", "true", "yes", "on") and _HAS_TANTIVY
+# Force visible startup log (uvicorn captures print)
+print(f"[search] tantivy HAS={_HAS_TANTIVY} USE={_USE_TANTIVY} err={_TANTIVY_IMPORT_ERROR!r} beam={os.getenv('KB_SYNONYM_BEAM','5')}")
+
+# query expansion (Phase 11: synonym + multi-query beam5)
+_SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+_SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
+
+# keyword heuristic boost – tunable via env, also per-request override
+_KEYWORD_BOOST_DEFAULT = load_settings().keyword_boost
+
+# rerank/RRF score fusion weight – tunable via env (restart required)
+_RERANK_FUSION_ALPHA = float(os.getenv("KB_RERANK_FUSION_ALPHA", "0.7"))
+
+# ---------------------------------------------------------------------------
+# Redis cache for POST /search/api (TTL 600s, key = hash(normalized+top_k))
+# ---------------------------------------------------------------------------
+_REDIS_URL = os.getenv("KB_REDIS_URL", "redis://127.0.0.1:16379/0")
+_REDIS_TTL = int(os.getenv("KB_REDIS_TTL", "600"))
+_REDIS_ENABLED = os.getenv("KB_REDIS_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+_REDIS_CONNECT_TIMEOUT = float(os.getenv("KB_REDIS_CONNECT_TIMEOUT", "1.0"))
+_redis_client = None  # type: ignore[var-annotated]
+_redis_init_tried = False
+_mem_cache: dict[str, tuple[float, dict]] = {}  # key -> (expire_ts, value)
+_log = logging.getLogger(__name__)
+
+
+def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None, filter_path: str | None = None) -> str:
+    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost | filter_path)."""
+    # include keyword_boost so different boosts don't collide (preserves accuracy)
+    kb = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
+    try:
+        kb = float(kb)
+    except Exception:
+        kb = _KEYWORD_BOOST_DEFAULT
+    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}|{filter_path or ''}"
+    h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+    return f"kb:search:{h}"
+
+
+async def _get_redis():
+    """Lazy singleton redis.asyncio client. Returns None if unavailable/disabled."""
+    global _redis_client, _redis_init_tried
+    if not _REDIS_ENABLED:
+        return None
+    if _redis_client is not None:
+        return _redis_client
+    if _redis_init_tried and _redis_client is None:
+        # already failed once — still try to re-connect but don't spam logs; use short timeout
+        pass
+    _redis_init_tried = True
+    try:
+        import redis.asyncio as redis_async  # type: ignore[import-not-found]
+
+        client = redis_async.from_url(
+            _REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=_REDIS_CONNECT_TIMEOUT,
+            socket_timeout=_REDIS_CONNECT_TIMEOUT,
+        )
+        # probe connectivity; fail fast so we can fall back to mem cache
+        await client.ping()
+        _redis_client = client
+        _log.info("Redis cache enabled at %s (TTL %ss)", _REDIS_URL, _REDIS_TTL)
+        return _redis_client
+    except Exception as e:
+        _log.warning("Redis unavailable (%s) — falling back to in-memory cache: %s", _REDIS_URL, e)
+        _redis_client = None
+        return None
+
+
+async def _cache_get(key: str) -> dict | None:
+    """Try Redis, then in-memory dict. Never raises — returns None on miss/error."""
+    # 1) Redis
+    try:
+        r = await _get_redis()
+        if r is not None:
+            raw = await r.get(key)
+            if raw is not None:
+                try:
+                    return json.loads(raw)
+                except Exception:
+                    # corrupted entry — treat as miss
+                    return None
+            # redis miss → check mem as well
+    except Exception as e:
+        _log.debug("Redis GET failed for %s: %s", key, e)
+    # 2) in-memory fallback (also used when Redis is down)
+    try:
+        entry = _mem_cache.get(key)
+        if entry is not None:
+            exp, val = entry
+            if time.monotonic() < exp:
+                return val
+            else:
+                # expired
+                _mem_cache.pop(key, None)
+    except Exception:
+        pass
+    return None
+
+
+async def _cache_set(key: str, value: dict, ttl: int = 600) -> None:
+    """Store in Redis (if available) and always in mem cache. Never raises."""
+    # keep mem cache regardless — guarantees fallback when Redis is down
+    try:
+        _mem_cache[key] = (time.monotonic() + ttl, value)
+        # opportunistic eviction of expired entries
+        if len(_mem_cache) > 512:
+            now = time.monotonic()
+            for k, (exp, _) in list(_mem_cache.items()):
+                if now >= exp:
+                    _mem_cache.pop(k, None)
+    except Exception:
+        pass
+    try:
+        r = await _get_redis()
+        if r is not None:
+            raw = json.dumps(value, ensure_ascii=False)
+            await r.setex(key, ttl, raw)
+    except Exception as e:
+        _log.debug("Redis SET failed for %s: %s", key, e)
+
+if TYPE_CHECKING:
+    pass
+
+router = APIRouter()
+
+_DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
+_DENSE_MODEL = os.getenv("KB_EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+if _DENSE_MODEL == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" and os.path.exists("/splunk-data/v1/Work_RAG-Server-Setup/offline-prep/models/huggingface/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2"):
+    _DENSE_MODEL = "/splunk-data/v1/Work_RAG-Server-Setup/offline-prep/models/huggingface/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2"
+# Reranker model (KB_RERANKER_MODEL-aware helper below) + pool size – tunable via env (restart required)
+_RERANKER_MODEL = os.getenv(
+    "KB_RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"
+)
+_RERANKER_TOP_K = int(os.getenv("KB_RERANKER_TOP_K", "100"))  # rerank candidates (was 50, raised for Q11/12 recall)
+
+
+def _get_reranker_model() -> str:
+    """Re-read KB_RERANKER_MODEL so tests/runtime overrides apply."""
+    return get_reranker_model_name()
+
+
+def _get_rerank_pool() -> int:
+    """Re-read KB_RERANK_POOL so tests/runtime overrides apply."""
+    return get_rerank_pool()
+
+
+def _get_device_config():
+    """Get device from config (env KB_EMBED_DEVICE / KB_RERANKER_DEVICE)."""
+    try:
+        from kb_manager.config import load_config
+        cfg = load_config()
+        return cfg.embedding.device, cfg.embedding.reranker_device
+    except Exception:
+        return "cpu", "cpu"
+
+# HyDE configuration (disabled by default; set KB_HYDE_ENABLED=true to enable)
+_HYDE_ENABLED = os.getenv("KB_HYDE_ENABLED", "false").lower() == "true"
+_HYDE_LLM_MODEL = os.getenv("KB_HYDE_LLM", "gpt-4o-mini")
+_HYDE_LLM_API_KEY = os.getenv("KB_HYDE_API_KEY", os.getenv("OPENAI_API_KEY", ""))
+_HYDE_LLM_BASE_URL = os.getenv("KB_HYDE_BASE_URL", os.getenv("OPENAI_BASE_URL", ""))
+
+# Persian char map — now delegates to regex_persian central source
+from kb_manager.preprocessor.regex_persian import ARABIC_TO_PERSIAN_MAP as _BASE_MAP
+
+_PERSIAN_CHAR_MAP = {
+    **_BASE_MAP,
+    "\u0622": "\u0622",  # آ keep (search preserves آ vs normalizer)
+    "\u200c": " ",  # ZWNJ -> space for tokenization
+    "\u0660": "0", "\u0661": "1", "\u0662": "2", "\u0663": "3", "\u0664": "4",
+    "\u0665": "5", "\u0666": "6", "\u0667": "7", "\u0668": "8", "\u0669": "9",
+    "\u06f0": "0", "\u06f1": "1", "\u06f2": "2", "\u06f3": "3", "\u06f4": "4",
+    "\u06f5": "5", "\u06f6": "6", "\u06f7": "7", "\u06f8": "8", "\u06f9": "9",
+}
+
+_PERSIAN_TRANSLATE_TABLE = str.maketrans(_PERSIAN_CHAR_MAP)
+
+
+# ---------------------------------------------------------------------------
+# Simple Persian-aware tokenizer
+# ---------------------------------------------------------------------------
+
+_STOPWORDS = frozenset(
+    "از در به و با برای که این آن را شد است هستند بودند می باشد می شود "
+    "می گردد می کند هر دو آیا یا اگر ولی تا باشد بر اساس طبق طریق "
+    "نیز همچنین نیز درباره بین توسط مانند مثل طی خود کنید گردد "
+    "باید یک یکی شود گردد را ندارد نمی کنند می شوند می باشند "
+    "the a an is are was were be been am does do did have has had "
+    "in on at to for of and or but not no so if it its this that "
+    "can will would should could may might shall".split()
+)
+
+
+def _expand_query_for_bm25(query: str) -> list[str]:
+    """Return beam queries for keyword_only robustness (synonym+soundex)."""
+    if not _SYNONYM_ENABLED:
+        return [query]
+    try:
+        from kb_manager.query_expansion import generate_multi_queries
+
+        return generate_multi_queries(query, beam=_SYNONYM_BEAM)
+    except Exception:
+        return [query]
+
+
+def _tokenize(text: str) -> list[str]:
+    """Tokenize text into lowercase words + Persian char 3-grams, removing stopwords."""
+    from kb_manager.preprocessor.regex_persian import DIACRITICS_RE, TOKEN_RE
+
+    text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
+    text = DIACRITICS_RE.sub("", text)  # parsitext: strip harakat before tokenize
+    word_tokens = TOKEN_RE.findall(text)
+    word_tokens = [t for t in word_tokens if t not in _STOPWORDS and len(t) > 1]
+
+    # Generate Persian character 3-grams for typo/orthographic robustness
+    # Only for tokens containing Persian/Arabic characters
+    char_ngrams = []
+    for token in word_tokens:
+        if any('\u0600' <= ch <= '\u06FF' for ch in token):
+            # Generate 3-grams
+            for i in range(len(token) - 2):
+                char_ngrams.append(token[i:i+3])
+
+    # Combine word tokens + char n-grams
+    return word_tokens + char_ngrams
+
+
+# ---------------------------------------------------------------------------
+# BM25 implementation
+# ---------------------------------------------------------------------------
+
+class BM25:
+    """Okapi BM25 ranking."""
+
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        self.k1 = k1
+        self.b = b
+        self.doc_count = 0
+        self.avg_dl = 0.0
+        self.doc_freqs: dict[str, int] = {}
+        self.doc_lens: list[int] = []
+        self.doc_ids: list[str] = []
+        self.tokens_per_doc: list[list[str]] = []
+
+    def index(self, documents: list[tuple[str, str]]) -> None:
+        """Index (doc_id, content) pairs."""
+        self.doc_ids = []
+        self.tokens_per_doc = []
+        self.doc_lens = []
+        all_df: dict[str, int] = {}
+
+        for doc_id, content in documents:
+            tokens = _tokenize(content)
+            self.doc_ids.append(doc_id)
+            self.tokens_per_doc.append(tokens)
+            self.doc_lens.append(len(tokens))
+            seen: set[str] = set()
+            for t in tokens:
+                if t not in seen:
+                    all_df[t] = all_df.get(t, 0) + 1
+                    seen.add(t)
+
+        self.doc_count = len(self.doc_ids)
+        self.avg_dl = sum(self.doc_lens) / max(self.doc_count, 1)
+        self.doc_freqs = all_df
+
+    def _idf(self, term: str) -> float:
+        df = self.doc_freqs.get(term, 0)
+        return math.log((self.doc_count - df + 0.5) / (df + 0.5) + 1.0)
+
+    def score(self, query_tokens: list[str], doc_idx: int) -> float:
+        tokens = self.tokens_per_doc[doc_idx]
+        dl = self.doc_lens[doc_idx]
+        tf_map: dict[str, int] = Counter(tokens)
+        score = 0.0
+        for qt in query_tokens:
+            tf = tf_map.get(qt, 0)
+            idf = self._idf(qt)
+            num = tf * (self.k1 + 1)
+            den = tf + self.k1 * (1 - self.b + self.b * dl / max(self.avg_dl, 1))
+            score += idf * num / den
+        return score
+
+    def search(self, query: str, top_k: int = 20, allowed_ids: set[str] | None = None) -> list[tuple[str, float]]:
+        q_tokens = _tokenize(query)
+        if not q_tokens or self.doc_count == 0:
+            return []
+        if allowed_ids is not None:
+            scored = [(self.doc_ids[i], self.score(q_tokens, i)) for i in range(self.doc_count) if self.doc_ids[i] in allowed_ids]
+        else:
+            scored = [(self.doc_ids[i], self.score(q_tokens, i)) for i in range(self.doc_count)]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored[:top_k]
+
+
+# ---------------------------------------------------------------------------
+# Simple cosine similarity (TF-IDF)
+# ---------------------------------------------------------------------------
+
+def _tfidf_vector(tokens: list[str], idf: dict[str, float]) -> dict[str, float]:
+    tf_map: Counter = Counter(tokens)
+    total = max(len(tokens), 1)
+    return {t: (c / total) * idf.get(t, 1.0) for t, c in tf_map.items()}
+
+
+def _cosine_sim(v1: dict[str, float], v2: dict[str, float]) -> float:
+    if not v1 or not v2:
+        return 0.0
+    common = set(v1) & set(v2)
+    dot = sum(v1[k] * v2[k] for k in common)
+    mag1 = math.sqrt(sum(v ** 2 for v in v1.values()))
+    mag2 = math.sqrt(sum(v ** 2 for v in v2.values()))
+    if mag1 == 0 or mag2 == 0:
+        return 0.0
+    return dot / (mag1 * mag2)
+
+
+# ---------------------------------------------------------------------------
+# Search API
+# ---------------------------------------------------------------------------
+
+class SearchResult(BaseModel):
+    chunk_id: str
+    doc_id: str
+    doc_title: str
+    heading_path: str
+    folder_hierarchy: list[str] = []
+    content_preview: str
+    bm25_score: float = 0.0
+    semantic_score: float = 0.0
+    dense_score: float = 0.0
+    hybrid_score: float = 0.0
+    rerank_score: float = 0.0
+    ordinal: int = 0
+
+
+class SearchSteps(BaseModel):
+    query: str
+    normalized_query: str
+    tokens: list[str]
+    total_chunks_indexed: int
+    bm25_results: list[SearchResult]
+    semantic_results: list[SearchResult]
+    dense_results: list[SearchResult]
+    merged_candidates: list[SearchResult]
+    final_results: list[SearchResult]
+    injected_entities: list[dict] = []
+    elapsed_ms: float
+    rerank_ms: float = 0.0
+    # Per-stage breakdown (ms) for transparency diagram + analytics
+    stage_ms: dict[str, float] = {}
+    config: dict = {}
+
+
+async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int, list[str]]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+    """Load all chunks + docs and build BM25 + dense indexes + reranker + HyDE."""
+    from kb_manager.models.database import Chunk, Document, EntityList
+    from kb_manager.web.deps import db
+
+    async with db.session() as session:
+        result = await session.execute(
+            select(Chunk).where(~Chunk.chunk_type.like("%_parent"))
+        )
+        all_chunks = result.scalars().all()
+
+        doc_ids = list({c.document_id for c in all_chunks})
+        docs_result = await session.execute(
+            select(Document).where(Document.id.in_(doc_ids))
+        )
+        doc_map = {d.id: d for d in docs_result.scalars().all()}
+
+    docs_for_bm25_content = []
+    docs_for_bm25_kw = []
+    chunk_data: list[tuple[str, str, str, str, str, str, int, list[str]]] = []
+    dense_titles = []
+    dense_headings = []
+    dense_chunk_types = []
+    for c in all_chunks:
+        doc = doc_map.get(c.document_id)
+        title = doc.title if doc else "Unknown"
+        keyword_text = " ".join(c.keywords) if c.keywords else ""
+        # F10 fix: separate BM25 indexes for content and keywords (no length-penalized duplication)
+        docs_for_bm25_content.append((c.id, c.content))
+        docs_for_bm25_kw.append((c.id, keyword_text))
+        hierarchy = doc_map[c.document_id].doc_metadata.get("folder_hierarchy", [])
+        chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type, c.ordinal, hierarchy))
+        dense_titles.append(title)
+        dense_headings.append(c.heading_path)
+        dense_chunk_types.append(c.chunk_type)
+
+    # RAM-first: tantivy (Rust) if available, else Python fallback
+    if _USE_TANTIVY:
+        print(f"[search] building tantivy indexes {len(docs_for_bm25_content)}/{len(docs_for_bm25_kw)} docs (RAM)")
+        bm25_content = TantivyBM25()  # type: ignore
+        bm25_content.index(docs_for_bm25_content)
+        bm25_kw = TantivyBM25()  # type: ignore
+        bm25_kw.index(docs_for_bm25_kw)
+        print(f"[search] BM25 backend: tantivy (Rust, RAM, heap 50MB) {len(docs_for_bm25_content)}/{len(docs_for_bm25_kw)} docs")
+        _log.warning("BM25 backend: tantivy (Rust, RAM, heap 50MB) %d/%d docs", len(docs_for_bm25_content), len(docs_for_bm25_kw))
+    else:
+        print(f"[search] BM25 backend: python (fallback) HAS={_HAS_TANTIVY} USE={_USE_TANTIVY}")
+        bm25_content = BM25()
+        bm25_content.index(docs_for_bm25_content)
+        bm25_kw = BM25()
+        bm25_kw.index(docs_for_bm25_kw)
+        _log.warning("BM25 backend: python (fallback) HAS=%s USE=%s err=%r", _HAS_TANTIVY, _USE_TANTIVY, _TANTIVY_IMPORT_ERROR)
+    # Keep combined tuple for backward compat; search will use weighted sum
+    bm25 = (bm25_content, bm25_kw)  # type: ignore
+
+    dense_texts = [cd[4] for cd in chunk_data]
+    dense_ids = [cd[0] for cd in chunk_data]
+    _embed_device, _rerank_device = _get_device_config()
+    dense = load_or_build(
+        _DENSE_CACHE_PATH,
+        dense_ids,
+        dense_texts,
+        titles=dense_titles,
+        headings=dense_headings,
+        chunk_types=dense_chunk_types,
+        model_name=_DENSE_MODEL,
+        device=_embed_device,
+        use_context=False,
+    )
+
+    reranker = get_reranker(model_name=_get_reranker_model(), device=_rerank_device)
+
+    # HyDE: optional LLM-based hypothetical document generation
+    hyde = None
+    if _HYDE_ENABLED and _HYDE_LLM_API_KEY:
+        hyde = HyDEGenerator(
+            llm_model=_HYDE_LLM_MODEL,
+            llm_api_key=_HYDE_LLM_API_KEY,
+            llm_base_url=_HYDE_LLM_BASE_URL,
+            embedding_model=_DENSE_MODEL,
+        )
+
+    return chunk_data, bm25, dense, reranker, hyde
+
+
+_index_cache: tuple[list[tuple[str, str, str, str, str, str, int, list[str]]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None] | None = None
+_index_cache_count: int = 0
+_index_cache_fp: str | None = None
+_index_lock = asyncio.Lock()
+
+
+def _invalidate_index_cache() -> None:
+    """Drop the cached index so the next search rebuilds it."""
+    global _index_cache, _index_cache_count, _index_cache_fp
+    _index_cache = None
+    _index_cache_count = 0
+    _index_cache_fp = None
+
+
+async def _get_index() -> tuple[list[tuple[str, str, str, str, str, str, int, list[str]]], tuple[BM25, BM25], DenseSemanticIndex, CrossEncoderReranker, HyDEGenerator | None]:
+    """Return the cached index, building it on first use (thread-safe, F5 fix)."""
+    global _index_cache, _index_cache_count, _index_cache_fp
+
+    from sqlalchemy import func, select
+
+    from kb_manager.models.database import Chunk, Document, EntityList
+    from kb_manager.web.deps import db
+    from kb_manager.settings import load_settings
+    from kb_manager.dense import DenseSemanticIndex
+
+    async with db.session() as session:
+        chunk_count = (await session.execute(
+            select(func.count(Chunk.id)).where(~Chunk.chunk_type.like("%_parent"))
+        )).scalar_one()
+
+    # RAM-first fast cache: trust count, skip heavy fingerprint scan on hot path.
+    # This removes the 2.7s per-search fingerprint (full SELECT + hash) that dominated BM25 stage.
+    # Same-count content changes are handled by explicit invalidation after ingestion (restart or POST /invalidate).
+    _FAST_CACHE = os.getenv("KB_FAST_CACHE", "true").lower() in ("1", "true", "yes", "on")
+    if _FAST_CACHE and _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+        return _index_cache
+
+    # Slow path: fingerprint check for same-count content change (F5) – only when FAST_CACHE off
+    if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+        # Compute current fingerprint via lightweight DB scan to detect stale cache
+        async with db.session() as session:
+            result = await session.execute(select(Chunk).where(~Chunk.chunk_type.like("%_parent")))
+            all_chunks = result.scalars().all()
+            if len(all_chunks) == chunk_count:
+                doc_ids = list({c.document_id for c in all_chunks})
+                docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+                doc_map = {d.id: d for d in docs_result.scalars().all()}
+                texts = [c.content for c in all_chunks]
+                titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
+                headings = [c.heading_path for c in all_chunks]
+                ctypes = [c.chunk_type for c in all_chunks]
+                cur_fp = DenseSemanticIndex.fingerprint(texts, [c.id for c in all_chunks], titles, headings, ctypes, _DENSE_MODEL, False)
+                if cur_fp == _index_cache_fp:
+                    return _index_cache
+                # fingerprint mismatch → stale, fall through to rebuild
+            # else count actually changed → rebuild
+
+    async with _index_lock:
+        # Double-check after acquiring lock (fast path again)
+        if _FAST_CACHE and _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+            return _index_cache
+        if _index_cache is not None and _index_cache_count == chunk_count and _index_cache_fp is not None:
+            # Re-check fingerprint under lock to avoid race
+            async with db.session() as session:
+                result = await session.execute(select(Chunk).where(~Chunk.chunk_type.like("%_parent")))
+                all_chunks = result.scalars().all()
+                if len(all_chunks) == chunk_count:
+                    doc_ids = list({c.document_id for c in all_chunks})
+                    docs_result = await session.execute(select(Document).where(Document.id.in_(doc_ids)))
+                    doc_map = {d.id: d for d in docs_result.scalars().all()}
+                    texts = [c.content for c in all_chunks]
+                    titles = [doc_map.get(c.document_id).title if doc_map.get(c.document_id) else "" for c in all_chunks]
+                    headings = [c.heading_path for c in all_chunks]
+                    ctypes = [c.chunk_type for c in all_chunks]
+                    cur_fp = DenseSemanticIndex.fingerprint(texts, [c.id for c in all_chunks], titles, headings, ctypes, _DENSE_MODEL, False)
+                    if cur_fp == _index_cache_fp:
+                        return _index_cache
+        chunk_data, bm25, dense, reranker, hyde = await _build_index()
+        # Compute and store fingerprint for future same-count checks
+        texts = [cd[4] for cd in chunk_data]
+        titles = [cd[2] for cd in chunk_data]
+        headings = [cd[3] for cd in chunk_data]
+        ctypes = [cd[5] for cd in chunk_data]
+        cur_fp = DenseSemanticIndex.fingerprint(texts, [cd[0] for cd in chunk_data], titles, headings, ctypes, _DENSE_MODEL, False)
+        _index_cache = (chunk_data, bm25, dense, reranker, hyde)
+        _index_cache_count = chunk_count
+        _index_cache_fp = cur_fp
+        return _index_cache
+
+
+async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None, filter_path: str | None = None) -> SearchSteps:
+    """Run full search pipeline with step tracking.
+
+    Pipeline: BM25 + Dense + [HyDE] → RRF → Cross-encoder reranker
+    HyDE is optional: only runs when KB_HYDE_ENABLED=true and API key is set.
+    keyword_boost: tunable weight for keyword BM25 field (default env KB_KEYWORD_BOOST=3.0)
+    stage_depth: how many ranked items to keep in the diagnostic stage lists
+        (bm25/dense/merged). Defaults to top_k. The cross-encoder rerank pool
+        and the final top-k are unaffected. Added for the massive retrieval
+        benchmark so per-stage recall can be measured at K > top_k.
+    """
+    start = time.monotonic()
+    stage_ms: dict[str, float] = {}
+    t_mark = start
+    normalized = query.strip()
+    tokens = _tokenize(normalized)
+    # resolve keyword boost: explicit arg > env default > 3.0
+    if keyword_boost is None:
+        # allow per-request override via function attribute for legacy callers
+        keyword_boost = getattr(search_knowledge_base, "_keyword_boost_override", _KEYWORD_BOOST_DEFAULT)
+    # clamp
+    try:
+        keyword_boost = float(keyword_boost)
+    except:
+        keyword_boost = _KEYWORD_BOOST_DEFAULT
+    keyword_boost = max(0.0, min(10.0, keyword_boost))
+
+    chunk_data, bm25_pair, dense, reranker, hyde = await _get_index()
+    # F10 fix: handle both old single BM25 and new tuple pair for migration
+    if isinstance(bm25_pair, tuple):
+        bm25_content, bm25_kw = bm25_pair
+    else:
+        bm25_content, bm25_kw = bm25_pair, None  # type: ignore[assignment]
+
+    # Check if pgvector is available and has embeddings (for hybrid pgvector search)
+    use_pgvector = False
+    try:
+        from kb_manager.config import load_config
+        cfg = load_config()
+        if cfg.db.is_pgvector:
+            # quick check: does chunks table have embedding column and at least one non-null?
+            from kb_manager.web.deps import db as _db
+            from sqlalchemy import text as _text
+            async with _db.session() as _s:
+                cnt = (await _s.execute(_text("SELECT count(*) FROM chunks WHERE embedding IS NOT NULL"))).scalar()
+                if cnt and cnt > 100:  # enough to use pgvector
+                    use_pgvector = True
+    except:
+        use_pgvector = False
+
+    
+    allowed_ids = None
+    if filter_path:
+        # Check if filter_path is a path (contains '/')
+        if '/' in filter_path:
+            parts = filter_path.split('/')
+            # A chunk matches if its folder hierarchy contains ALL parts of the filter path IN ORDER
+            # But the simplest way is just to join cd[7] back into a path
+            allowed_ids = {cd[0] for cd in chunk_data if filter_path in "/".join(cd[7])}
+        else:
+            allowed_ids = {cd[0] for cd in chunk_data if filter_path in cd[7]}
+        print(f"DEBUG: filter_path='{filter_path}', len(allowed_ids)={len(allowed_ids)}")
+
+    # --- Step 2: BM25 (weighted content + keywords, tunable boost) ---
+    beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
+    bm25_raw_content_all: list[tuple[str, float]] = []
+    bm25_raw_kw_all: list[tuple[str, float]] = []
+    for bq in beam_queries:
+        bm25_raw_content_all.extend(bm25_content.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids))
+        if bm25_kw is not None:
+            bm25_raw_kw_all.extend(bm25_kw.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids))
+    # aggregate max score per doc across beams
+    bm25_scores_combined: dict[str, float] = {}
+    for cid, s in bm25_raw_content_all:
+        bm25_scores_combined[cid] = max(bm25_scores_combined.get(cid, 0.0), s)
+    for cid, s in bm25_raw_kw_all:
+        if cid not in bm25_scores_combined:
+            bm25_scores_combined[cid] = keyword_boost * s
+        else:
+            # Fix: don't sum keyword boosts across multiple beam expansions, take the max.
+            bm25_scores_combined[cid] = max(bm25_scores_combined[cid], keyword_boost * s)
+    # if single beam, keep original sum behavior; else max already
+    if len(beam_queries) == 1:
+        # recompute exact sum for single-query case (preserve original)
+        bm25_scores_combined = {}
+        for cid, s in bm25_content.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids):
+            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + s
+        for cid, s in (bm25_kw.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids) if bm25_kw else []):
+            bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + keyword_boost * s
+    bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+    bm25_id_map = {cd[0]: cd for cd in chunk_data}
+    bm25_results = []
+    bm25_scores = {}
+    for chunk_id, score in bm25_raw:
+        if score <= 0:
+            continue
+        cd = bm25_id_map.get(chunk_id)
+        if cd is None:
+            continue
+        if filter_path and filter_path not in cd[7]:
+            continue
+        bm25_scores[chunk_id] = score
+        bm25_results.append(SearchResult(
+            chunk_id=chunk_id,
+            doc_id=cd[1],
+            doc_title=cd[2],
+            heading_path=cd[3],
+            folder_hierarchy=cd[7],
+            content_preview=cd[4][:300],
+            bm25_score=round(score, 4),
+            ordinal=cd[6] if isinstance(cd[6], int) else 0,
+        ))
+
+    stage_ms["bm25"] = round((time.monotonic() - t_mark) * 1000, 1)
+    t_mark = time.monotonic()
+    # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
+    # Try pgvector first if available (HNSW), fallback to file dense
+    dense_raw_base = None
+    if use_pgvector:
+        try:
+            from kb_manager.web.deps import db as _db2
+            from sqlalchemy import text as _text2
+            # embed query via same model as dense
+            q_vec = dense.model.encode([normalized], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+            if q_vec is not None:
+                q_str = "[" + ",".join(f"{float(x):.6f}" for x in q_vec) + "]"
+                async with _db2.session() as _s2:
+                    # pgvector cosine: 1 - (embedding <=> query)  (since <=> is cosine distance)
+                    # Use ORDER BY embedding <=> query for nearest
+                    rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
+                    dense_raw_base = [(r[0], float(r[1])) for r in rows]
+        except Exception as _e:
+            # fallback to file dense
+            dense_raw_base = None
+    if dense_raw_base is None:
+        dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
+    if _SYNONYM_ENABLED and len(beam_queries) > 1:
+        dense_pool: dict[str, float] = dict(dense_raw_base)
+        for bq in beam_queries[1:]:
+            # for pgvector, also need to handle beam queries via pgvector if use_pgvector
+            if use_pgvector:
+                try:
+                    from kb_manager.web.deps import db as _db3
+                    from sqlalchemy import text as _text3
+                    q_vec2 = dense.model.encode([bq], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+                    if q_vec2 is not None:
+                        q_str2 = "[" + ",".join(f"{float(x):.6f}" for x in q_vec2) + "]"
+                        async with _db3.session() as _s3:
+                            rows2 = (await _s3.execute(_text3("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str2, "k": top_k * 3})).fetchall()
+                            for cid, sc in [(r[0], float(r[1])) for r in rows2]:
+                                if cid not in dense_pool or sc > dense_pool[cid]:
+                                    dense_pool[cid] = sc
+                            continue
+                except:
+                    pass
+            for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
+                if cid not in dense_pool or sc > dense_pool[cid]:
+                    dense_pool[cid] = sc
+        dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+    else:
+        dense_raw = dense_raw_base
+    dense_scores = dict(dense_raw)
+    dense_results = []
+    for chunk_id, score in dense_raw:
+        cd = bm25_id_map.get(chunk_id)
+        if cd is None:
+            continue
+        if filter_path and filter_path not in cd[7]:
+            continue
+        dense_results.append(SearchResult(
+            chunk_id=chunk_id,
+            doc_id=cd[1],
+            doc_title=cd[2],
+            heading_path=cd[3],
+            folder_hierarchy=cd[7],
+            content_preview=cd[4][:300],
+            dense_score=round(score, 4),
+            semantic_score=round(score, 4),  # repurpose semantic_score for dense
+            ordinal=cd[6] if isinstance(cd[6], int) else 0,
+        ))
+
+    stage_ms["dense"] = round((time.monotonic() - t_mark) * 1000, 1)
+    t_mark = time.monotonic()
+    # --- Step 3b: HyDE (optional) ---
+    hyde_scores: dict[str, float] = {}
+    if hyde is not None and hyde.is_available:
+        hyde_vec = hyde.get_hyde_vector(normalized)
+        if hyde_vec is not None and dense._matrix is not None:
+            # Cosine similarity: dense matrix is already L2-normalized
+            sims = dense._matrix @ hyde_vec
+            hyde_order = np.argsort(-sims)[:top_k * 3]
+            for idx in hyde_order:
+                chunk_id = dense._ids[idx]
+                if chunk_id in bm25_id_map:
+                    hyde_scores[chunk_id] = float(sims[idx])
+
+    stage_ms["hyde"] = round((time.monotonic() - t_mark) * 1000, 1) if hyde is not None and hyde.is_available else 0.0
+    t_mark = time.monotonic()
+    # --- Step 4: Merge (RRF - Reciprocal Rank Fusion over 2-3 legs) ---
+    ranked_lists: list[list[tuple[str, float]]] = [
+        [(cid, s) for cid, s in bm25_raw if cid in bm25_id_map],
+        list(dense_raw),
+    ]
+    # Add HyDE leg if available
+    if hyde_scores:
+        ranked_lists.append(list(hyde_scores.items()))
+
+    merged: dict[str, SearchResult] = {}
+    k = 60  # RRF constant
+    for ranked in ranked_lists:
+        for rank, (chunk_id, _) in enumerate(ranked):
+            if chunk_id not in bm25_id_map:
+                continue
+            cd = bm25_id_map[chunk_id]
+            rrf_score = 1.0 / (k + rank + 1)
+            if chunk_id not in merged:
+                merged[chunk_id] = SearchResult(
+                    chunk_id=chunk_id,
+                    doc_id=cd[1],
+                    doc_title=cd[2],
+                    heading_path=cd[3],
+                    folder_hierarchy=cd[7],
+                    content_preview=cd[4][:300],
+                    bm25_score=round(bm25_scores.get(chunk_id, 0), 4),
+                    semantic_score=round(dense_scores.get(chunk_id, 0), 4),
+                    dense_score=round(dense_scores.get(chunk_id, 0), 4),
+                    hybrid_score=round(rrf_score, 6),
+                    ordinal=cd[6] if isinstance(cd[6], int) else 0,
+                )
+            else:
+                merged[chunk_id].hybrid_score += rrf_score
+                merged[chunk_id].bm25_score = round(bm25_scores.get(chunk_id, 0), 4)
+                merged[chunk_id].semantic_score = round(dense_scores.get(chunk_id, 0), 4)
+                merged[chunk_id].dense_score = round(dense_scores.get(chunk_id, 0), 4)
+
+    candidates = sorted(merged.values(), key=lambda x: x.hybrid_score, reverse=True)
+    for i, c in enumerate(candidates):
+        c.hybrid_score = round(c.hybrid_score, 6)
+
+    stage_ms["rrf"] = round((time.monotonic() - t_mark) * 1000, 1)
+    t_mark = time.monotonic()
+    # --- Step 6: Cross-encoder Reranking (with BM25 fallback for short queries) ---
+    # KB_RERANK_POOL>0 overrides the _RERANKER_TOP_K pre-slice cap.
+    # Score the full rerank pool (not just top_k) so fusion normalizes over the input set.
+    rerank_pool_cap = _get_rerank_pool()
+    rerank_cap = rerank_pool_cap if rerank_pool_cap > 0 else _RERANKER_TOP_K
+    rerank_input = candidates[:rerank_cap]
+    rerank_pool_size = max(len(rerank_input), 1)
+    try:
+        reranked = reranker.rerank(
+            normalized,
+            [c.model_dump() for c in rerank_input],
+            top_k=rerank_pool_size,
+            pool=rerank_pool_cap,
+        )
+        rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("reranker offline fallback: %s", e)
+        reranked = [c.model_dump() for c in rerank_input[:top_k]]
+        for r in reranked:
+            r["rerank_score"] = r.get("hybrid_score", 0)
+        rerank_ms = 0.0
+
+    # Re-attach RRF hybrid_score by chunk_id (rerank preserves it, but guard anyway).
+    _rrf_by_id = {c.chunk_id: c.hybrid_score for c in rerank_input}
+    for r in reranked:
+        if not r.get("hybrid_score"):
+            r["hybrid_score"] = _rrf_by_id.get(r.get("chunk_id"), 0.0)
+
+    # Convert reranked dicts back to SearchResult objects
+    reranked_results = [SearchResult(**r) for r in reranked]
+    # Fallback: if reranker gives uniformly low scores for very short queries (<=4 tokens), use BM25
+    _fallback_used = False
+    try:
+        max_rerank = max((r.rerank_score for r in reranked_results), default=0)
+        if max_rerank < 0.2 and len(bm25_results) > 0 and len(tokens) <= 4:
+            # Use BM25 top as final, but pull from merged to preserve all stage scores
+            fallback = []
+            for idx, r in enumerate(bm25_results[:top_k]):
+                if r.chunk_id in merged:
+                    nr = merged[r.chunk_id].model_copy()
+                    # Assign a synthetic confidence score that passes threshold (e.g. 0.50 descending)
+                    # so the UI shows ~50% confidence instead of 2300% (BM25 score)
+                    nr.rerank_score = max(0.05, 0.5 - (idx * 0.05))
+                    fallback.append(nr)
+            reranked_results = fallback
+            _fallback_used = True
+    except Exception:
+        pass
+
+    if not _fallback_used and len(reranked_results) > 1:
+        # --- Step 6b: RRF↔cross-encoder score fusion ---
+        # final_score = alpha * norm(rerank_score) + (1-alpha) * norm(rrf_score),
+        # min-max normalized over the rerank input set. Ordering only;
+        # rerank_score/hybrid_score fields are left untouched for transparency.
+        try:
+            _alpha = load_settings().fusion_alpha
+        except ValueError:
+            _alpha = 0.7
+        _alpha = min(1.0, max(0.0, _alpha))
+        _rr = [r.rerank_score for r in reranked_results]
+        _hr = [r.hybrid_score for r in reranked_results]
+        _rr_lo, _rr_hi = min(_rr), max(_rr)
+        _hr_lo, _hr_hi = min(_hr), max(_hr)
+        _rr_span = _rr_hi - _rr_lo
+        _hr_span = _hr_hi - _hr_lo
+        _scored = []
+        for r in reranked_results:
+            _n_rr = (r.rerank_score - _rr_lo) / _rr_span if _rr_span > 0 else 0.0
+            _n_hr = (r.hybrid_score - _hr_lo) / _hr_span if _hr_span > 0 else 0.0
+            _scored.append((_alpha * _n_rr + (1.0 - _alpha) * _n_hr, r))
+        _scored.sort(key=lambda t: t[0], reverse=True)
+        reranked_results = [r for _, r in _scored]
+
+        # Pin protection: merged top-3 + BM25 top-3 may not fall below final rank 10.
+        # BM25-leg guard: RRF dilution can bury a BM25-top hit dense misses (Q1-class);
+        # union keeps merged mechanics unchanged. Absent ids (cut by TOP_K) are skipped.
+        _pinned = [c.chunk_id for c in rerank_input[:3]]
+        for _b in bm25_results[:3]:
+            if _b.chunk_id not in _pinned:
+                _pinned.append(_b.chunk_id)
+        _violators = []
+        _pos = {r.chunk_id: i for i, r in enumerate(reranked_results)}
+        for _pid in _pinned:
+            _idx = _pos.get(_pid)
+            if _idx is not None and _idx >= 10:
+                _violators.append(_pid)
+        if _violators:
+            _by_id = {r.chunk_id: r for r in reranked_results}
+            _rest = [r for r in reranked_results if r.chunk_id not in set(_violators)]
+            _start = max(0, min(10 - len(_violators), len(_rest)))
+            for _j, _pid in enumerate(_violators):
+                _rest.insert(_start + _j, _by_id[_pid])
+            reranked_results = _rest
+
+    stage_ms["rerank"] = round((time.monotonic() - t_mark) * 1000, 1)
+    # use actual rerank_ms if available (cross-encoder internal timing)
+    if rerank_ms:
+        stage_ms["rerank"] = rerank_ms
+    t_mark = time.monotonic()
+    # --- Step 7: Final top-k (DYNAMIC THRESHOLDING) ---
+    settings = load_settings()
+    final = []
+    for r in reranked_results:
+        if r.rerank_score >= settings.min_relevance_score:
+            final.append(r)
+    
+    # Fallback to Top-1 if nothing passes the threshold but results exist
+    if not final and reranked_results:
+        final = [reranked_results[0]]
+        
+    # Cap at top_k if dynamic filter is still too large
+    if len(final) > settings.top_k:
+        final = final[:settings.top_k]
+    elapsed = (time.monotonic() - start) * 1000
+    stage_ms["build_context"] = round((time.monotonic() - t_mark) * 1000, 1)
+    stage_ms["total"] = round(elapsed, 1)
+    # config echo for transparency diagram
+    config = {
+        "keyword_boost": keyword_boost,
+        "bm25_k1": 1.5,
+        "bm25_b": 0.75,
+        "dense_model": _DENSE_MODEL,
+        "dense_dim": 384,  # paraphrase-multilingual-MiniLM-L12-v2
+        "hyde_enabled": bool(hyde is not None and getattr(hyde, "is_available", False)),
+        "rrf_k": 60,
+        "reranker_model": _get_reranker_model(),
+        "fusion_alpha": float(os.getenv("KB_RERANK_FUSION_ALPHA", str(_RERANK_FUSION_ALPHA))),
+        "max_chunks": top_k,
+        "rerank_pool": _get_rerank_pool(),
+        "beam": _SYNONYM_BEAM,
+        "use_pgvector": use_pgvector,
+    }
+    depth = stage_depth or top_k
+
+
+    # --- Step 8: Semantic Intent Entity Injection ---
+    injected_entities = []
+    try:
+        from kb_manager.web.deps import db
+        import numpy as np
+        async with db.session() as session:
+            from sqlalchemy import select
+            from kb_manager.models.database import EntityList
+            ents_res = await session.execute(select(EntityList))
+            entity_lists = ents_res.scalars().all()
+            
+            
+            q_emb = None
+            try:
+                if dense is not None and hasattr(dense, 'model') and dense.model is not None:
+                    q_emb = dense.model.encode([query], normalize_embeddings=True)[0]
+            except Exception:
+                pass
+            if q_emb is not None and entity_lists:
+
+                q_vec = np.array(q_emb)
+                q_norm = np.linalg.norm(q_vec)
+                for ent in entity_lists:
+                    if not ent.description_embedding: continue
+                    ent_vec = np.array(ent.description_embedding)
+                    ent_norm = np.linalg.norm(ent_vec)
+                    if q_norm > 0 and ent_norm > 0:
+                        sim = np.dot(q_vec, ent_vec) / (q_norm * ent_norm)
+                        if sim > 0.6:  # Threshold for triggering the list
+                            injected_entities.append({
+                                "list_name": ent.list_name,
+                                "description": ent.description,
+                                "content": ent.content_json,
+                                "similarity": float(sim)
+                            })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to inject entities: %s", e)
+
+    return SearchSteps(
+        query=query,
+        normalized_query=normalized,
+        tokens=tokens,
+        total_chunks_indexed=len(chunk_data),
+        bm25_results=bm25_results[:depth],
+        semantic_results=dense_results[:depth],
+        dense_results=dense_results[:depth],
+        merged_candidates=candidates[:depth],
+        final_results=final,
+        elapsed_ms=round(elapsed, 1),
+        rerank_ms=rerank_ms,
+        stage_ms=stage_ms,
+        config=config,
+        injected_entities=injected_entities,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+def _run_sync(coro):
+    """Run coroutine from sync context without breaking a running loop (F2/F29 fix)."""
+    import concurrent.futures
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        fut = pool.submit(asyncio.run, coro)
+        return fut.result()
+
+
+def search_knowledge_base_sync(query: str, top_k: int = 10, keyword_boost: float | None = None, stage_depth: int | None = None, filter_path: str | None = None) -> SearchSteps:
+    """Synchronous wrapper — safe from both sync and async callers."""
+    return _run_sync(search_knowledge_base(query, top_k, keyword_boost=keyword_boost, stage_depth=stage_depth, filter_path=filter_path))
+
+@router.get("")
+async def search_page(request: Request):
+    """Search/test query page."""
+    from kb_manager.web.deps import templates
+
+    return templates.TemplateResponse(request, "search.html", {})
+
+
+@router.post("/api")
+async def search_api(request: Request):
+    """Search API endpoint - returns JSON with step-by-step results.
+
+    Redis cache (TTL 600s, key = hash(normalized_query + top_k)):
+    - On hit, returns cached SearchSteps JSON immediately without BM25/Dense/Rerank.
+    - On miss, computes pipeline and stores result.
+    - Errors are never cached. Redis unavailable → gracefully falls back to compute
+      (and to in-memory dict if redis not reachable).
+    """
+    import traceback
+
+    try:
+        body = await request.json()
+    except Exception:
+        return {"error": "Invalid JSON body"}
+
+    query = body.get("query", "").strip() if isinstance(body, dict) else ""
+    top_k = min(body.get("top_k", 10), 50) if isinstance(body, dict) else 10
+    keyword_boost = body.get("keyword_boost") if isinstance(body, dict) else None
+    if keyword_boost is not None:
+        try:
+            keyword_boost = float(keyword_boost)
+        except:
+            keyword_boost = None
+
+    filter_path = body.get("filter_path") if isinstance(body, dict) else None
+    if not query:
+        return {"error": "Empty query"}
+
+    # --- cache lookup (must not hurt recall/accuracy: key includes top_k + boost) ---
+    ckey: str | None = None
+    try:
+        ckey = _cache_key(query, top_k, keyword_boost, filter_path)
+        cached = await _cache_get(ckey)
+        if cached is not None:
+            return cached
+    except Exception:
+        # never block search on cache errors
+        ckey = ckey or _cache_key(query, top_k, keyword_boost)
+        cached = None
+
+    try:
+        # F2/F29 fix: directly await async pipeline — no to_thread/_sync_loop indirection
+        # (asyncpg pool binds to the loop that first uses it; a worker thread breaks it)
+        steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost, filter_path=filter_path)
+        out = steps.model_dump()
+        out["keyword_boost_used"] = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
+        # store only on success — do not cache errors
+        if ckey is not None:
+            try:
+                await _cache_set(ckey, out, _REDIS_TTL)
+            except Exception:
+                pass
+        return out
+    except Exception as e:
+        return {"error": str(e), "traceback": traceback.format_exc()}
+
+
+@router.get("/config")
+async def search_config():
+    """Current search config (keyword boost, synonym, etc.) for tuning UI."""
+    return {
+        "keyword_boost": _KEYWORD_BOOST_DEFAULT,
+        "keyword_boost_env": os.getenv("KB_KEYWORD_BOOST", "3.0 (default)"),
+        "synonym_enabled": _SYNONYM_ENABLED,
+        "synonym_beam": _SYNONYM_BEAM,
+        "dense_model": _DENSE_MODEL,
+        "reranker_model": _RERANKER_MODEL,
+        "bm25_backend": "tantivy" if _USE_TANTIVY else "python",
+        "tantivy_available": _HAS_TANTIVY,
+        "tantivy_error": _TANTIVY_IMPORT_ERROR if not _HAS_TANTIVY else "",
+    }
+
+
+class EnhanceRequest(BaseModel):
+    query: str = ""
+
+
+@router.post("/enhance")
+async def enhance_api(payload: EnhanceRequest):
+    """Rule-based query enhancement endpoint (offline, no network)."""
+    from kb_manager.query_enhance import enhance_query
+
+    q = payload.query or ""
+    res = enhance_query(q)
+    return {"query": q, "enhanced": res["enhanced"], "beams": res["beams"]}
+
+
+class SupplementRequest(BaseModel):
+    query: str = ""
+    threshold: float = 0.4
+
+
+async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
+    """Direct EntityList tool search (embedding against list_name+description).
+
+    Used by POST /search/supplement and GET /search/supplement.
+    Threshold 0.4 (tool) vs 0.6 (hidden step-8 inject) so G5-type queries can
+    match list content via list_name+description embedding, not just description.
+    """
+    q = (query or "").strip()
+    try:
+        thr = float(threshold)
+    except Exception:
+        thr = 0.4
+    thr = max(0.0, min(1.0, thr))
+    if not q:
+        return {"results": [], "query": q, "threshold": thr, "count": 0}
+    try:
+        # reuse dense model from index cache (same embedding as step 8)
+        _, _, dense, _, _ = await _get_index()
+        q_emb = None
+        try:
+            if dense is not None and hasattr(dense, "model") and dense.model is not None:
+                q_emb = dense.model.encode([q], normalize_embeddings=True)[0]
+        except Exception:
+            q_emb = None
+
+        from kb_manager.web.deps import db
+        from sqlalchemy import select as _select
+
+        from kb_manager.models.database import EntityList
+
+        async with db.session() as session:
+            ents_res = await session.execute(_select(EntityList))
+            entity_lists = ents_res.scalars().all()
+            if not entity_lists:
+                return {"results": [], "query": q, "threshold": thr, "count": 0}
+
+            # fallback substring path when embedding unavailable
+            if q_emb is None:
+                q_low = q.lower()
+                results = []
+                for ent in entity_lists:
+                    text = f"{ent.list_name or ''} {ent.description or ''}"
+                    try:
+                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
+                    except Exception:
+                        content_str = str(ent.content_json).lower() if ent.content_json else ""
+                    if q_low in text.lower() or q_low in content_str:
+                        results.append({
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": 0.5,
+                        })
+                return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+
+            import numpy as np
+
+            q_vec = np.array(q_emb)
+            q_norm = np.linalg.norm(q_vec)
+            if q_norm == 0:
+                return {"results": [], "query": q, "threshold": thr, "count": 0}
+
+            results = []
+            q_low = q.lower()
+            for ent in entity_lists:
+                best_sim = -1.0
+                # 1) stored description_embedding (description-only, step-8 path)
+                if ent.description_embedding:
+                    try:
+                        ent_vec = np.array(ent.description_embedding)
+                        ent_norm = np.linalg.norm(ent_vec)
+                        if ent_norm > 0:
+                            sim = float(np.dot(q_vec, ent_vec) / (q_norm * ent_norm))
+                            if sim > best_sim:
+                                best_sim = sim
+                    except Exception:
+                        pass
+                # 2) list_name + description combined embedding (tool path, threshold 0.4)
+                try:
+                    combined = f"{ent.list_name or ''} {ent.description or ''}".strip()
+                    if combined:
+                        c_emb = dense.model.encode([combined], normalize_embeddings=True)[0]
+                        c_vec = np.array(c_emb)
+                        c_norm = np.linalg.norm(c_vec)
+                        if c_norm > 0:
+                            sim2 = float(np.dot(q_vec, c_vec) / (q_norm * c_norm))
+                            if sim2 > best_sim:
+                                best_sim = sim2
+                except Exception:
+                    pass
+                # 3) substring fallback: if query appears verbatim in list_name/description/content, ensure at least threshold
+                try:
+                    text_low = f"{ent.list_name or ''} {ent.description or ''}".lower()
+                    try:
+                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
+                    except Exception:
+                        content_str = str(ent.content_json).lower() if ent.content_json else ""
+                    if q_low in text_low or q_low in content_str:
+                        if best_sim < thr:
+                            best_sim = float(thr)
+                except Exception:
+                    pass
+
+                # also check that list_name token appears as substring (e.g. سهامداران)
+                try:
+                    if ent.list_name and ent.list_name.strip() in q:
+                        if best_sim < thr:
+                            best_sim = float(thr)
+                except Exception:
+                    pass
+
+                if best_sim >= thr:
+                    results.append({
+                        "list_name": ent.list_name,
+                        "description": ent.description,
+                        "content": ent.content_json,
+                        "similarity": float(best_sim),
+                    })
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+            return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+    except Exception as e:
+        logging.getLogger(__name__).warning("supplement search failed: %s", e)
+        return {"results": [], "query": q, "threshold": thr, "count": 0, "error": str(e)[:500]}
+
+
+@router.post("/supplement")
+async def supplement_api(payload: SupplementRequest, request: Request):
+    """Tool-callable supplement search: embedding similarity over entity_lists.
+
+    Direct tool path (threshold 0.4) vs hidden step-8 inject (threshold 0.6).
+    Searches list_name + description embedding, not just description, so
+    content like 'سهامداران' or 'سنپ پی' can match even when description fails.
+    Called by orchestrator KnowledgebaseClient.supplementary_search as a tool.
+    """
+    return await _supplement_search_impl(payload.query, payload.threshold)
+
+
+@router.get("/supplement")
+async def supplement_get(query: str = Query("", description="query text"), threshold: float = Query(0.4, description="cosine threshold 0.0-1.0")):
+    """GET variant of supplement tool for direct tool calling."""
+    return await _supplement_search_impl(query, threshold)

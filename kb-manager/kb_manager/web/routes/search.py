@@ -97,17 +97,24 @@ _mem_cache: dict[str, tuple[float, dict]] = {}  # key -> (expire_ts, value)
 _log = logging.getLogger(__name__)
 
 
-def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None, filter_path: str | None = None) -> str:
-    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost | filter_path)."""
+def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None, filter_path: str | None = None, corpus_sig: str | None = None) -> str:
+    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost | filter_path | corpus_sig)."""
     # include keyword_boost so different boosts don't collide (preserves accuracy)
     kb = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
     try:
         kb = float(kb)
     except Exception:
         kb = _KEYWORD_BOOST_DEFAULT
-    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}|{filter_path or ''}"
+    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}|{filter_path or ''}|{corpus_sig or ''}"
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
     return f"kb:search:{h}"
+
+
+def _corpus_sig() -> str:
+    """Short signature of the loaded corpus so cached answers die with the index."""
+    if _index_cache_fp:
+        return f"{_index_cache_count}:{_index_cache_fp[:12]}"
+    return "unloaded"
 
 
 async def _get_redis():
@@ -1208,14 +1215,14 @@ async def search_api(request: Request):
     # --- cache lookup (must not hurt recall/accuracy: key includes top_k + boost) ---
     ckey: str | None = None
     try:
-        ckey = _cache_key(query, top_k, keyword_boost, filter_path)
+        ckey = _cache_key(query, top_k, keyword_boost, filter_path, _corpus_sig())
         cached = await _cache_get(ckey)
         if cached is not None:
             _metrics_cache_hit("redis")
             return ORJSONResponse(cached)
     except Exception:
         # never block search on cache errors
-        ckey = ckey or _cache_key(query, top_k, keyword_boost)
+        ckey = ckey or _cache_key(query, top_k, keyword_boost, None, _corpus_sig())
         cached = None
 
     try:

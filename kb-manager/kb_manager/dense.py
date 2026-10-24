@@ -286,7 +286,10 @@ class DenseSemanticIndex:
         try:
             data = np.load(str(path), allow_pickle=False)
             ids = [x.decode("utf-8") for x in data["ids"]]
-            self._matrix = np.asarray(data["vectors"], dtype=np.float32)
+            matrix = np.asarray(data["vectors"], dtype=np.float32)
+            if not ids or matrix.ndim != 2 or matrix.shape[0] != len(ids):
+                return False
+            self._matrix = matrix
             self._ids = ids
             return True
         except (OSError, KeyError, ValueError):
@@ -294,7 +297,7 @@ class DenseSemanticIndex:
 
     def save(self, path: Path, fingerprint: str) -> None:
         """Persist the index and its fingerprint to *path*."""
-        if self._matrix is None:
+        if self._matrix is None or len(self._ids) == 0:
             return
         path.parent.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(
@@ -407,10 +410,10 @@ def load_or_build(
     if embed_fn is not None:
         index.build(ids, texts, titles, headings, chunk_types)
         return index
-    if cache_path and index.cached_valid(cache_path, fp):
+    if cache_path and ids and index.cached_valid(cache_path, fp):
         if index.load(cache_path) and len(index._ids) == len(ids):
             return index
     index.build(ids, texts, titles, headings, chunk_types)
-    if cache_path:
+    if cache_path and index._ids:
         index.save(cache_path, fp)
     return index
