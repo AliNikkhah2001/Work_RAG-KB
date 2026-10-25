@@ -13,48 +13,22 @@ Candidate pool:
     cap (``min(50, top_k*3)`` — the 50 comes from the search-route
     pre-slice, ``top_k*3`` from :meth:`CrossEncoderReranker.rerank`);
     a value >0 overrides the candidate pool cap instead.
-
-Score memoization (CrossEncoderReranker):
-    ``KB_RERANK_SCORE_CACHE`` env var (default ``true``) enables a bounded
-    TTL cache of (query, passage) -> score, maxsize 8192, TTL 600s (kept
-    consistent with the search-route result cache). Set ``false`` to
-    disable and always forward on the GPU.
 """
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import time
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional
 
 import numpy as np
-
-from kb_manager.score_cache import TTLCache
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "BAAI/bge-reranker-v2-m3"
 _DEFAULT_POOL = 0  # 0 = keep legacy min(50, top_k*3) pool logic
 _MAX_LENGTH = 512
-# Score memo cache: matches the search-route result cache TTL (600s) so a
-# cached rerank never outlives the cached search result that contains it.
-_SCORE_CACHE_MAXSIZE = 8192
-_SCORE_CACHE_TTL_S = 600.0
-
-
-def _score_cache_enabled() -> bool:
-    """Return True unless ``KB_RERANK_SCORE_CACHE`` is an explicit falsey value."""
-    raw = os.getenv("KB_RERANK_SCORE_CACHE")
-    if raw is None or not raw.strip():
-        return True
-    return raw.strip().lower() not in ("0", "false", "no", "off")
-
-
-def _pair_hash(text: str) -> str:
-    """Return the sha1 hexdigest used as one half of a score-cache key."""
-    return hashlib.sha1(text.encode("utf-8", errors="replace")).hexdigest()
 
 # ---------------------------------------------------------------------------
 # Model registry
@@ -177,12 +151,6 @@ class CrossEncoderReranker:
     The cross-encoder takes (query, passage) pairs and outputs a relevance score.
     This is more accurate than bi-encoder cosine similarity but slower.
     Used as a final precision refinement step on top-k candidates.
-
-    Scoring is memoized in a bounded TTL cache keyed by
-    ``(sha1(query), sha1(passage))`` (maxsize 8192, TTL 600s, disable with
-    ``KB_RERANK_SCORE_CACHE=false``): a ``rerank()`` call only tokenizes and
-    forwards the pairs that missed the cache. ``warmup()`` pre-loads the
-    model for startup paths.
     """
 
     def __init__(
@@ -200,15 +168,6 @@ class CrossEncoderReranker:
         self._model: Any = None
         self._tokenizer: Any = None
         self.last_rerank_ms: float = 0.0
-        # Device actually resolved by _ensure_model (mirrors the resolution
-        # logic there); _score_pairs reads it instead of re-resolving.
-        self._actual_device: Optional[str] = None
-        # None when disabled via KB_RERANK_SCORE_CACHE=false.
-        self._score_cache: Optional[TTLCache] = (
-            TTLCache(maxsize=_SCORE_CACHE_MAXSIZE, ttl=_SCORE_CACHE_TTL_S)
-            if _score_cache_enabled()
-            else None
-        )
 
     # ------------------------------------------------------------------
     # Lazy model loading
@@ -282,17 +241,8 @@ class CrossEncoderReranker:
             trust_remote_code,
         )
 
-        # Offline-safe resolution: repo ids trigger transformers 4.57's
-        # is_base_mistral() network probe, which hard-fails under
-        # HF_HUB_OFFLINE=1 (2026-10-12 "reranker offline fallback" incident).
-        from kb_manager.model_cache import resolve_local_model_path
-
-        model_path = resolve_local_model_path(self._model_name)
-        if model_path != self._model_name:
-            logger.info("Resolved reranker model %s -> %s", self._model_name, model_path)
-
         self._tokenizer = AutoTokenizer.from_pretrained(
-            model_path, trust_remote_code=trust_remote_code
+            self._model_name, trust_remote_code=trust_remote_code, local_files_only=True
         )
         # Tokenizer-side pad fallback (model-config side is fixed after load
         # below, once self._model exists).
@@ -313,15 +263,13 @@ class CrossEncoderReranker:
                 actual_device = "mps"
             else:
                 actual_device = "cpu"
-        # Share the resolution with _score_pairs (and warmup) so there is
-        # exactly one device decision per instance.
-        self._actual_device = actual_device
-
+                
         dtype = torch.float16 if actual_device != "cpu" else torch.float32
         self._model = AutoModelForSequenceClassification.from_pretrained(
-            model_path,
+            self._model_name,
             torch_dtype=dtype,
             trust_remote_code=trust_remote_code,
+            local_files_only=True,
         )
 
         self._model.to(actual_device)
@@ -387,14 +335,15 @@ class CrossEncoderReranker:
         Returns:
             Top-k candidates sorted by cross-encoder score (descending),
             with 'rerank_score' added to each dict. The call latency is
-            recorded on ``self.last_rerank_ms`` and logged at info level
-            (covers the whole call, including cache lookups).
+            recorded on ``self.last_rerank_ms`` and logged at info level.
         """
         t0 = time.perf_counter()
         if not candidates:
             self.last_rerank_ms = 0.0
             logger.info("rerank model=%s n=0 ms=0.0", self._model_name)
             return []
+
+        self._ensure_model()
 
         if pool is None:
             pool = get_rerank_pool()
@@ -420,19 +369,8 @@ class CrossEncoderReranker:
             text = cand.get("content") or cand.get("content_preview") or ""
             pairs.append((query, text))
 
-        # Score with the memo cache: only cache-miss pairs are tokenized and
-        # forwarded on the GPU; hits reuse the stored float score.
-        #
-        # Memoization safety: cross-encoder scoring is deterministic for a
-        # fixed (query, passage) pair — frozen weights, deterministic
-        # tokenizer, attention-masked padding, eval mode — so a cached score
-        # is what recomputation would return and can never change the
-        # ordering semantics of rerank(). (If an fp16 kernel ever varied at
-        # epsilon, serving the first-computed score is strictly *more*
-        # stable for ordering than recomputing.) TTL (600s, matching the
-        # search-route result cache) and maxsize (8192) only bound memory;
-        # expiry or eviction falls back to recomputation.
-        scores = self._score_pairs_cached(query, pairs)
+        # Batch inference
+        scores = self._score_pairs(pairs)
 
         # Attach scores and sort
         for cand, score in zip(rerank_pool, scores):
@@ -449,74 +387,11 @@ class CrossEncoderReranker:
         )
         return reranked[:top_k]
 
-    def _score_pairs_cached(self, query: str, pairs: List[tuple[str, str]]) -> List[float]:
-        """Score pairs through the TTL memo cache.
-
-        Only the pairs that miss the cache are tokenized + forwarded (see
-        the determinism note in :meth:`rerank`); hits reuse stored scores.
-        The model is lazily loaded only when at least one pair must be
-        (re)scored, so a fully-cached call never touches the GPU. With the
-        cache disabled this is a plain pass-through to :meth:`_score_pairs`.
-        """
-        cache = self._score_cache
-        if cache is None:
-            self._ensure_model()
-            return [float(s) for s in self._score_pairs(pairs)]
-
-        query_hash = _pair_hash(query)
-        scores: List[Optional[float]] = [
-            cache.get((query_hash, _pair_hash(passage))) for _, passage in pairs
-        ]
-        miss_idx = [i for i, s in enumerate(scores) if s is None]
-        if miss_idx:
-            self._ensure_model()
-            miss_scores = self._score_pairs([pairs[i] for i in miss_idx])
-            for i, raw in zip(miss_idx, miss_scores):
-                value = float(raw)
-                cache.put((query_hash, _pair_hash(pairs[i][1])), value)
-                scores[i] = value
-        return scores  # type: ignore[return-value]  # all None slots filled above
-
-    def warmup(self) -> float:
-        """Load the model and run one dummy-pair scoring pass.
-
-        Uses the exact device/dtype resolution of :meth:`_ensure_model`, so
-        startup code can pre-load the reranker exactly as a real rerank()
-        would. The dummy pair is scored via :meth:`_score_pairs` directly
-        (it never pollutes the score cache) and ``last_rerank_ms`` is left
-        untouched. Returns the warmup wall time in milliseconds.
-        """
-        t0 = time.perf_counter()
-        self._ensure_model()
-        self._score_pairs([("warmup query", "warmup passage for the cross-encoder reranker.")])
-        elapsed_ms = (time.perf_counter() - t0) * 1000
-        logger.info("rerank warmup model=%s ms=%.1f", self._model_name, elapsed_ms)
-        return elapsed_ms
-
     def _score_pairs(self, pairs: List[tuple[str, str]]) -> np.ndarray:
-        """Score (query, passage) pairs in batches.
-
-        Batching: pairs are tokenized per ``self._batch_size`` chunk and each
-        chunk's tensors move to the device in one call (the tokenizer itself
-        is a fast CPU tokenizer and is never moved). Per-chunk score tensors
-        stay on the GPU; the single ``.cpu()`` at the end is the only host
-        sync. Inference runs under ``torch.no_grad()`` as before.
-        """
+        """Score (query, passage) pairs in batches."""
         import torch
 
-        device = self._actual_device
-        if device is None:  # called before _ensure_model (e.g. warmup order)
-            device = (
-                "cuda"
-                if torch.cuda.is_available()
-                else (
-                    "mps"
-                    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-                    else "cpu"
-                )
-            )
-
-        gpu_scores = []
+        all_scores = []
         for i in range(0, len(pairs), self._batch_size):
             batch = pairs[i : i + self._batch_size]
 
@@ -529,8 +404,12 @@ class CrossEncoderReranker:
                 return_tensors="pt",
             )
 
-            # One batched H2D transfer per chunk (tokenizer output is CPU).
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+            if self._device:
+                inputs = {k: v.to(self._device) for k, v in inputs.items()}
+            else:
+                import torch
+                _dev = "cuda" if torch.cuda.is_available() else ("mps" if hasattr(torch.backends, "mps") and torch.backends.mps.is_available() else "cpu")
+                inputs = {k: v.to(_dev) for k, v in inputs.items()}
 
             with torch.no_grad():
                 logits = self._model(**inputs).logits
@@ -540,13 +419,9 @@ class CrossEncoderReranker:
                 else:
                     scores = torch.softmax(logits, dim=-1)[:, 1]
 
-            # Keep on GPU — no .cpu() sync inside the loop.
-            gpu_scores.append(scores)
+            all_scores.append(scores.cpu().numpy())
 
-        if not gpu_scores:
-            return np.array([])
-        # Single final sync: concatenate on device, transfer once.
-        return torch.cat(gpu_scores).float().cpu().numpy()
+        return np.concatenate(all_scores) if all_scores else np.array([])
 
     def __repr__(self) -> str:
         return f"CrossEncoderReranker(model={self._model_name!r}, batch_size={self._batch_size})"

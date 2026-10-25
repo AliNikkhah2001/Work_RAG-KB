@@ -37,20 +37,6 @@ from kb_manager.reranker import (
     get_reranker_model_name,
 )
 
-# Fast JSON serialization (~26 KB payloads per search) + Prometheus recording.
-from fastapi.responses import ORJSONResponse
-try:
-    from kb_manager.web.routes.metrics import (
-        record_cache_hit as _metrics_cache_hit,
-        record_request_outcome,
-        record_result_count,
-        record_stage_ms,
-    )
-except Exception:  # metrics module optional — never break search on it
-    record_stage_ms = record_request_outcome = record_result_count = _metrics_cache_hit = (
-        lambda *a, **k: None
-    )
-
 # Rust tantivy BM25 (RAM-resident, ~50x faster than Python BM25)
 try:
     from kb_manager.tantivy_bm25 import TantivyBM25  # type: ignore
@@ -69,13 +55,6 @@ print(f"[search] tantivy HAS={_HAS_TANTIVY} USE={_USE_TANTIVY} err={_TANTIVY_IMP
 
 # query expansion (Phase 11: synonym + multi-query beam5)
 _SYNONYM_ENABLED = os.getenv("KB_SYNONYM_ENABLED", "true").lower() in ("1", "true", "yes", "on")
-# Dense query backend: "ram" (default) serves the dense leg from the in-process
-# cosine matrix with ONE batched GPU encode for query+beams; "pgvector" keeps
-# the legacy per-variant HNSW SQL roundtrip. The RAM path removes the DB from
-# the query hot path entirely (at ~1.1k chunks a numpy matmul is sub-ms).
-_DENSE_BACKEND = os.getenv("KB_DENSE_BACKEND", "ram").lower()
-# Memoized pgvector availability (probe = DB roundtrip; per-process constant).
-_PGVECTOR_OK: bool | None = None
 _SYNONYM_BEAM = int(os.getenv("KB_SYNONYM_BEAM", "5"))
 
 # keyword heuristic boost – tunable via env, also per-request override
@@ -97,24 +76,17 @@ _mem_cache: dict[str, tuple[float, dict]] = {}  # key -> (expire_ts, value)
 _log = logging.getLogger(__name__)
 
 
-def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None, filter_path: str | None = None, corpus_sig: str | None = None) -> str:
-    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost | filter_path | corpus_sig)."""
+def _cache_key(normalized_query: str, top_k: int, keyword_boost: float | None = None, filter_path: str | None = None) -> str:
+    """Deterministic cache key = sha256(normalized_query | top_k | keyword_boost | filter_path)."""
     # include keyword_boost so different boosts don't collide (preserves accuracy)
     kb = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
     try:
         kb = float(kb)
     except Exception:
         kb = _KEYWORD_BOOST_DEFAULT
-    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}|{filter_path or ''}|{corpus_sig or ''}"
+    raw = f"{normalized_query.strip()}|{int(top_k)}|{kb}|{filter_path or ''}"
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
     return f"kb:search:{h}"
-
-
-def _corpus_sig() -> str:
-    """Short signature of the loaded corpus so cached answers die with the index."""
-    if _index_cache_fp:
-        return f"{_index_cache_count}:{_index_cache_fp[:12]}"
-    return "unloaded"
 
 
 async def _get_redis():
@@ -642,28 +614,21 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     else:
         bm25_content, bm25_kw = bm25_pair, None  # type: ignore[assignment]
 
-    # Check if pgvector is available and has embeddings (for hybrid pgvector search).
-    # Memoized per-process: the probe itself is a DB roundtrip that used to run
-    # on EVERY search before the RAM dense fast path landed.
-    global _PGVECTOR_OK
+    # Check if pgvector is available and has embeddings (for hybrid pgvector search)
     use_pgvector = False
-    if _PGVECTOR_OK is None:
-        try:
-            from kb_manager.config import load_config
-            cfg = load_config()
-            if cfg.db.is_pgvector:
-                # quick check: does chunks table have embedding column and at least one non-null?
-                from kb_manager.web.deps import db as _db
-                from sqlalchemy import text as _text
-                async with _db.session() as _s:
-                    cnt = (await _s.execute(_text("SELECT count(*) FROM chunks WHERE embedding IS NOT NULL"))).scalar()
-                    if cnt and cnt > 100:  # enough to use pgvector
-                        use_pgvector = True
-        except:
-            use_pgvector = False
-        _PGVECTOR_OK = use_pgvector
-    else:
-        use_pgvector = _PGVECTOR_OK
+    try:
+        from kb_manager.config import load_config
+        cfg = load_config()
+        if cfg.db.is_pgvector:
+            # quick check: does chunks table have embedding column and at least one non-null?
+            from kb_manager.web.deps import db as _db
+            from sqlalchemy import text as _text
+            async with _db.session() as _s:
+                cnt = (await _s.execute(_text("SELECT count(*) FROM chunks WHERE embedding IS NOT NULL"))).scalar()
+                if cnt and cnt > 100:  # enough to use pgvector
+                    use_pgvector = True
+    except:
+        use_pgvector = False
 
     
     allowed_ids = None
@@ -750,9 +715,6 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             _hits = bm25_content.search(_qt, top_k=30, allowed_ids=allowed_ids)
             if 0 < len(_hits) <= _rare_max_df:
                 _rare_terms.append(_qt)
-        _log.info(
-            "rare-term debug qwords=%s rare=%s", _qwords, _rare_terms
-        )
         if _rare_terms:
             _top_blob = " ".join(
                 (bm25_id_map[r.chunk_id][4] if r.chunk_id in bm25_id_map else "")
@@ -787,90 +749,60 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                     ))
                     _promoted += 1
                 if _promoted:
-                    _log.info(
+                    logging.getLogger(__name__).info(
                         "rare-term rescue promoted %d chunks for terms %s", _promoted, _rare_terms
                     )
-    except Exception as _re:
-        _log.warning("rare-term rescue failed: %s", _re, exc_info=True)
+    except Exception:
+        pass
 
     stage_ms["bm25"] = round((time.monotonic() - t_mark) * 1000, 1)
     t_mark = time.monotonic()
     # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
-    # RAM fast path (default): one batched GPU encode for the normalized query
-    # plus every beam variant, one stacked cosine matmul, max-pool per chunk.
-    # The legacy path encoded and ran a pgvector HNSW query PER beam variant
-    # (up to 5 encodes + 5 SQL roundtrips per search) — this collapses that
-    # into a single encode + sub-ms matmul.
-    dense_raw_base: list[tuple[str, float]] | None = None
-    dense_raw: list[tuple[str, float]] = []
-    if _DENSE_BACKEND == "ram" and dense.is_built:
+    # Try pgvector first if available (HNSW), fallback to file dense
+    dense_raw_base = None
+    if use_pgvector:
         try:
-            queries = [normalized]
-            for bq in beam_queries[1:]:
-                if bq and bq != normalized and bq not in queries:
-                    queries.append(bq)
-            per_query = dense.search_batch(
-                queries, top_k=top_k * 3, allowed_ids=allowed_ids
-            )
-            dense_raw_base = per_query[0] if per_query else []
-            if _SYNONYM_ENABLED and len(per_query) > 1:
-                dense_pool: dict[str, float] = dict(dense_raw_base)
-                for res in per_query[1:]:
-                    for cid, sc in res:
-                        if cid not in dense_pool or sc > dense_pool[cid]:
-                            dense_pool[cid] = sc
-                dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
-            else:
-                dense_raw = dense_raw_base
+            from kb_manager.web.deps import db as _db2
+            from sqlalchemy import text as _text2
+            # embed query via same model as dense
+            q_vec = dense.model.encode([normalized], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+            if q_vec is not None:
+                q_str = "[" + ",".join(f"{float(x):.6f}" for x in q_vec) + "]"
+                async with _db2.session() as _s2:
+                    # pgvector cosine: 1 - (embedding <=> query)  (since <=> is cosine distance)
+                    # Use ORDER BY embedding <=> query for nearest
+                    rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
+                    dense_raw_base = [(r[0], float(r[1])) for r in rows]
         except Exception as _e:
-            _log.warning("RAM dense fast path failed (%s); falling back to legacy leg", _e)
+            # fallback to file dense
             dense_raw_base = None
-            dense_raw = []
     if dense_raw_base is None:
-        # --- Legacy dense leg: pgvector HNSW (if available) -> file dense ---
-        if use_pgvector:
-            try:
-                from kb_manager.web.deps import db as _db2
-                from sqlalchemy import text as _text2
-                # embed query via same model as dense
-                q_vec = dense.model.encode([normalized], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
-                if q_vec is not None:
-                    q_str = "[" + ",".join(f"{float(x):.6f}" for x in q_vec) + "]"
-                    async with _db2.session() as _s2:
-                        # pgvector cosine: 1 - (embedding <=> query)  (since <=> is cosine distance)
-                        # Use ORDER BY embedding <=> query for nearest
-                        rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
-                        dense_raw_base = [(r[0], float(r[1])) for r in rows]
-            except Exception as _e:
-                # fallback to file dense
-                dense_raw_base = None
-        if dense_raw_base is None:
-            dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
-        if _SYNONYM_ENABLED and len(beam_queries) > 1:
-            dense_pool = dict(dense_raw_base)
-            for bq in beam_queries[1:]:
-                # for pgvector, also need to handle beam queries via pgvector if use_pgvector
-                if use_pgvector:
-                    try:
-                        from kb_manager.web.deps import db as _db3
-                        from sqlalchemy import text as _text3
-                        q_vec2 = dense.model.encode([bq], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
-                        if q_vec2 is not None:
-                            q_str2 = "[" + ",".join(f"{float(x):.6f}" for x in q_vec2) + "]"
-                            async with _db3.session() as _s3:
-                                rows2 = (await _s3.execute(_text3("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str2, "k": top_k * 3})).fetchall()
-                                for cid, sc in [(r[0], float(r[1])) for r in rows2]:
-                                    if cid not in dense_pool or sc > dense_pool[cid]:
-                                        dense_pool[cid] = sc
-                                continue
-                    except:
-                        pass
-                for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
-                    if cid not in dense_pool or sc > dense_pool[cid]:
-                        dense_pool[cid] = sc
-            dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
-        else:
-            dense_raw = dense_raw_base
+        dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
+    if _SYNONYM_ENABLED and len(beam_queries) > 1:
+        dense_pool: dict[str, float] = dict(dense_raw_base)
+        for bq in beam_queries[1:]:
+            # for pgvector, also need to handle beam queries via pgvector if use_pgvector
+            if use_pgvector:
+                try:
+                    from kb_manager.web.deps import db as _db3
+                    from sqlalchemy import text as _text3
+                    q_vec2 = dense.model.encode([bq], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+                    if q_vec2 is not None:
+                        q_str2 = "[" + ",".join(f"{float(x):.6f}" for x in q_vec2) + "]"
+                        async with _db3.session() as _s3:
+                            rows2 = (await _s3.execute(_text3("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str2, "k": top_k * 3})).fetchall()
+                            for cid, sc in [(r[0], float(r[1])) for r in rows2]:
+                                if cid not in dense_pool or sc > dense_pool[cid]:
+                                    dense_pool[cid] = sc
+                            continue
+                except:
+                    pass
+            for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
+                if cid not in dense_pool or sc > dense_pool[cid]:
+                    dense_pool[cid] = sc
+        dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+    else:
+        dense_raw = dense_raw_base
     dense_scores = dict(dense_raw)
     dense_results = []
     for chunk_id, score in dense_raw:
@@ -968,7 +900,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
     except Exception as e:
         import logging
-        _log.warning("reranker offline fallback: %s", e)
+        logging.getLogger(__name__).warning("reranker offline fallback: %s", e)
         reranked = [c.model_dump() for c in rerank_input[:top_k]]
         for r in reranked:
             r["rerank_score"] = r.get("hybrid_score", 0)
@@ -1133,7 +1065,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                             })
     except Exception as e:
         import logging
-        _log.warning("Failed to inject entities: %s", e)
+        logging.getLogger(__name__).warning("Failed to inject entities: %s", e)
 
     return SearchSteps(
         query=query,
@@ -1215,14 +1147,13 @@ async def search_api(request: Request):
     # --- cache lookup (must not hurt recall/accuracy: key includes top_k + boost) ---
     ckey: str | None = None
     try:
-        ckey = _cache_key(query, top_k, keyword_boost, filter_path, _corpus_sig())
+        ckey = _cache_key(query, top_k, keyword_boost, filter_path)
         cached = await _cache_get(ckey)
         if cached is not None:
-            _metrics_cache_hit("redis")
-            return ORJSONResponse(cached)
+            return cached
     except Exception:
         # never block search on cache errors
-        ckey = ckey or _cache_key(query, top_k, keyword_boost, None, _corpus_sig())
+        ckey = ckey or _cache_key(query, top_k, keyword_boost)
         cached = None
 
     try:
@@ -1231,26 +1162,14 @@ async def search_api(request: Request):
         steps = await search_knowledge_base(query, top_k, keyword_boost=keyword_boost, filter_path=filter_path)
         out = steps.model_dump()
         out["keyword_boost_used"] = keyword_boost if keyword_boost is not None else _KEYWORD_BOOST_DEFAULT
-        # Prometheus: stage latency + outcome + result count (never raises).
-        try:
-            for stage, ms in (steps.stage_ms or {}).items():
-                record_stage_ms(stage, float(ms))
-            record_request_outcome("success")
-            record_result_count(len(out.get("final_results", [])))
-        except Exception:
-            pass
         # store only on success — do not cache errors
         if ckey is not None:
             try:
                 await _cache_set(ckey, out, _REDIS_TTL)
             except Exception:
                 pass
-        return ORJSONResponse(out)
+        return out
     except Exception as e:
-        try:
-            record_request_outcome("error")
-        except Exception:
-            pass
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
@@ -1282,151 +1201,3 @@ async def enhance_api(payload: EnhanceRequest):
     q = payload.query or ""
     res = enhance_query(q)
     return {"query": q, "enhanced": res["enhanced"], "beams": res["beams"]}
-
-
-class SupplementRequest(BaseModel):
-    query: str = ""
-    threshold: float = 0.4
-
-
-async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
-    """Direct EntityList tool search (embedding against list_name+description).
-
-    Used by POST /search/supplement and GET /search/supplement.
-    Threshold 0.4 (tool) vs 0.6 (hidden step-8 inject) so G5-type queries can
-    match list content via list_name+description embedding, not just description.
-    """
-    q = (query or "").strip()
-    try:
-        thr = float(threshold)
-    except Exception:
-        thr = 0.4
-    thr = max(0.0, min(1.0, thr))
-    if not q:
-        return {"results": [], "query": q, "threshold": thr, "count": 0}
-    try:
-        # reuse dense model from index cache (same embedding as step 8)
-        _, _, dense, _, _ = await _get_index()
-        q_emb = None
-        try:
-            if dense is not None and hasattr(dense, "model") and dense.model is not None:
-                q_emb = dense.model.encode([q], normalize_embeddings=True)[0]
-        except Exception:
-            q_emb = None
-
-        from kb_manager.web.deps import db
-        from sqlalchemy import select as _select
-
-        from kb_manager.models.database import EntityList
-
-        async with db.session() as session:
-            ents_res = await session.execute(_select(EntityList))
-            entity_lists = ents_res.scalars().all()
-            if not entity_lists:
-                return {"results": [], "query": q, "threshold": thr, "count": 0}
-
-            # fallback substring path when embedding unavailable
-            if q_emb is None:
-                q_low = q.lower()
-                results = []
-                for ent in entity_lists:
-                    text = f"{ent.list_name or ''} {ent.description or ''}"
-                    try:
-                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
-                    except Exception:
-                        content_str = str(ent.content_json).lower() if ent.content_json else ""
-                    if q_low in text.lower() or q_low in content_str:
-                        results.append({
-                            "list_name": ent.list_name,
-                            "description": ent.description,
-                            "content": ent.content_json,
-                            "similarity": 0.5,
-                        })
-                return {"results": results, "query": q, "threshold": thr, "count": len(results)}
-
-            import numpy as np
-
-            q_vec = np.array(q_emb)
-            q_norm = np.linalg.norm(q_vec)
-            if q_norm == 0:
-                return {"results": [], "query": q, "threshold": thr, "count": 0}
-
-            results = []
-            q_low = q.lower()
-            for ent in entity_lists:
-                best_sim = -1.0
-                # 1) stored description_embedding (description-only, step-8 path)
-                if ent.description_embedding:
-                    try:
-                        ent_vec = np.array(ent.description_embedding)
-                        ent_norm = np.linalg.norm(ent_vec)
-                        if ent_norm > 0:
-                            sim = float(np.dot(q_vec, ent_vec) / (q_norm * ent_norm))
-                            if sim > best_sim:
-                                best_sim = sim
-                    except Exception:
-                        pass
-                # 2) list_name + description combined embedding (tool path, threshold 0.4)
-                try:
-                    combined = f"{ent.list_name or ''} {ent.description or ''}".strip()
-                    if combined:
-                        c_emb = dense.model.encode([combined], normalize_embeddings=True)[0]
-                        c_vec = np.array(c_emb)
-                        c_norm = np.linalg.norm(c_vec)
-                        if c_norm > 0:
-                            sim2 = float(np.dot(q_vec, c_vec) / (q_norm * c_norm))
-                            if sim2 > best_sim:
-                                best_sim = sim2
-                except Exception:
-                    pass
-                # 3) substring fallback: if query appears verbatim in list_name/description/content, ensure at least threshold
-                try:
-                    text_low = f"{ent.list_name or ''} {ent.description or ''}".lower()
-                    try:
-                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
-                    except Exception:
-                        content_str = str(ent.content_json).lower() if ent.content_json else ""
-                    if q_low in text_low or q_low in content_str:
-                        if best_sim < thr:
-                            best_sim = float(thr)
-                except Exception:
-                    pass
-
-                # also check that list_name token appears as substring (e.g. سهامداران)
-                try:
-                    if ent.list_name and ent.list_name.strip() in q:
-                        if best_sim < thr:
-                            best_sim = float(thr)
-                except Exception:
-                    pass
-
-                if best_sim >= thr:
-                    results.append({
-                        "list_name": ent.list_name,
-                        "description": ent.description,
-                        "content": ent.content_json,
-                        "similarity": float(best_sim),
-                    })
-            results.sort(key=lambda x: x["similarity"], reverse=True)
-            return {"results": results, "query": q, "threshold": thr, "count": len(results)}
-    except Exception as e:
-        _log.warning("supplement search failed: %s", e)
-        return {"results": [], "query": q, "threshold": thr, "count": 0, "error": str(e)[:500]}
-
-
-@router.post("/supplement")
-async def supplement_api(payload: SupplementRequest, request: Request):
-    """Tool-callable supplement search: embedding similarity over entity_lists.
-
-    Direct tool path (threshold 0.4) vs hidden step-8 inject (threshold 0.6).
-    Searches list_name + description embedding, not just description, so
-    content like 'سهامداران' or 'سنپ پی' can match even when description fails.
-    Called by orchestrator KnowledgebaseClient.supplementary_search as a tool.
-    """
-    return await _supplement_search_impl(payload.query, payload.threshold)
-
-
-@router.get("/supplement")
-async def supplement_get(query: str = Query("", description="query text"), threshold: float = Query(0.4, description="cosine threshold 0.0-1.0")):
-    """GET variant of supplement tool for direct tool calling."""
-    return await _supplement_search_impl(query, threshold)
