@@ -41,28 +41,28 @@
 
 ```mermaid
 graph LR
-    SRC[kb-source version folder<br/>xlsx / docx / pdf] --> SCAN[orchestrator._scan_files<br/>TestQuestion* excluded]
-    SCAN --> PARSE[parsers registry<br/>xlsx / docx / pdf]
-    PARSE --> PRE[preprocessor pipeline<br/>clean + persian + validators]
-    PRE --> CHUNK[semantic chunker<br/>qa / article / kv / reason-detail<br/>parents + question dedup]
+    SRC[kb-source version folder xlsx / docx / pdf] --> SCAN[orchestrator._scan_files TestQuestion* excluded]
+    SCAN --> PARSE[parsers registry xlsx / docx / pdf]
+    PARSE --> PRE[preprocessor pipeline clean + persian + validators]
+    PRE --> CHUNK[semantic chunker qa / article / kv / reason-detail parents + question dedup]
     CHUNK --> QUAL[quality gates]
-    QUAL --> DEDUP[dedup.py<br/>question + MinHash LSH]
-    DEDUP --> EMB[embedder + dense index<br/>MiniLM-L12 384d, npz cache]
-    EMB --> DB[(SQLite aiosqlite<br/>or pgvector HNSW)]
+    QUAL --> DEDUP[dedup.py question + MinHash LSH]
+    DEDUP --> EMB[embedder + dense index MiniLM-L12 384d, npz cache]
+    EMB --> DB[(SQLite aiosqlite or pgvector HNSW)]
 ```
 
 ### Retrieval pipeline (per query) — RAM/GPU
 
 ```mermaid
 graph LR
-    Q[Persian query] --> QX[query enhance / expansion beam5 / reform<br/>HyDE optional, off by default]
-    QX --> BM25[tantivy BM25 (Rust, RAM)<br/>keyword x3 + char 3-grams<br/>~4 ms, 50 MB heap]
-    QX --> DENSE[Dense cosine (GPU)<br/>MiniLM-L12 384d in-RAM cosine<br/>~14 ms, batched fp16]
-    BM25 --> RRF[RRF fusion k=60<br/>merged top-100<br/>~0.1 ms]
+    Q[Persian query] --> QX[query enhance / expansion beam5 / reform HyDE optional, off by default]
+    QX --> BM25[tantivy BM25 (Rust, RAM) keyword x3 + char 3-grams ~4 ms, 50 MB heap]
+    QX --> DENSE[Dense cosine (GPU) MiniLM-L12 384d in-RAM cosine ~14 ms, batched fp16]
+    BM25 --> RRF[RRF fusion k=60 merged top-100 ~0.1 ms]
     DENSE --> RRF
-    RRF --> RERANK[cross-encoder rerank (GPU)<br/>BGE-v2-m3, 100-pool<br/>~24 ms, memoized]
-    RERANK --> TOP[final top-5 + scores<br/>~40 ms total]
-    Q -.->|cache lookup / store<br/>TTL 600 s, 2-7 ms hits<br/>errors never cached| RC[(Redis + in-memory<br/>KB_REDIS_URL)]
+    RRF --> RERANK[cross-encoder rerank (GPU) BGE-v2-m3, 100-pool ~24 ms, memoized]
+    RERANK --> TOP[final top-5 + scores ~40 ms total]
+    Q -.->|cache lookup / store TTL 600 s, 2-7 ms hits errors never cached| RC[(Redis + in-memory KB_REDIS_URL)]
 ```
 
 ### Query Classification & Ambiguity Resolution (v13.1)
@@ -71,14 +71,14 @@ The pipeline now includes a **3-way LLM classifier** (`nodes/classify.py`) that 
 
 ```mermaid
 flowchart TD
-    Q[Persian query] --> CLASSIFY[3-way LLM classifier<br/>greeting / specification / question]
-    CLASSIFY -->|greeting| GREET[return greeting<br/>no retrieval]
-    CLASSIFY -->|specification| SPEC[extract subspace<br/>cheque/facilities_person/legal/general]
+    Q[Persian query] --> CLASSIFY[3-way LLM classifier greeting / specification / question]
+    CLASSIFY -->|greeting| GREET[return greeting no retrieval]
+    CLASSIFY -->|specification| SPEC[extract subspace cheque/facilities_person/legal/general]
     CLASSIFY -->|question| T5[is_scattered_ambiguous?]
     T5 -->|no| RETRIEVE[retrieve + rerank]
-    T5 -->|yes| AMBIG[Mizan System-1<br/>subspace routing + ambiguous flag]
+    T5 -->|yes| AMBIG[Mizan System-1 subspace routing + ambiguous flag]
     AMBIG -->|confident| RETRIEVE
-    AMBIG -->|ambiguous| CLARIFY[ask clarifying question<br/>چک / تسهیلات / شرکت / عمومی]
+    AMBIG -->|ambiguous| CLARIFY[ask clarifying question چک / تسهیلات / شرکت / عمومی]
     CLARIFY --> SPEC
     SPEC --> RETRIEVE
 ```
@@ -95,9 +95,9 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    Q[Question] --> MIZAN[Mizan System-1<br/>subspace routing + ambiguous flag]
+    Q[Question] --> MIZAN[Mizan System-1 subspace routing + ambiguous flag]
     MIZAN -->|confident| ROUTE[route to subspace]
-    MIZAN -->|ambiguous| GEMMA[Gemma LLM<br/>scattered detection]
+    MIZAN -->|ambiguous| GEMMA[Gemma LLM scattered detection]
     GEMMA -->|scattered| CLARIFY[ask clarification]
     GEMMA -->|not scattered| ROUTE
 ```
@@ -157,37 +157,37 @@ Source ZIP hierarchy → `Document.doc_metadata.folder_hierarchy: list[str]` (`d
 
 ```mermaid
 flowchart TB
-    Root["پایگاه دانش<br/>(18 docs, 1123 chunks)"]
+    Root["پایگاه دانش (18 docs, 1123 chunks)"]
 
     subgraph T1["اشخاص حقیقی — اعتبارسنجی تسهیلات"]
         direction TB
-        QA["بانک سوالات<br/>Q&A 337 + نسخۀ اصلی 244 + جایگزین 0"]
-        DESC_A["توضیح بخش‌های گزارش افراد<br/>37 (article)"]
-        REASON_A["دلایل کاهش امتیاز<br/>مدل اصلی 80 + جایگزین 11 (reason_detail)"]
+        QA["بانک سوالات Q&A 337 + نسخۀ اصلی 244 + جایگزین 0"]
+        DESC_A["توضیح بخش‌های گزارش افراد 37 (article)"]
+        REASON_A["دلایل کاهش امتیاز مدل اصلی 80 + جایگزین 11 (reason_detail)"]
     end
 
     subgraph T2["اشخاص حقیقی — گزارش چک"]
         direction TB
-        QA_C["بانک سوالات مباحث چک<br/>118 (q/a)"]
-        DESC_C1["بخش‌های مختلف گزارش چک<br/>12 (article)"]
-        NOTE_C["نکات قابل توجه چک<br/>10 (article/kv)"]
-        REASON_C["دلایل کاهش امتیاز چک<br/>87 (reason_detail)"]
+        QA_C["بانک سوالات مباحث چک 118 (q/a)"]
+        DESC_C1["بخش‌های مختلف گزارش چک 12 (article)"]
+        NOTE_C["نکات قابل توجه چک 10 (article/kv)"]
+        REASON_C["دلایل کاهش امتیاز چک 87 (reason_detail)"]
     end
 
     subgraph T3["اشخاص حقوقی — اعتبارسنجی تسهیلات"]
         direction TB
-        CORP_A["رسا — بخش‌های گزارش اعتباری شرکتها<br/>24 (article)"]
-        CORP_B["بخش‌های مختلف شرکتها<br/>16 (article)"]
-        CORP_REASON["دلایل کاهش امتیاز شرکتها<br/>24 (reason_detail)"]
+        CORP_A["رسا — بخش‌های گزارش اعتباری شرکتها 24 (article)"]
+        CORP_B["بخش‌های مختلف شرکتها 16 (article)"]
+        CORP_REASON["دلایل کاهش امتیاز شرکتها 24 (reason_detail)"]
     end
 
     subgraph T4["پایگاه دانش عمومی — بدون برگه سوم"]
         direction TB
-        CORP_INTRO["معرفی شرکت<br/>4"]
-        BOARD["هیات مدیره<br/>5"]
-        P16["16 کاربرد اعتبارسنجی<br/>17"]
-        PUB_QA["سوالات عمومی<br/>81 (q/a + body)"]
-        LINKS["لینک‌ها<br/>16 (kv_pair)"]
+        CORP_INTRO["معرفی شرکت 4"]
+        BOARD["هیات مدیره 5"]
+        P16["16 کاربرد اعتبارسنجی 17"]
+        PUB_QA["سوالات عمومی 81 (q/a + body)"]
+        LINKS["لینک‌ها 16 (kv_pair)"]
     end
 
     Root --> T1
@@ -203,11 +203,11 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    XLSX["XLSX sheet<br/>لیست بانک‌ها / عناوین وام"] --> PARSER["Importer: EntityList<br/>database.py:249"]
-    PARSER --> TBL["entity_lists<br/>list_name + description + description_embedding<br/>content_json"]
-    TBL --> STEP8["Search step 8<br/>search.py:960<br/>query×MiniLM-L12<br/>cosine vs description_embedding<br/>threshold 0.6"]
-    STEP8 --> INJ["SearchSteps.injected_entities<br/>search.py:989<br/>[{list_name, description, content: content_json, similarity}]"]
-    INJ --> API["POST /search/api<br/>returned with final_results<br/>orchestrator next: rag.supplemental: EntityList[]"]
+    XLSX["XLSX sheet لیست بانک‌ها / عناوین وام"] --> PARSER["Importer: EntityList database.py:249"]
+    PARSER --> TBL["entity_lists list_name + description + description_embedding content_json"]
+    TBL --> STEP8["Search step 8 search.py:960 query×MiniLM-L12 cosine vs description_embedding threshold 0.6"]
+    STEP8 --> INJ["SearchSteps.injected_entities search.py:989 [{list_name, description, content: content_json, similarity}]"]
+    INJ --> API["POST /search/api returned with final_results orchestrator next: rag.supplemental: EntityList[]"]
 ```
 
 </details>
@@ -217,13 +217,13 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    UI["KB tester<br/>search.html:127<br/>filter_path: ش.چک / شاخه گزارش"]
+    UI["KB tester search.html:127 filter_path: ش.چک / شاخه گزارش"]
     Q["Query: مثلا چک برگشتی"]
-    HIER["Document.doc_metadata.folder_hierarchy<br/>database.py:81 → per-chunk cd[7]<br/>search.py:438"]
-    ALLOWED["allowed_ids = {chunk_id | filter_path in /join(hierarchy)}<br/>search.py:634"]
-    BM25["tantivy BM25 (content+kw)<br/>search(..., allowed_ids)<br/>search.py:651"]
-    DENSE["Dense (pgvector HNSW)<br/>search(..., allowed_ids)"]
-    RRF["RRF k=60 + cross-encoder rerank<br/>— only leaves under filter_path survive"]
+    HIER["Document.doc_metadata.folder_hierarchy database.py:81 → per-chunk cd[7] search.py:438"]
+    ALLOWED["allowed_ids = {chunk_id | filter_path in /join(hierarchy)} search.py:634"]
+    BM25["tantivy BM25 (content+kw) search(..., allowed_ids) search.py:651"]
+    DENSE["Dense (pgvector HNSW) search(..., allowed_ids)"]
+    RRF["RRF k=60 + cross-encoder rerank — only leaves under filter_path survive"]
 
     UI --> ALLOWED
     Q --> BM25
@@ -243,11 +243,11 @@ flowchart LR
 ```mermaid
 flowchart TB
     Q2["User: مبهم (مثلا تسهیلات و چک هر دو می‌خورند)"]
-    RET1["POST /search/api → stripped leaves<br/>پس از retrieve.py:141<br/>sources = {شاخه تسهیلات, شاخه چک}"]
+    RET1["POST /search/api → stripped leaves پس از retrieve.py:141 sources = {شاخه تسهیلات, شاخه چک}"]
     GATE{"چند برگ مختلف؟"}
-    CLAR["Orchestrator → Guardrails LLM<br/>guarded_generate.py:18<br/>«کدام برگ را ترجیح می‌دهید؟<br/>available_subtrees: [شاخه تسهیلات, شاخه چک]»<br/>finish_reason=clarify"]
-    NEXT["User specifies: چک<br/>→ fix filter_path = ش.چک → دومین retrieve"]
-    ANSWER["Build context + generate<br/>build_context.py:18 → format_response.py:38<br/>rag.supplemental + citation badge"]
+    CLAR["Orchestrator → Guardrails LLM guarded_generate.py:18 «کدام برگ را ترجیح می‌دهید؟ available_subtrees: [شاخه تسهیلات, شاخه چک]» finish_reason=clarify"]
+    NEXT["User specifies: چک → fix filter_path = ش.چک → دومین retrieve"]
+    ANSWER["Build context + generate build_context.py:18 → format_response.py:38 rag.supplemental + citation badge"]
 
     Q2 --> RET1 --> GATE
     GATE -- "یک برگ غالب →" --> ANSWER
@@ -261,11 +261,11 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    SEL["WebUI picker<br/># Cheque / گزارش / تسهیلات / ضمیمه<br/>(GET /v1/models → folder_hierarchy tree)"]
-    BODY["POST /v1/chat/completions<br/>schemas.py:9<br/>{query, filter_path: ش.چک}"]
-    FILTER["retrieve.py:141 → KnowledgebaseClient<br/>knowledgebase.py:74<br/>json={query, top_k, filter_path: body.filter_path}"]
-    LEAF["search.py:634 allowed_ids<br/>— only ش.چک chunks survive"]
-    RENDER["Dashboard / Response<br/>renderChunkCard:<br/>from which part: ش.چک / Nex name<br/>+ content 600-char<br/>+ score bar<br/>+ citation badge<br/>+ supplemental envelope<br/>rag.supplemental: EntityList[]"]
+    SEL["WebUI picker # Cheque / گزارش / تسهیلات / ضمیمه (GET /v1/models → folder_hierarchy tree)"]
+    BODY["POST /v1/chat/completions schemas.py:9 {query, filter_path: ش.چک}"]
+    FILTER["retrieve.py:141 → KnowledgebaseClient knowledgebase.py:74 json={query, top_k, filter_path: body.filter_path}"]
+    LEAF["search.py:634 allowed_ids — only ش.چک chunks survive"]
+    RENDER["Dashboard / Response renderChunkCard: from which part: ش.چک / Nex name + content 600-char + score bar + citation badge + supplemental envelope rag.supplemental: EntityList[]"]
 
     SEL --> BODY --> FILTER --> LEAF --> RENDER
 ```
@@ -336,10 +336,10 @@ curl -s http://127.0.0.1:8100/v1/chat/completions -d '{"model":"ics-helper-agent
 
 ```mermaid
 graph TD
-    APP[kb_manager.web.app<br/>FastAPI 0.1.0 + lifespan pre-warm] --> R1[/documents<br/>/chunks<br/>/pipeline/]
-    APP --> R2[/search<br/>/benchmarks<br/>/monitoring/]
-    APP --> R3[/transparency + zip_browser<br/>/ingestion + kb_history<br/>/versions /cleanup/]
-    APP --> H[/health<br/>/api/health<br/>/ready<br/>dashboard /]
+    APP[kb_manager.web.app FastAPI 0.1.0 + lifespan pre-warm] --> R1[/documents /chunks /pipeline/]
+    APP --> R2[/search /benchmarks /monitoring/]
+    APP --> R3[/transparency + zip_browser /ingestion + kb_history /versions /cleanup/]
+    APP --> H[/health /api/health /ready dashboard /]
     APP --> DB[(SQLite or pgvector)]
 ```
 
@@ -832,15 +832,15 @@ The ambiguity resolution system uses a **hybrid Mizan System-1 + Gemma LLM** app
 
 ```mermaid
 flowchart TD
-    Q[User Query] --> CLASSIFY[3-way LLM Classifier<br/>greeting / specification / question]
-    CLASSIFY -->|greeting| GREET[Return greeting<br/>no retrieval]
-    CLASSIFY -->|specification| SPEC[Extract subspace label<br/>cheque/facilities_person/legal/general]
+    Q[User Query] --> CLASSIFY[3-way LLM Classifier greeting / specification / question]
+    CLASSIFY -->|greeting| GREET[Return greeting no retrieval]
+    CLASSIFY -->|specification| SPEC[Extract subspace label cheque/facilities_person/legal/general]
     CLASSIFY -->|question| T5[is_scattered_ambiguous?]
     T5 -->|no| RETRIEVE[Retrieve + rerank]
-    T5 -->|yes| MIZAN[Mizan System-1<br/>subspace routing + ambiguous flag]
+    T5 -->|yes| MIZAN[Mizan System-1 subspace routing + ambiguous flag]
     MIZAN -->|confident| ROUTE[Route to subspace]
-    MIZAN -->|ambiguous| GEMMA[Gemma LLM<br/>scattered detection + clarify]
-    GEMMA -->|scattered| CLARIFY[Ask clarification<br/>چک / تسهیلات / شرکت / عمومی]
+    MIZAN -->|ambiguous| GEMMA[Gemma LLM scattered detection + clarify]
+    GEMMA -->|scattered| CLARIFY[Ask clarification چک / تسهیلات / شرکت / عمومی]
     GEMMA -->|not scattered| ROUTE
     ROUTE --> RETRIEVE[Retrieve with subspace]
 ```
@@ -969,17 +969,17 @@ The hybrid resolver combines **Mizan System-1** (fast, calibrated) with **Gemma 
 
 ```mermaid
 flowchart TD
-    Q[User Query] --> CLASSIFY[3-way Classifier<br/>greeting / specification / question]
+    Q[User Query] --> CLASSIFY[3-way Classifier greeting / specification / question]
     CLASSIFY -->|greeting| GREET[Return greeting]
     CLASSIFY -->|specification| SPEC[Lock subspace]
     CLASSIFY -->|question| T5[is_scattered_ambiguous?]
     T5 -->|no| RETRIEVE[Retrieve + rerank]
-    T5 -->|yes| CLASSIFIER[SVM-RBF<br/>7-dim features → ambiguous?]
+    T5 -->|yes| CLASSIFIER[SVM-RBF 7-dim features → ambiguous?]
     CLASSIFIER -->|not ambiguous| RETRIEVE[Retrieve + rerank]
-    CLASSIFIER -->|ambiguous| MIZAN[Mizan System-1<br/>/v1/systemone<br/>subspace routing + ambiguous flag]
-    MIZAN -->|confident<br/>p > 0.7| ROUTE[Route to subspace]
-    MIZAN -->|ambiguous| GEMMA[Gemma LLM<br/>scattered detection + clarify]
-    GEMMA -->|scattered| CLARIFY[Ask clarification<br/>چک / تسهیلات / شرکت / عمومی]
+    CLASSIFIER -->|ambiguous| MIZAN[Mizan System-1 /v1/systemone subspace routing + ambiguous flag]
+    MIZAN -->|confident p > 0.7| ROUTE[Route to subspace]
+    MIZAN -->|ambiguous| GEMMA[Gemma LLM scattered detection + clarify]
+    GEMMA -->|scattered| CLARIFY[Ask clarification چک / تسهیلات / شرکت / عمومی]
     GEMMA -->|not scattered| ROUTE[Route to subspace]
     ROUTE --> RETRIEVE[Retrieve with subspace]
 ```
