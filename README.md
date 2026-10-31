@@ -158,16 +158,16 @@ components/knowledgebase/
 
 ```mermaid
 flowchart LR
-    Q[Persian query] --> N[Persian normalization<br/>Arabic→Persian chars, ZWNJ, digits]
-    N --> TOK[tokenize: words + char 3-grams<br/>~50 tokens + 100 3-grams]
-    TOK --> BM[tantivy BM25 (Rust, RAM)<br/>heap 50 MB, k1≈1.2 b=0.75<br/>~4 ms, 8%]
-    N --> DE[Dense semantic (GPU)<br/>MiniLM-L12-v2 384-dim<br/>pgvector HNSW 4.8 MB RAM<br/>~24 ms, 44%]
-    BM --> F[RRF fusion<br/>k=60, ~0.1 ms]
+    Q[Persian query] --> N[Persian normalization Arabic→Persian chars, ZWNJ, digits]
+    N --> TOK[tokenize: words + char 3-grams ~50 tokens + 100 3-grams]
+    TOK --> BM[tantivy BM25 (Rust, RAM) heap 50 MB, k1≈1.2 b=0.75 ~4 ms, 8%]
+    N --> DE[Dense semantic (GPU) MiniLM-L12-v2 384-dim pgvector HNSW 4.8 MB RAM ~24 ms, 44%]
+    BM --> F[RRF fusion k=60, ~0.1 ms]
     DE --> F
-    F --> CE[Cross-encoder rerank (GPU)<br/>BGE-v2-m3, top-50<br/>~24 ms, 44%]
-    CE --> TOP[Top-K final_results<br/>55 ms total]
-    Q -.->|Redis cache TTL 600s<br/>2 ms hit, 150×| RC
-    PG[(Postgres<br/>16GB shared_buffers<br/>800GB effective<br/>pg_prewarm 750 blks)] -.-> DE
+    F --> CE[Cross-encoder rerank (GPU) BGE-v2-m3, top-50 ~24 ms, 44%]
+    CE --> TOP[Top-K final_results 55 ms total]
+    Q -.->|Redis cache TTL 600s 2 ms hit, 150×| RC
+    PG[(Postgres 16GB shared_buffers 800GB effective pg_prewarm 750 blks)] -.-> DE
 ```
 
 > Host: 1.0 TiB RAM (867 Gi free) · 2× H200 143 GB HBM · `tantivy==0.26.2` · `KB_FAST_CACHE=true` eliminates 2.7 s fingerprint scan · `KB_EMBED_DEVICE=cuda` `KB_RERANKER_DEVICE=cuda`.
@@ -182,7 +182,7 @@ flowchart LR
 flowchart TD
     SRC[source files: XLSX / PDF / DOCX] --> PARSE[parsers: reason_codes / crm_qa / articles]
     PARSE --> HASH[content_hash]
-    HASH --> CHUNK[semantic chunks:<br/>QA-pairs, reason-codes, articles, body]
+    HASH --> CHUNK[semantic chunks: QA-pairs, reason-codes, articles, body]
     CHUNK --> DEDUP[skip incomplete QA + dedup questions]
     DEDUP --> EMBED[embed batch MiniLM-L12 384-d]
     EMBED --> PARENT[parent chunks per sheet/document]
