@@ -4,6 +4,44 @@ Persian knowledge-base lifecycle, hybrid retrieval (RAM-first, Rust tantivy, GPU
 
 > Status: **implemented, operational, RAM-first.** The retrieval pipeline and Web UI run from `kb-manager/` (see [kb-manager/README.md](kb-manager/README.md) for current benchmark numbers and quick start). Current release **v13_1405-07-06** — 18 docs / 1,123 chunks, full rebuild 2026-10-07 (`pgvector` HNSW 384d, vectors + HNSW fully in RAM `shared_buffers=16GB`, Rust tantivy BM25 50 MB RAM, GPU dense/rerank on H200). Previous **v11_1405-06-23** — 35 docs / 2,227 chunks, Hit@5 0.9306 (see [kb-manager/README.md#version-history](kb-manager/README.md#version-history) for full history). Top-level docs ([`KB_ARCHITECTURE.md`](KB_ARCHITECTURE.md), [`retrieval-evaluation-research.md`](retrieval-evaluation-research.md)) hold the architecture plan and IR theory; new latency plots below live in `kb-manager/data/plots/`.
 
+
+
+## 🗂 Code Hierarchy & File Diagram
+
+```mermaid
+graph TD
+    ROOT[knowledgebase/]
+    ROOT --> README[README.md]
+    ROOT --> ARCH[KB_ARCHITECTURE.md]
+    ROOT --> RESEARCH[retrieval-evaluation-research.md]
+    ROOT --> SKILL[SKILL.md]
+    ROOT --> SVG[prismal_architecture.svg]
+    ROOT --> KBM[kb-manager/]
+    KBM --> KBMREADME[README.md]
+    KBM --> PYPROJ[pyproject.toml]
+    KBM --> DOCKER[Dockerfile / docker-compose.yml]
+    KBM --> SERVE[run_server.py / start_server.py]
+    KBM --> KM[kb_manager/]
+    KM --> APP[web/app.py]
+    KM --> SEARCH[web/routes/search.py]
+    KM --> DENSE[dense.py]
+    KM --> RERANK[reranker.py]
+    KM --> CONFIG[config.py]
+    KM --> DB[models/database.py]
+    KM --> PIPELINE[pipeline/]
+    KM --> EVAL[evaluation/]
+    KM --> EMBED[embedder/]
+    KM --> PARSERS[parsers/]
+    KBM --> DATA[data/]
+    KBM --> VERSIONS[versions/]
+    KBM --> ARTIFACTS[artifacts/]
+    KBM --> SCRIPTS[scripts/]
+    ROOT --> DOCS[docs/]
+    ROOT --> ARCHIVE[archive/]
+
+classDef root fill:#e1f5e1,stroke:#2e7d32,stroke-width:2px
+class ROOT root
+
 <!-- docs-toc:start -->
 ## Documentation Index
 
