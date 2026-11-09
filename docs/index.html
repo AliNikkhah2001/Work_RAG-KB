@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dana — Knowledgebase Overview</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <a href="index.html" class="dana-logo">Dana</a>
+      <span class="dana-tagline">Knowledgebase &bull; RAG</span>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html" class="active">Overview</a>
+      <a href="high-level.html">High-Level Detail</a>
+      <a href="technical.html">In-Depth Technical Detail</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+  <div class="breadcrumb">
+    <a href="index.html">Dana Knowledgebase</a> <span>&rsaquo;</span> Overview
+  </div>
+
+  <h1 class="page-title">Knowledgebase — Overview</h1>
+  <p class="page-subtitle">Persian knowledge-base lifecycle, hybrid retrieval (RAM-first, Rust tantivy, GPU), and KB web UI for the Work Credit RAG platform.</p>
+
+  <div class="note">
+    <div class="note-title">Status</div>
+    <p><strong>Implemented, operational, RAM-first.</strong> The retrieval pipeline and Web UI run from <code>kb-manager/</code>. Current release <strong>v13_1405-07-06</strong> — 18 docs / 1,123 chunks, full rebuild 2026-10-07 (<code>pgvector</code> HNSW 384d, vectors + HNSW fully in RAM <code>shared_buffers=16GB</code>, Rust tantivy BM25 50 MB RAM, GPU dense/rerank on H200). Previous <strong>v11_1405-06-23</strong> — 35 docs / 2,227 chunks, Hit@5 0.9306.</p>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <h3>What it owns</h3>
+      <p>The Knowledgebase component owns <strong>source documents, ingestion, indexing, retrieval, reranking, and KB evaluation</strong>. It does <em>not</em> own model lifecycle, safety policy, conversation orchestration, or the frontend.</p>
+    </div>
+    <div class="card">
+      <h3>Core capabilities (RAM-first, v13)</h3>
+      <ul>
+        <li>Ingest Persian XLSX / PDF / DOCX into a versioned KB (pgvector HNSW 384d, <strong>all vectors + HNSW in RAM</strong>).</li>
+        <li>Semantic chunking tuned to ICS: QA pairs, reason codes, articles, section headings, parent chunks, QA dedup.</li>
+        <li>Embed with <code>paraphrase-multilingual-MiniLM-L12-v2</code> (384-d, GPU H200) and cache to <code>.npz</code>.</li>
+        <li><strong>Hybrid retrieval</strong>: Rust tantivy BM25 (RAM) + dense (GPU pgvector HNSW) &rarr; RRF fusion k=60 &rarr; cross-encoder rerank — <strong>55 ms warm</strong>.</li>
+        <li>Web UI on port 8000 (dashboard, documents, chunks, pipeline, search, benchmarks, versions, cleanup, monitoring).</li>
+        <li>Benchmark + evaluation harness (120 frozen queries, 6 formats).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Quick start</h3>
+      <pre>cd components/knowledgebase/kb-manager
+pip install -e ".[dev]"
+export KB_DB_MODE=sqlite
+export KB_SOURCE_DIR=./kb-source
+python -m kb_manager.cli ingest --full -s "$KB_SOURCE_DIR"
+python -m kb_manager.cli search -q "اعتبارسنجی چیست" -k 5
+python -m kb_manager.cli serve</pre>
+      <a href="technical.html" class="btn btn-outline" style="margin-top:0.75rem;">Full technical details &rarr;</a>
+    </div>
+  </div>
+
+  <!-- Architecture SVG -->
+  <div class="card">
+    <h2 style="font-size:1.4rem; margin-bottom:0.75rem;">Architecture Diagram</h2>
+    <div class="diagram-wrap" style="text-align:center;">
+      <img src="prismal_architecture.svg" alt="Prismal Agent Framework Architecture" style="max-width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
+    </div>
+    <div class="caption">
+      <p>Prismal — Agent Framework Architecture (v3.5): LangGraph SUPERVISOR + RAG + patterns + opt-in layers (hexagonal ports). Includes entry/security layers, core supervisor, 26 specialist agents, RAG engines (8), opt-in layers (Multimodal, Kokoro, Skynet, A2A interop, Budget), hexagonal ports, and providers.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Repository Layout</h2>
+    <pre>components/knowledgebase/
+├── KB_ARCHITECTURE.md            # architecture + processing plan
+├── retrieval-evaluation-research.md  # IR metrics / frameworks / evaluation
+├── SKILL.md                      # agent configuration
+├── prismal_architecture.svg      # architecture SVG
+├── docs/                         # benchmark debug + tabular chunking research
+├── archive/                      # archived benchmark / implementation notes
+└── kb-manager/                   # the main package
+    ├── README.md                 # quick start + current retrieval metrics
+    ├── kb_manager/               # cli, config, parsers, chunker, embedder, pipeline, web, evaluation, ...
+    ├── versions/                 # KB snapshots v1, v2, v4_retrieval, v6, v7_iva, v10, v11
+    ├── data/                     # kb_*.db, dense_embeddings.npz, plots/
+    └── pyproject.toml</pre>
+  </div>
+
+  <div class="card">
+    <h2>Version Summary (changelog)</h2>
+    <table>
+      <thead><tr><th>Ver</th><th>Corpus</th><th>Key change</th><th>Benchmark (measured)</th></tr></thead>
+      <tbody>
+        <tr><td>v11</td><td>35 docs / 2,227 chunks</td><td>chunkfix rebuild, dense use_context=False</td><td>Hit@5 0.9306, MRR 0.8281</td></tr>
+        <tr><td>v13</td><td>18 docs / 1,123 chunks</td><td>1405-07-06, RAM-first: tantivy RAM BM25, pgvector 16 GB shared_buffers, GPU dense/rerank H200</td><td>latency 55 ms, Hit@5 pending re-benchmark</td></tr>
+        <tr><td colspan="4"><em>Full per-version history: v1 &rarr; v13 in <a href="high-level.html">High-Level Detail</a>.</em></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <div class="note-title">Navigation</div>
+    <p>This is the <strong>Overview</strong> page. Continue to <a href="high-level.html">High-Level Detail</a> for feature walkthroughs and pipelines, or <a href="technical.html">In-Depth Technical Detail</a> for parameters, latency, API, CLI, and benchmarks.</p>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <a href="index.html" class="footer-brand">Dana</a>
+    <div class="footer-note">Knowledgebase component &bull; Work Credit RAG Platform &bull; Agent: Dana</div>
+  </div>
+</footer>
+
+</body>
+</html>
