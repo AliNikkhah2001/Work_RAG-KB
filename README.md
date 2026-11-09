@@ -87,45 +87,62 @@ Corpus sources live in the **`kb-source` submodule**: version folders `1405-05-3
 <details>
 <summary>Ingest pipeline (production code)</summary>
 
+### Caption: Ingest pipeline — detailed technical (matches `kb_manager/pipeline/orchestrator.py`)
+
 ```mermaid
 flowchart TB
-    SRC[(source files: XLSX / PDF / DOCX in kb-source version folder)]
-    SCAN[orchestrator scan — skips TestQuestion*]
-    PARSE[parser registry: xlsx_parser / docx_parser / pdf_parser]
-    PREP[preprocessor pipeline: clean + Persian normalization + validators]
-    CHUNK[semantic chunker: QA-pair / article / kv_pair / reason_detail + parent chunks + question dedup]
-    QUAL[quality gates]
-    DEDUP[dedup.py: question dedup + MinHash LSH]
-    EMBED[embedder: paraphrase-multilingual-MiniLM-L12-v2 384-d, npz cache]
-    STORE[(SQLite aiosqlite or pgvector HNSW 384-d) + DocumentVersion]
-    ENT[EntityList supplement tables — not chunks]
+    SRC["source files: XLSX / PDF / DOCX in kb-source version folder"]
+    SCAN["orchestrator scan — skips TestQuestion*, ~$ temp files, excluded stems"]
+    PARSE["parser registry: xlsx_parser / docx_parser / pdf_parser"]
+    PREP["preprocessor pipeline: clean + Persian normalization + validators"]
+    CHUNK["semantic chunker: QA-pair / article / kv_pair / reason_detail + parent chunks + question dedup"]
+    EMBED["embedder: paraphrase-multilingual-MiniLM-L12-v2 384-d — pgvector HNSW store; SQLite: npz cache rebuilt at search"]
+    STORE["store chunks + DocumentVersion (SQLite aiosqlite or pgvector HNSW 384-d)"]
+    QUAL["quality gate — QualityGate.validate_document"]
+    VER["version snapshot per document — pipeline/versioning.py"]
+    ENT["EntityList supplement tables — 'ضمیمه پایگاه دانش' sheets, stored separately, not chunks"]
 
-    SRC --> SCAN --> PARSE --> PREP --> CHUNK --> QUAL --> DEDUP --> EMBED --> STORE
+    SRC --> SCAN --> PARSE --> PREP --> CHUNK --> EMBED --> STORE --> QUAL --> VER
     PARSE -.-> ENT
 ```
 
-Pipeline: `kb_manager/pipeline/orchestrator.py` coordinates scan → parse → preprocess → chunk → quality gate → dedup → embed → store, with full/incremental rebuilds and versioning (`pipeline/versioning.py`). `EntityList` supplementary sheets (`ضمیمه پایگاه دانش` list sheets) are stored separately (`database.py:249`) and injected at search step 8, not embedded as chunks.
+### Caption: Ingest pipeline — high-level black box
+
+```mermaid
+flowchart TB
+    SRC["source files: XLSX / PDF / DOCX"]
+    PIPE["Knowledgebase Ingest Pipeline"]
+    STORE["KB store: SQLite / pgvector HNSW 384-d + versions"]
+    ENT["EntityList supplement tables"]
+
+    SRC --> PIPE --> STORE
+    PIPE -.-> ENT
+```
+
+Pipeline: `kb_manager/pipeline/orchestrator.py` coordinates scan → parse → preprocess → chunk → embed → store → quality gate → version, with full/incremental rebuilds and versioning (`pipeline/versioning.py`). `EntityList` supplementary sheets (`ضمیمه پایگاه دانش` list sheets) are stored separately (`database.py:249`) and injected at search step 8, not embedded as chunks.
 
 </details>
 
 <details>
 <summary>Retrieval pipeline (production code)</summary>
 
+### Caption: Retrieval pipeline — detailed technical (matches `kb_manager/web/routes/search.py`)
+
 ```mermaid
 flowchart LR
-    Q[Persian query]
-    NORM[normalize: Arabic→Persian, ZWNJ, digits]
-    TOKEN[tokenize: words + Persian char 3-grams]
-    BEAM[synonym / multi-query expansion beam=5]
-    HYDE[optional HyDE — off by default KB_HYDE_ENABLED]
-    BM25[tantivy BM25 Rust RAM 50 MB heap content+keyword k1=1.5 b=0.75 boost×3]
-    DENSE[Dense cosine MiniLM-L12 384-d npz cache GPU cuda]
-    RRF[RRF fusion k=60]
-    RERANK[cross-encoder BGE-v2-m3 GPU pool]
-    FUSE[RRF↔cross-encoder fusion α=0.7 + pin protection]
-    TOP[final top-k min_relevance threshold]
-    ENT[step 8 EntityList injection cosine≥0.6]
-    CACHE[(Redis TTL 600s + in-memory) sha256 key]
+    Q["Persian query"]
+    NORM["normalize: Arabic→Persian, ZWNJ, digits"]
+    TOKEN["tokenize: words + Persian char 3-grams"]
+    BEAM["synonym / multi-query expansion beam=5"]
+    HYDE["optional HyDE — KB_HYDE_ENABLED (off by default)"]
+    BM25["tantivy BM25 Rust RAM 50 MB heap — content + keyword k1=1.5 b=0.75 boost×3"]
+    DENSE["Dense cosine MiniLM-L12 384-d — npz cache / pgvector HNSW, GPU cuda"]
+    RRF["RRF fusion k=60"]
+    RERANK["cross-encoder BGE-v2-m3 — GPU pool min(50, top_k×3) / KB_RERANK_POOL"]
+    FUSE["RRF↔cross-encoder fusion α=0.7 + pin protection top-3 ≥ rank 10"]
+    TOP["final top-k — min_relevance_score threshold"]
+    ENT["step 8 EntityList injection — cosine ≥ 0.6"]
+    CACHE["Redis TTL 600s + in-memory — sha256 key"]
 
     Q --> NORM --> TOKEN --> BEAM --> BM25
     BEAM --> DENSE
@@ -133,8 +150,21 @@ flowchart LR
     BM25 --> RRF
     DENSE --> RRF
     RRF --> RERANK --> FUSE --> TOP --> ENT
-    Q -.->|cache hit 2-7 ms| CACHE
+    Q -.->|"cache hit 2–7 ms"| CACHE
     CACHE -.-> TOP
+```
+
+### Caption: Retrieval pipeline — high-level black box
+
+```mermaid
+flowchart LR
+    Q["Persian query"]
+    CACHE["Query cache — Redis + in-memory"]
+    RETRIEVE["Hybrid retrieval — BM25 + dense + RRF + cross-encoder rerank"]
+    RESULTS["Final top-k results + injected entities"]
+
+    Q -.->|"cache hit"| CACHE -.-> RESULTS
+    Q --> RETRIEVE --> RESULTS
 ```
 
 Flow: `POST /search/api` (`kb_manager/web/routes/search.py`). Query is normalized and tokenized (word tokens + Persian char 3-grams, stopword removal), expanded via synonym/multi-query beam (default 5), optional HyDE off. Two BM25 legs (content + keywords, `keyword_boost×3`) run on tantivy RAM index or Python fallback; dense leg uses the MiniLM-L12 384-d matrix from `data/dense_embeddings.npz` (or pgvector HNSW when `KB_DB_MODE=pgvector`). Results fuse via RRF k=60, cross-encoder rerank (`BAAI/bge-reranker-v2-m3`, GPU), then RRF↔cross-encoder score fusion α=0.7 with pin protection (BM25/merged top-3 cannot drop below rank 10), then final top-k gated by `min_relevance_threshold`. Step 8 injects `EntityList` rows whose `description_embedding` cosine ≥ 0.6. Redis (`KB_REDIS_URL`, TTL 600 s) + in-memory fallback cache keyed by `sha256(normalized_query|top_k|boost|filter_path)`; errors never cached. `KB_FAST_CACHE=true` skips the 2.7 s per-search fingerprint scan.
@@ -354,52 +384,13 @@ v11 manifest: `kb-manager/versions/v11_1405-06-23/manifest.json`. v13-RAM is cod
 <details>
 <summary>Architecture diagrams (production code)</summary>
 
-### Ingest pipeline
+### Ingest pipeline — detailed technical
 
-```mermaid
-flowchart TB
-    SRC[(source files: XLSX / PDF / DOCX in kb-source version folder)]
-    SCAN[orchestrator scan — skips TestQuestion*]
-    PARSE[parser registry: xlsx_parser / docx_parser / pdf_parser]
-    PREP[preprocessor pipeline: clean + Persian normalization + validators]
-    CHUNK[semantic chunker: QA-pair / article / kv_pair / reason_detail + parent chunks + question dedup]
-    QUAL[quality gates]
-    DEDUP[dedup.py: question dedup + MinHash LSH]
-    EMBED[embedder: paraphrase-multilingual-MiniLM-L12-v2 384-d, npz cache]
-    STORE[(SQLite aiosqlite or pgvector HNSW 384-d) + DocumentVersion]
-    ENT[EntityList supplement tables — not chunks]
+See the **Ingest pipeline (production code)** section above for the detailed technical variant and high-level black box variant with captions.
 
-    SRC --> SCAN --> PARSE --> PREP --> CHUNK --> QUAL --> DEDUP --> EMBED --> STORE
-    PARSE -.-> ENT
-```
+### Retrieval pipeline (per query) — detailed technical
 
-### Retrieval pipeline (per query)
-
-```mermaid
-flowchart LR
-    Q[Persian query]
-    NORM[normalize: Arabic→Persian, ZWNJ, digits]
-    TOKEN[tokenize: words + Persian char 3-grams]
-    BEAM[synonym / multi-query expansion beam=5]
-    HYDE[optional HyDE — off by default KB_HYDE_ENABLED]
-    BM25[tantivy BM25 Rust RAM 50 MB heap content+keyword k1=1.5 b=0.75 boost×3]
-    DENSE[Dense cosine MiniLM-L12 384-d npz cache GPU cuda]
-    RRF[RRF fusion k=60]
-    RERANK[cross-encoder BGE-v2-m3 GPU pool]
-    FUSE[RRF↔cross-encoder fusion α=0.7 + pin protection]
-    TOP[final top-k min_relevance threshold]
-    ENT[step 8 EntityList injection cosine≥0.6]
-    CACHE[(Redis TTL 600s + in-memory) sha256 key]
-
-    Q --> NORM --> TOKEN --> BEAM --> BM25
-    BEAM --> DENSE
-    HYDE -.-> DENSE
-    BM25 --> RRF
-    DENSE --> RRF
-    RRF --> RERANK --> FUSE --> TOP --> ENT
-    Q -.->|cache hit 2-7 ms| CACHE
-    CACHE -.-> TOP
-```
+See the **Retrieval pipeline (production code)** section above for the detailed technical variant and high-level black box variant with captions.
 
 Both diagrams validated against `kb_manager/kb_manager/`: `pipeline/orchestrator.py`, `parsers/`, `preprocessor/`, `chunker/`, `dedup.py`, `embedder/`, `models/database.py`, `web/routes/search.py`, `tantivy_bm25.py`, `dense.py`, `reranker.py`, `config.py`.
 
