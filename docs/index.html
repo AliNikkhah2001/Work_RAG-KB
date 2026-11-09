@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dana — Work RAG KB | Overview</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'base', securityLevel: 'loose' });</script>
+</head>
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="site-header">
+  <nav class="navbar wrap">
+    <a href="index.html" class="navbar-brand">
+      <span class="logo-text">Dana</span>
+    </a>
+    <div class="navbar-links">
+      <a href="index.html">Overview</a>
+      <a href="high-level.html">High-Level Detail</a>
+      <a href="technical.html" class="active">Technical Detail</a>
+    </div>
+    <a href="https://github.com/splunk-data/v1/Work_RAG-KB" class="nav-cta" target="_blank" rel="noopener">View on GitHub</a>
+  </nav>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-brand"><span class="logo-text">Dana</span></div>
+    <div class="hero-subtitle">Work RAG Knowledge Base</div>
+    <h1>Persian Credit-Scoring RAG — RAM-First Knowledge Base</h1>
+    <p class="lead">The Knowledgebase component owns source documents, ingestion, indexing, retrieval, reranking, and KB evaluation for the Work Credit RAG platform. Production status: <strong>implemented, operational, RAM-first.</strong> Current release <strong>v13_1405-07-06</strong> — 18 docs / 1,123 chunks, full rebuild 2026-10-07.</p>
+    <div class="hero-actions">
+      <a href="high-level.html" class="btn btn-primary">High-Level Detail</a>
+      <a href="technical.html" class="btn btn-primary">In-Depth Technical Detail</a>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SUMMARY ================= -->
+<section class="section" id="summary">
+  <div class="wrap">
+    <div class="section-title"><div class="badge">1</div><h2>Summary</h2></div>
+    <p>The Knowledgebase component owns <strong>source documents, ingestion, indexing, retrieval, reranking, and KB evaluation</strong>. It does <strong>not</strong> own model lifecycle, safety policy, conversation orchestration, or the frontend.</p>
+    <div class="callout"><b>Stack (v13 RAM-first):</b> FastAPI · SQLAlchemy (async) · SQLite / pgvector (HNSW 384d, RAM-pinned) · Rust tantivy BM25 (RAM, 50 MB heap) · sentence-transformers MiniLM-L12 384-d (GPU) · cross-encoder BGE-v2-m3 (GPU) · hazm/shekar (Persian) · Click + Rich CLI · Redis result cache (TTL 600 s, 150× hit speedup).</div>
+  </div>
+</section>
+
+<!-- ================= CAPABILITIES ================= -->
+<section class="section" id="capabilities">
+  <div class="wrap">
+    <div class="section-title"><div class="badge">2</div><h2>Core Capabilities (RAM-first, v13)</h2></div>
+    <div class="card-grid">
+      <div class="card card-accent">
+        <h4>Multi-format ingest</h4>
+        <p>Persian XLSX / PDF / DOCX into a versioned KB (pgvector HNSW 384d, all vectors + HNSW in RAM). Semantic chunking tuned to ICS: QA pairs, reason codes, articles, section headings, parent chunks, QA dedup.</p>
+      </div>
+      <div class="card card-accent">
+        <h4>Embedding</h4>
+        <p><code>paraphrase-multilingual-MiniLM-L12-v2</code> (384-d, GPU <code>KB_EMBED_DEVICE=cuda</code>, H200) cached to <code>.npz</code>.</p>
+      </div>
+      <div class="card card-accent">
+        <h4>Hybrid retrieval</h4>
+        <p>Rust tantivy BM25 (RAM) + dense (GPU pgvector HNSW) → RRF fusion k=60 → cross-encoder rerank (BAAI/bge-reranker-v2-m3, GPU) — <strong>55 ms warm</strong>.</p>
+      </div>
+      <div class="card card-accent">
+        <h4>Operations UI</h4>
+        <p>Dashboard, documents, chunks, pipeline, search, benchmarks, versions, cleanup, monitoring on port <code>8000</code>.</p>
+      </div>
+      <div class="card card-accent">
+        <h4>Benchmark + eval</h4>
+        <p>120 frozen queries, 6 formats; v11 Hit@5 0.9306, v13 pending re-benchmark on 1405-07-06.</p>
+      </div>
+      <div class="card card-accent">
+        <h4>Persian-native</h4>
+        <p>Normalization, synonym/beam expansion (93-entry colloquial→formal map), reform/enhance, optional HyDE.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= QUICK START ================= -->
+<section class="section" id="quickstart">
+  <div class="wrap">
+    <div class="section-title"><div class="badge">3</div><h2>Quick Start</h2></div>
+    <pre><code>cd kb-manager
+pip install -e ".[dev]"
+export KB_DB_MODE=sqlite            # sqlite (default) | pgvector
+export KB_SOURCE_DIR=./kb-source    # current version folder: 1405-07-06
+
+python -m kb_manager.cli ingest --full -s "$KB_SOURCE_DIR"   # full rebuild
+python -m kb_manager.cli status                              # doc/chunk counts
+python -m kb_manager.cli search -q "اعتبارسنجی چیست" -k 5   # CLI search
+python -m kb_manager.cli serve                               # web on 0.0.0.0:8000</code></pre>
+    <p class="muted">Useful extras: <code>inspect &lt;file&gt;</code> (parser dump), <code>status-chunks</code>, <code>dedup --dry-run</code>, <code>eval-generate</code> / <code>eval-run</code>.</p>
+  </div>
+</section>
+
+<!-- ================= LAYOUT ================= -->
+<section class="section" id="layout">
+  <div class="wrap">
+    <div class="section-title"><div class="badge">4</div><h2>Repository Layout &amp; Code Hierarchy</h2></div>
+    <pre><code>components/knowledgebase/
+├── KB_ARCHITECTURE.md            # architecture + processing plan
+├── retrieval-evaluation-research.md  # IR metrics / frameworks / evaluation
+├── SKILL.md                      # agent configuration
+├── prismal_architecture.svg      # architecture SVG
+├── docs/                         # benchmark debug + tabular chunking research
+├── archive/                      # archived benchmark / implementation notes
+└── kb-manager/                   # the main package
+    ├── README.md                 # quick start + current retrieval metrics
+    ├── pyproject.toml
+    ├── run_server.py / start_server.py
+    ├── Dockerfile / docker-compose.yml
+    ├── kb_manager/
+    │   ├── cli.py                # ingest, status, search, serve, inspect, eval-*
+    │   ├── config.py / settings.py   # env-var config (DB, embedding, chunking, parser)
+    │   ├── dense.py / reranker.py / tantivy_bm25.py
+    │   ├── dedup.py / query_expansion.py / query_reform.py / query_enhance.py / hyde.py
+    │   ├── chunker/              # base / fixed / semantic / registry
+    │   ├── parsers/              # base / xlsx / docx / pdf / registry
+    │   ├── preprocessor/         # clean / persian / regex_persian / validators / pipeline
+    │   ├── embedder/             # base / sentence_transformer / registry
+    │   ├── pipeline/             # orchestrator / quality / versioning / artifact_mgr
+    │   ├── models/               # database / schemas / queries
+    │   ├── web/                  # app.py + routes/ (12 routers) + templates/ + static/
+    │   ├── evaluation/           # benchmark, generator, metrics, datasets, plots
+    │   ├── retrieval_training/   # mining / stage analysis packages
+    │   ├── versioning/           # KB snapshot helpers
+    │   └── tests/                # 17 tests
+    ├── tests/
+    ├── configs/                  # default.yaml + chunking/
+    ├── versions/                 # KB snapshots v1, v2, v4_retrieval, v6, v7_iva, v10, v11
+    ├── artifacts/                # retrieval training artifacts + report plots
+    ├── data/                     # kb_*.db, dense_embeddings.npz, v10_source/, plots/
+    └── pyproject.toml</code></pre>
+    <p class="muted">Corpus sources live in the <strong>kb-source submodule</strong>: version folders <code>1405-05-31</code>, <code>1405-06-23</code>, <code>1405-07-06</code> (current ingestion, 18 docs / 1,123 chunks).</p>
+  </div>
+</section>
+
+<!-- ================= KEY PARAMETERS ================= -->
+<section class="section" id="parameters">
+  <div class="wrap">
+    <div class="section-title"><div class="badge">5</div><h2>Key Parameters (v13 RAM-first)</h2></div>
+    <table>
+      <thead><tr><th>Stage</th><th>Param</th><th>Value</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>Postgres</td><td><code>shared_buffers</code> / <code>effective_cache_size</code></td><td>16 GB / 800 GB + <code>pg_prewarm</code></td><td><code>ALTER SYSTEM SET …</code> + restart</td></tr>
+        <tr><td>BM25</td><td>engine</td><td>Rust tantivy 0.26.2, RAMDirectory heap 50 MB</td><td><code>kb_manager/tantivy_bm25.py</code></td></tr>
+        <tr><td>BM25</td><td>k1 / b / keyword boost / n-grams</td><td>1.5 / 0.75 / ×3 / 3</td><td><code>search.py</code> / <code>tantivy_bm25.py</code></td></tr>
+        <tr><td>Dense</td><td>model / dim / batch / device</td><td>MiniLM-L12-v2 / 384 / 64 / cuda (H200 3 GB)</td><td><code>KB_EMBED_DEVICE=cuda</code></td></tr>
+        <tr><td>Dense</td><td>index</td><td>pgvector HNSW <code>vector_cosine_ops</code> m=16 ef=64, RAM + npz cache</td><td><code>models/database.py</code></td></tr>
+        <tr><td>RRF</td><td>k</td><td>60</td><td><code>search.py</code></td></tr>
+        <tr><td>Rerank</td><td>model / device</td><td>BAAI/bge-reranker-v2-m3 / cuda</td><td><code>KB_RERANKER_DEVICE=cuda</code> <code>reranker.py</code></td></tr>
+        <tr><td>Fusion</td><td>α (RRF↔rerank)</td><td>0.7</td><td><code>search.py</code></td></tr>
+        <tr><td>Cache</td><td>Redis TTL</td><td>600 s, 2–7 ms hits, 150×</td><td><code>KB_REDIS_URL</code></td></tr>
+        <tr><td>Chunk</td><td>strategy / max tokens</td><td>semantic / 512</td><td><code>config.py</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================= LATENCY ================= -->
+<section class="section" id="latency">
+  <div class="wrap">
+    <div class="section-title"><div class="badge">6</div><h2>Latency — RAM-first + Rust tantivy (1405-07-06, measured 2026-10-07)</h2></div>
+    <table>
+      <thead><tr><th>Stage</th><th>Before (Python BM25, CPU)</th><th>After (tantivy, GPU)</th><th>Share after</th></tr></thead>
+      <tbody>
+        <tr><td>BM25 lexical (content+kw, beam5)</td><td>~3000 ms</td><td>3.8–5.9 ms</td><td>7%</td></tr>
+        <tr><td>Dense cosine (pgvector HNSW, GPU)</td><td>24 ms (CPU 3000)</td><td>22–27 ms</td><td>44%</td></tr>
+        <tr><td>RRF fusion k=60</td><td>0.1–0.2 ms</td><td>0.1–0.2 ms</td><td>&lt;1%</td></tr>
+        <tr><td>Cross-encoder rerank (BGE-v2-m3, GPU)</td><td>24 ms (CPU 5400)</td><td>21–25 ms</td><td>44%</td></tr>
+        <tr><td><strong>Total warm</strong></td><td><strong>~3100 ms</strong> / 12 s cold</td><td><strong>51–66 ms</strong> avg <strong>55 ms</strong></td><td><strong>100%</strong></td></tr>
+        <tr><td>Redis hit</td><td>2–7 ms</td><td>2 ms</td><td>150× vs cold</td></tr>
+      </tbody>
+    </table>
+    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:1.5rem;">
+      <div style="flex:1; min-width:280px;">
+        <figure style="margin:0;">
+          <img src="assets/plots/latency_breakdown_ram_tantivy.png" alt="Latency breakdown before vs after" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
+          <figcaption class="diagram-caption"><strong>Caption:</strong> Latency breakdown before vs after (log scale) — BM25 ~3000 ms → ~4 ms, dense 3000 ms → ~24 ms, rerank 5400 ms → ~24 ms.</figcaption>
+        </figure>
+      </div>
+      <div style="flex:1; min-width:280px;">
+        <figure style="margin:0;">
+          <img src="assets/plots/postgres_ram_fit.png" alt="Postgres vectors fit entirely in RAM" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
+          <figcaption class="diagram-caption"><strong>Caption:</strong> Postgres vectors fit entirely in RAM — all chunks + HNSW resident in shared_buffers via pg_prewarm.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <p class="muted">Host: 1.0 TiB RAM · 2× H200 143 GB HBM · Postgres shared_buffers=16GB effective_cache_size=800GB pg_prewarm · KB_FAST_CACHE=true · KB_SYNONYM_BEAM=5.</p>
+  </div>
+</section>
+
+<!-- ================= VERSIONS ================= -->
+<section class="section" id="versions">
+  <div class="wrap">
+    <div class="section-title"><div class="badge">7</div><h2>Version Summary (changelog)</h2></div>
+    <table>
+      <thead><tr><th>Ver</th><th>Corpus</th><th>Key change</th><th>Benchmark (measured)</th></tr></thead>
+      <tbody>
+        <tr><td>v1</td><td>~160 files (31Tir1405)</td><td>baseline ingest + BM25</td><td>—</td></tr>
+        <tr><td>v2</td><td>355 docs / 6,208 chunks</td><td>BM25 + TF-IDF RRF k=60</td><td>Hit@5 90%, MRR 0.736</td></tr>
+        <tr><td>v3</td><td>355 docs / 6,208 chunks</td><td>+ dense MiniLM-L12</td><td>Hit@5 89.2%, MRR 0.787</td></tr>
+        <tr><td>v4</td><td>355 docs / 6,208 chunks</td><td>+ char 3-grams + cross-encoder rerank</td><td>Hit@5 90%, MRR 0.775</td></tr>
+        <tr><td>v5</td><td>355 docs / 6,208 chunks</td><td>frozen dataset BM25×3</td><td>Hit@5 84.2%, MRR 0.751</td></tr>
+        <tr><td>v6</td><td>69 docs / 3,626 chunks</td><td>P0–P8 remediation, synonym beam5, MinHash dedup</td><td>10-q smoke 100% Hit@5</td></tr>
+        <tr><td>v7</td><td>34 docs / 2,074 chunks</td><td>fresh 1405-05-31 KB, colloquial expansion, IVA-15</td><td>doc-Hit@5 73.3%</td></tr>
+        <tr><td>v8</td><td>103 docs / 6,593 chunks</td><td>pgvector HNSW-384, tunable keyword×3.0</td><td>HNSW GPU 18.4 s</td></tr>
+        <tr><td>v9</td><td>21+32 docs / ~1,084 chunks</td><td>type-aware, transparency/zip</td><td>IVA 11/15</td></tr>
+        <tr><td>v10</td><td>35 docs / 2,282 chunks</td><td>1405-06-23, kv/single-col schemas, stage bench</td><td>Hit@5 0.9244</td></tr>
+        <tr><td>v11</td><td>35 docs / 2,227 chunks</td><td>chunkfix rebuild, dense use_context=False</td><td>Hit@5 0.9306, MRR 0.8281</td></tr>
+        <tr><td>v12</td><td>same v11 KB</td><td>typo corrections, exclusive-term beam, Redis cache</td><td>SYNONYM_MAP 93 entries</td></tr>
+        <tr><td><strong>v13</strong></td><td><strong>18 docs / 1,123 chunks</strong></td><td><strong>1405-07-06, RAM-first: tantivy RAM BM25, pgvector 16 GB shared_buffers + pg_prewarm, GPU dense/rerank H200</strong></td><td><strong>latency 55 ms, Hit@5 pending re-benchmark</strong></td></tr>
+      </tbody>
+    </table>
+    <p class="muted">v11 manifest: <code>kb-manager/versions/v11_1405-06-23/manifest.json</code>. v13-RAM is code + infra (RAM-first tuning) on top of v13.</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div><strong>Dana</strong> — Work RAG KB · GitHub Pages multi-page site · White background · Crimson #DC143C accents</div>
+    <div class="muted">Private — ICS Credit Scoring · kb-manager submodule is private</div>
+  </div>
+</footer>
+
+</body>
+</html>
