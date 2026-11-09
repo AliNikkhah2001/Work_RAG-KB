@@ -3,43 +3,69 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dana — Work RAG KB | High-Level Detail</title>
+<title>Dana — Knowledgebase High-Level Detail</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-<script>mermaid.initialize({ startOnLoad: true, theme: 'base', securityLevel: 'loose' });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
 </head>
 <body>
 
-<!-- ================= HEADER ================= -->
 <header class="site-header">
-  <nav class="navbar wrap">
-    <a href="index.html" class="navbar-brand">
-      <img src="dana-logo.png" alt="Dana Logo" class="dana-logo-img">
-    </a>
-    <div class="navbar-links">
+  <div class="header-inner">
+    <div class="brand">
+      <a href="index.html" class="dana-logo">Dana</a>
+      <span class="dana-tagline">Knowledgebase &bull; RAG</span>
+    </div>
+    <nav class="nav-links">
       <a href="index.html">Overview</a>
       <a href="high-level.html" class="active">High-Level Detail</a>
-      <a href="technical.html">Technical Detail</a>
-    </div>
-    <a href="https://github.com/splunk-data/v1/Work_RAG-KB" class="nav-cta" target="_blank" rel="noopener">View on GitHub</a>
-  </nav>
+      <a href="technical.html">In-Depth Technical Detail</a>
+    </nav>
+  </div>
 </header>
 
-<!-- ================= HERO ================= -->
-<section class="hero">
-  <div class="wrap">
-    <div class="hero-brand"><img src="dana-logo.png" alt="Dana Logo" class="dana-logo-img"></div>
-    <div class="hero-subtitle">Work RAG Knowledge Base · High-Level Detail</div>
-    <h1>High-Level Architecture</h1>
-    <p class="lead">Black-box views of the ingest and retrieval pipelines, web service, query classification, knowledge tree, and benchmark metrics.</p>
+<div class="container">
+  <div class="breadcrumb">
+    <a href="index.html">Dana Knowledgebase</a> <span>&rsaquo;</span> High-Level Detail
   </div>
-</section>
 
-<!-- ================= INGEST HIGH LEVEL ================= -->
-<section class="section" id="ingest-hl">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">1</div><h2>Ingest Pipeline — High-Level Black Box</h2></div>
+  <h1 class="page-title">High-Level Detail</h1>
+  <p class="page-subtitle">Features, pipelines, knowledge tree, version history, and performance plots for the Persian RAG Knowledgebase.</p>
+
+  <nav class="toc card">
+    <h4>On this page</h4>
+    <ul>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#ingest-highlevel">Ingest pipeline — high-level black box</a></li>
+      <li><a href="#retrieval-highlevel">Retrieval pipeline — high-level black box</a></li>
+      <li><a href="#classification">Query Classification &amp; Ambiguity Resolution</a></li>
+      <li><a href="#knowledge-tree">Knowledge tree — folder hierarchy</a></li>
+      <li><a href="#supplements">Supplements — EntityList tables</a></li>
+      <li><a href="#web-service">Web service architecture</a></li>
+      <li><a href="#version-history">Version history (changelog)</a></li>
+      <li><a href="#plots">Performance plots</a></li>
+    </ul>
+  </nav>
+
+  <!-- Features -->
+  <div class="card" id="features">
+    <h2>Features</h2>
+    <ul>
+      <li><strong>Multi-format ingest</strong> — .xlsx (openpyxl/calamine), .docx, .pdf (PyMuPDF) via a parser registry; orchestrated full/incremental rebuilds with quality gates and versioning.</li>
+      <li><strong>Semantic chunking</strong> — semantic / fixed strategies; QA-pair, article, kv-pair, reason-detail, single-col-list and staff-profile schemas with parent chunks, question dedup, and overlap control.</li>
+      <li><strong>Hybrid retrieval</strong> — Rust tantivy BM25 (RAM, 50 MB heap, whitespace tokenizer over Persian word+3-gram stream) + dense MiniLM-L12 cosine index (numpy .npz cache + pgvector HNSW, both RAM-pinned) &rarr; RRF fusion k=60 &rarr; cross-encoder rerank, with Redis + in-memory result cache (TTL 600 s, 2–7 ms hits).</li>
+      <li><strong>RAM-first</strong> — Postgres vectors + HNSW fully in shared_buffers (16 GB) + effective_cache_size (800 GB) + pg_prewarm; tantivy in RAMDirectory; dense + reranker on H200 GPU.</li>
+      <li><strong>Persian query path</strong> — normalization, synonym/beam expansion (93-entry colloquial→formal map), reform/enhance stages, optional HyDE (off by default).</li>
+      <li><strong>Operations UI</strong> — dashboard, transparency views (RTL Persian), 5-step ingestion wizard, benchmarks, chunk/document browsers, zip browser, monitoring (12 routers).</li>
+      <li><strong>Stage-level evaluation</strong> — every gold row classified A / A′ / B / D with per-stage top-k lists dumped to JSONL.</li>
+    </ul>
+  </div>
+
+  <!-- Ingest pipeline high-level -->
+  <div class="card" id="ingest-highlevel">
+    <h2>Ingest pipeline — high-level black box</h2>
     <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Ingest pipeline — high-level black box</div>
       <div class="mermaid">
 flowchart TB
     SRC["source files: XLSX / PDF / DOCX"]
@@ -51,15 +77,16 @@ flowchart TB
     PIPE -.-> ENT
       </div>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> High-level ingest black box. Source files (XLSX / PDF / DOCX) enter the Knowledgebase Ingest Pipeline, which writes chunks + DocumentVersion to the KB store (SQLite aiosqlite or pgvector HNSW 384-d). EntityList supplementary sheets (ضمیمه پایگاه دانش list sheets) are stored separately and injected at search step 8, not embedded as chunks. Pipeline coordinator: <code>kb_manager/pipeline/orchestrator.py</code> — scan → parse → preprocess → chunk → embed → store → quality gate → version, with full/incremental rebuilds and versioning (<code>pipeline/versioning.py</code>).</div>
+    <div class="caption">
+      <p>Pipeline: <code>kb_manager/pipeline/orchestrator.py</code> coordinates scan &rarr; parse &rarr; preprocess &rarr; chunk &rarr; embed &rarr; store &rarr; quality gate &rarr; version, with full/incremental rebuilds and versioning (<code>pipeline/versioning.py</code>). <code>EntityList</code> supplementary sheets (<em>ضمیمه پایگاه دانش</em> list sheets) are stored separately and injected at search step 8, not embedded as chunks.</p>
+    </div>
   </div>
-</section>
 
-<!-- ================= RETRIEVAL HIGH LEVEL ================= -->
-<section class="section" id="retrieval-hl">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">2</div><h2>Retrieval Pipeline — High-Level Black Box (per query)</h2></div>
+  <!-- Retrieval pipeline high-level -->
+  <div class="card" id="retrieval-highlevel">
+    <h2>Retrieval pipeline — high-level black box</h2>
     <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Retrieval pipeline — high-level black box</div>
       <div class="mermaid">
 flowchart LR
     Q["Persian query"]
@@ -71,56 +98,45 @@ flowchart LR
     Q --> RETRIEVE --> RESULTS
       </div>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> High-level retrieval black box. A Persian query hits the query cache first (Redis + in-memory, TTL 600 s, keyed by sha256(normalized_query|top_k|boost|filter_path); cache hits return in 2–7 ms, errors never cached). On a miss it flows through hybrid retrieval — tantivy BM25 + dense MiniLM-L12 cosine → RRF fusion k=60 → cross-encoder rerank (BAAI/bge-reranker-v2-m3) → final top-k — then step 8 injects EntityList rows whose description_embedding cosine ≥ 0.6. Endpoint: <code>POST /search/api</code> (<code>kb_manager/web/routes/search.py</code>).</div>
-  </div>
-</section>
-
-<!-- ================= WEB SERVICE HIGH LEVEL ================= -->
-<section class="section" id="webservice-hl">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">3</div><h2>Web Service — High-Level</h2></div>
-    <div class="diagram-wrap">
-      <div class="mermaid">
-graph TD
-    APP[kb_manager.web.app FastAPI + lifespan pre-warm] --> R1[/documents /chunks /pipeline/]
-    APP --> R2[/search /benchmarks /monitoring/]
-    APP --> R3[/transparency + zip_browser /ingestion + kb_history /versions /cleanup/]
-    APP --> H[/health /api/health /ready dashboard /]
-    APP --> DB[(SQLite or pgvector)]
-      </div>
+    <div class="caption">
+      <p>Flow: <code>POST /search/api</code> (<code>kb_manager/web/routes/search.py</code>). Query is normalized and tokenized (word tokens + Persian char 3-grams, stopword removal), expanded via synonym/multi-query beam (default 5), optional HyDE off. Two BM25 legs (content + keywords, keyword_boost×3) run on tantivy RAM index or Python fallback; dense leg uses the MiniLM-L12 384-d matrix from <code>data/dense_embeddings.npz</code> (or pgvector HNSW when <code>KB_DB_MODE=pgvector</code>). Results fuse via RRF k=60, cross-encoder rerank (<code>BAAI/bge-reranker-v2-m3</code>, GPU), then RRF↔cross-encoder score fusion α=0.7 with pin protection (BM25/merged top-3 cannot drop below rank 10), then final top-k gated by <code>min_relevance_threshold</code>. Step 8 injects <code>EntityList</code> rows whose <code>description_embedding</code> cosine ≥ 0.6. Redis (<code>KB_REDIS_URL</code>, TTL 600 s) + in-memory fallback cache keyed by <code>sha256(normalized_query|top_k|boost|filter_path)</code>; errors never cached.</p>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> High-level web service. The FastAPI app (<code>kb_manager/web/app.py</code>) mounts 12 routers across documents, chunks, pipeline, versions, monitoring, search, benchmarks, cleanup, transparency (+ zip browser), ingestion (+ KB history), plus health/ready and the dashboard. Lifespan pre-warms the tantivy RAM index (1110 docs, ~5 ms) + MiniLM embeddings + cross-encoder on GPU (~30–60 s first boot) so the first query is fast. UI ships Persian RTL views (Vazirmatn).</div>
   </div>
-</section>
 
-<!-- ================= QUERY CLASSIFICATION HIGH LEVEL ================= -->
-<section class="section" id="classify-hl">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">4</div><h2>Query Classification &amp; Ambiguity Resolution — High-Level</h2></div>
+  <!-- Query Classification & Ambiguity Resolution -->
+  <div class="card" id="classification">
+    <h2>Query Classification &amp; Ambiguity Resolution (v13.1)</h2>
+    <p>The pipeline includes a <strong>3-way LLM classifier</strong> (<code>nodes/classify.py</code>) that routes every query into one of three categories before retrieval, plus an <strong>Mizan System-1 + Gemma hybrid ambiguity resolver</strong> (<code>mizan.py</code>) for subspace routing.</p>
     <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Query Classification &amp; Ambiguity Resolution</div>
       <div class="mermaid">
 flowchart TD
-    Q[Persian query] --> CLASSIFY[3-way LLM classifier: greeting / specification / question]
-    CLASSIFY -->|greeting| GREET[return greeting, no retrieval]
-    CLASSIFY -->|specification| SPEC[extract subspace: cheque / facilities_person / legal / general]
+    Q[Persian query] --> CLASSIFY[3-way LLM classifier greeting / specification / question]
+    CLASSIFY -->|greeting| GREET[return greeting no retrieval]
+    CLASSIFY -->|specification| SPEC[extract subspace cheque/facilities_person/legal/general]
     CLASSIFY -->|question| T5[is_scattered_ambiguous?]
     T5 -->|no| RETRIEVE[retrieve + rerank]
-    T5 -->|yes| AMBIG[Mizan System-1 + Gemma hybrid ambiguity resolver]
+    T5 -->|yes| AMBIG[Mizan System-1 subspace routing + ambiguous flag]
     AMBIG -->|confident| RETRIEVE
-    AMBIG -->|ambiguous| CLARIFY[ask clarifying question: چک / تسهیلات / شرکت / عمومی]
+    AMBIG -->|ambiguous| CLARIFY[ask clarifying question چک / تسهیلات / شرکت / عمومی]
     CLARIFY --> SPEC
     SPEC --> RETRIEVE
       </div>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> High-level query routing. Every Persian query is classified by a 3-way LLM classifier into greeting (no KB lookup), specification (locks a subspace), or question (needs retrieval). Questions are checked for scattered ambiguity; confident queries proceed to retrieve + rerank, ambiguous ones trigger a clarifying question (چک / تسهیلات / شرکت / عمومی) before re-routing. Components: <code>nodes/classify.py</code> (3-way classifier), <code>mizan.py:234-280</code> (Mizan System-1 calibrated subspace routing), <code>infer_specification.py</code> (Gemma scattered detection + clarifying question generation), with heuristic keyword fallback.</div>
+    <div class="caption">
+      <ul>
+        <li><strong>Classification categories:</strong> greeting (سلام، تشکر، خداحافظی — no KB lookup); specification (user names a subspace چک، تسهیلات، شرکت، عمومی — locks subspace); question (real query needing retrieval — passes to ambiguity resolver).</li>
+        <li><strong>Ambiguity resolver (Mizan System-1 + Gemma hybrid):</strong> Mizan System-1 (<code>mizan.py:234-280</code>) — calibrated subspace routing with choice probabilities + ambiguous flag; Gemma LLM (<code>infer_specification.py</code>) — scattered detection + clarifying question generation; Fallback — heuristic keyword-based subspace detection when LLMs unavailable.</li>
+        <li><strong>Second resolver view (SVM-RBF + Mizan):</strong> 3-way Classifier &rarr; SVM-RBF 7-dim features (ambiguous gate) &rarr; Mizan System-1 /v1/systemone (subspace routing + ambiguous flag) &rarr; Gemma LLM scattered detection &rarr; clarifying question &rarr; retrieve with subspace.</li>
+      </ul>
+    </div>
   </div>
-</section>
 
-<!-- ================= KNOWLEDGE TREE HIGH LEVEL ================= -->
-<section class="section" id="knowledgetree-hl">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">5</div><h2>Knowledge Tree — Folder Hierarchy (v13_1405-07-06 → 18 docs / 1,123 chunks)</h2></div>
+  <!-- Knowledge tree -->
+  <div class="card" id="knowledge-tree">
+    <h2>Knowledge tree — folder hierarchy (v13_1405-07-06 → 18 docs / 1,123 chunks)</h2>
     <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Folder hierarchy</div>
       <div class="mermaid">
 flowchart TB
     Root["پایگاه دانش (18 docs, 1123 chunks)"]
@@ -162,55 +178,167 @@ flowchart TB
     Root --> T4
       </div>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> High-level knowledge tree. The source ZIP hierarchy maps to <code>Document.doc_metadata.folder_hierarchy: list[str]</code> (<code>database.py:81</code>) and per-chunk <code>cd[7]</code> at <code>search.py:438</code>. Leaf <code>allowed_ids</code> powers <code>POST /search/api</code> <code>filter_path</code>. Chunk types: <code>qa_pair</code> 776 · <code>reason_detail</code> 198 · <code>body</code> 71 · <code>article</code> 46 · <code>kv_pair</code> 19 (+ 13 parent chunks). Subspaces: Individuals — Facility Validation (Q&A + article + reason_detail), Individuals — Cheque Report (Q&A + article + kv + reason_detail), Legal Entities — Facility Validation (article + reason_detail), Public KB (article/body/q/a/kv_pair). Supplements (EntityList tables, NOT chunks): 5 lists injected at search step 8 via cosine ≥ 0.6.</div>
+    <div class="caption">
+      <ul>
+        <li>Source ZIP hierarchy &rarr; <code>Document.doc_metadata.folder_hierarchy: list[str]</code> &rarr; per-chunk <code>cd[7]</code> at <code>search.py:438</code>. Leaf <code>allowed_ids</code> powers <code>POST /search/api</code> <code>filter_path</code>.</li>
+        <li><strong>Chunk types in this KB:</strong> qa_pair 776 · reason_detail 198 · body 71 · article 46 · kv_pair 19 (+ 13 parent chunks).</li>
+        <li>Leaf-level filtering: KB tester <code>filter_path: "شاخه/چک"</code> yields only that subtree (<code>allowed_ids</code> = <code>{chunk_id | filter_path in "/".join(hierarchy)}</code>).</li>
+      </ul>
+    </div>
   </div>
-</section>
 
-<!-- ================= BENCHMARKS HIGH LEVEL ================= -->
-<section class="section" id="benchmarks-hl">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">6</div><h2>Benchmarks &amp; Metrics — High-Level</h2></div>
-    <table>
-      <thead><tr><th>Metric</th><th>v11 (current, 663 rows)</th><th>v10 pre-fix</th><th>Meaning</th></tr></thead>
-      <tbody>
-        <tr><td>Hit@5</td><td><strong>0.9306</strong> (617/663)</td><td>0.9244</td><td>gold in final top-5</td></tr>
-        <tr><td>Hit@1</td><td>0.7511 (498/663)</td><td>—</td><td>gold at rank 1</td></tr>
-        <tr><td>MRR</td><td>0.8281</td><td>0.8369</td><td>mean reciprocal rank</td></tr>
-        <tr><td>A retriever miss</td><td>25</td><td>46 (lumped)</td><td>gold in neither BM25 nor dense top-100</td></tr>
-        <tr><td>A′ fusion loss</td><td>8</td><td>—</td><td>one leg found gold, RRF dropped it</td></tr>
-        <tr><td>B reranker loss</td><td>13</td><td>6</td><td>merged top-100 → dropped from top-5</td></tr>
-        <tr><td>D success</td><td>617</td><td>660</td><td>gold in final top-5</td></tr>
-      </tbody>
-    </table>
-    <div class="callout"><b>Stage funnel (663 rows):</b> BM25 Hit@5 382 (0.576) / Recall@100 576 (0.869) · Dense Hit@5 399 (0.602) / Recall@100 552 (0.833) · Merged RRF Hit@5 437 (0.659) / Recall@100 630 (0.950) · Final Rerank Hit@5 <strong>617 (0.931)</strong>.</div>
-    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:1rem;">
-      <div style="flex:1; min-width:260px;">
-        <figure style="margin:0;">
-          <img src="assets/plots/p_funnel.png" alt="Failure funnel" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-          <figcaption class="diagram-caption"><strong>Caption:</strong> Failure funnel (A/A′/B/D counts) — 663-row eval set classified by root cause.</figcaption>
-        </figure>
-      </div>
-      <div style="flex:1; min-width:260px;">
-        <figure style="margin:0;">
-          <img src="assets/plots/p_stages.png" alt="Stage funnel" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-          <figcaption class="diagram-caption"><strong>Caption:</strong> Stage funnel — per-stage Hit@5 and Recall@100 across BM25, Dense, Merged RRF, Final Rerank.</figcaption>
-        </figure>
-      </div>
-      <div style="flex:1; min-width:260px;">
-        <figure style="margin:0;">
-          <img src="assets/plots/p_perfile.png" alt="Per-file Hit@5" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-          <figcaption class="diagram-caption"><strong>Caption:</strong> Per-file Hit@5 by source file — Company_CRM_Questions 0.9157, IndividualCRMQuestions 0.9330, PublicQuestions.xlsx 0.9273, ChequeQuestions 0.9848.</figcaption>
-        </figure>
+  <!-- Supplements -->
+  <div class="card" id="supplements">
+    <h2>Supplements — 5 EntityList (ضمیمه, NOT chunks)</h2>
+    <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Supplements — EntityList injection</div>
+      <div class="mermaid">
+flowchart LR
+    XLSX["XLSX sheet لیست بانک‌ها / عناوین وام"] --> PARSER["Importer: EntityList database.py:249"]
+    PARSER --> TBL["entity_lists list_name + description + description_embedding content_json"]
+    TBL --> STEP8["Search step 8 search.py:960 query×MiniLM-L12 cosine vs description_embedding threshold 0.6"]
+    STEP8 --> INJ["SearchSteps.injected_entities search.py:989 [{list_name, description, content: content_json, similarity}]"]
+    INJ --> API["POST /search/api returned with final_results orchestrator next: rag.supplemental: EntityList[]"]
       </div>
     </div>
-    <p class="muted">Full reports: <code>kb-manager/artifacts/retrieval_training/cheque_eval_report.html/pdf</code>, <code>report_metrics.json</code>, <code>retrieval_failures_v10_1405-06-23.jsonl</code>.</p>
+    <div class="caption">
+      <p><code>EntityList</code> supplementary tables (<code>database.py:249</code>) are stored on-disk as XLSX list sheets and are <em>not</em> Chunks. At search time (step 8) they are injected via MiniLM-L12 cosine similarity vs <code>description_embedding</code> (threshold 0.6), producing <code>SearchSteps.injected_entities</code> [{list_name, description, content: content_json, similarity}] returned by <code>POST /search/api</code>. Lists: استفاده کنندگان گزارش، تامین‌کنندگان دیتا، سهامداران، لیست و عناوین وام ها، Word Document.</p>
+    </div>
   </div>
-</section>
+
+  <!-- Web service -->
+  <div class="card" id="web-service">
+    <h2>Web service architecture</h2>
+    <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: KB Manager web service</div>
+      <div class="mermaid">
+graph TD
+    APP[kb_manager.web.app FastAPI + lifespan pre-warm] --> R1[/documents /chunks /pipeline/]
+    APP --> R2[/search /benchmarks /monitoring/]
+    APP --> R3[/transparency + zip_browser /ingestion + kb_history /versions /cleanup/]
+    APP --> H[/health /api/health /ready dashboard /]
+    APP --> DB[(SQLite or pgvector)]
+      </div>
+    </div>
+    <div class="caption">
+      <p>Routers mounted in <code>kb_manager/web/app.py</code>: /documents, /chunks, /pipeline, /versions, /monitoring, /search, /benchmarks, /cleanup, /transparency (+ zip browser), /ingestion (+ KB history) — plus /health, /api/health, /ready and / dashboard. The UI ships Persian RTL views (Vazirmatn). Lifespan pre-warm builds the tantivy RAM index + MiniLM embeddings + cross-encoder on GPU (~60 s first boot includes HuggingFace cache load) so the first query is fast.</p>
+    </div>
+  </div>
+
+  <!-- Version history -->
+  <div class="card" id="version-history">
+    <h2>Version history (changelog)</h2>
+    <table>
+      <thead><tr><th>Ver</th><th>Corpus</th><th>Pipeline / retrieval</th><th>Benchmark (measured)</th></tr></thead>
+      <tbody>
+        <tr><td>v1</td><td>~160 files (31Tir1405)</td><td>baseline ingest + BM25</td><td>—</td></tr>
+        <tr><td>v2</td><td>355 docs / 6,208 chunks</td><td>BM25 + TF-IDF (RRF k=60)</td><td>Hit@5 90%, MRR 0.736, 2.8 s</td></tr>
+        <tr><td>v3</td><td>355 docs / 6,208 chunks</td><td>+ dense MiniLM-L12 + RRF</td><td>Hit@5 89.2%, MRR 0.787, 1.9 s</td></tr>
+        <tr><td>v4</td><td>355 docs / 6,208 chunks</td><td>+ char 3-grams + cross-encoder reranker</td><td>Hit@5 90%, MRR 0.775, 15.8 s</td></tr>
+        <tr><td>v5</td><td>355 docs / 6,208 chunks</td><td>frozen dataset + BM25×3</td><td>Hit@5 84.2%, MRR 0.751, 4.2 s</td></tr>
+        <tr><td>v6</td><td>69 docs / 3,626 chunks</td><td>P0–P8 remediation, synonym beam5, MinHash dedup</td><td>10-q smoke 100% Hit@5</td></tr>
+        <tr><td>v7</td><td>34 docs / 2,074 chunks</td><td>fresh 1405-05-31 KB, colloquial expansion, IVA-15</td><td>doc-Hit@5 73.3% (11/15), MRR 0.466</td></tr>
+        <tr><td>v8</td><td>103 docs / 6,593 chunks</td><td>pgvector HNSW-384 + tunable keyword×3.0</td><td>HNSW 23.1 s &rarr; GPU 18.4 s</td></tr>
+        <tr><td>v9</td><td>21+32 docs / ~1,084 chunks</td><td>KB_9.7.2026 type-aware, transparency/zip</td><td>IVA 11/15 73.3% MRR 0.474</td></tr>
+        <tr><td>v10</td><td>35 docs / 2,282 chunks</td><td>1405-06-23, kv/single-col schemas, stage-level bench</td><td>Hit@5 0.9244, MRR 0.8369</td></tr>
+        <tr><td>v11 ⭐</td><td>35 docs / 2,227 chunks</td><td>chunkfix rebuild + A/A′ diagnostics + dense use_context=False</td><td>Hit@5 0.9306, Hit@1 0.7511, MRR 0.8281</td></tr>
+        <tr><td>v12</td><td>code only (same v11 KB)</td><td>typo corrections + exclusive-term beam + Redis cache</td><td>SYNONYM_MAP 93 entries</td></tr>
+        <tr><td>v13</td><td>18 docs / 1,123 chunks</td><td>1405-07-06, RAM-first: tantivy RAM BM25, pgvector 16 GB shared_buffers, GPU dense/rerank H200</td><td>latency 55 ms, Hit@5 pending re-benchmark</td></tr>
+        <tr><td>v13-RAM</td><td>code + infra</td><td>RAM-first tuning: shared_buffers=16GB, effective_cache_size=800GB, pg_prewarm, KB_FAST_CACHE=true</td><td>Latency 55 ms vs 3.1 s before</td></tr>
+      </tbody>
+    </table>
+    <p class="caption">v11 manifest: <code>versions/v11_1405-06-23/manifest.json</code>. v10 export: <code>versions/v10_1405-06-23/</code>.</p>
+  </div>
+
+  <!-- Plots -->
+  <div class="card" id="plots">
+    <h2>Performance plots</h2>
+    <p>All plots verified present under <code>kb-manager/data/plots/</code> (copied to <code>docs/plots/</code>).</p>
+
+    <div class="plot-wrap">
+      <img src="plots/latency_breakdown_ram_tantivy.png" alt="Latency breakdown RAM tantivy">
+      <div class="plot-caption">Latency breakdown before vs after (RAM-first + Rust tantivy).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/latency_breakdown_pie_after.png" alt="Stage share after 55 ms">
+      <div class="plot-caption">Stage share after (55 ms total).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/improvement_factor.png" alt="Improvement factor log scale">
+      <div class="plot-caption">Improvement factor (log scale).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/postgres_ram_fit.png" alt="Postgres vectors fit entirely in RAM">
+      <div class="plot-caption">Postgres vectors fit entirely in RAM (shared_buffers + pg_prewarm).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/hit_rate_by_format.png" alt="Hit rate by format">
+      <div class="plot-caption">Hit rate by format.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/mrr_by_format.png" alt="MRR by format">
+      <div class="plot-caption">MRR by format.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/qa_duplication.png" alt="QA duplication">
+      <div class="plot-caption">QA duplication analysis.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/keyword_only_improvement.png" alt="Keyword only improvement">
+      <div class="plot-caption">Keyword-only improvement.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/latency_distribution.png" alt="Latency distribution">
+      <div class="plot-caption">Latency distribution.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/version_comparison_overall.png" alt="Version comparison overall">
+      <div class="plot-caption">Version comparison — overall.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/version_comparison_per_format.png" alt="Version comparison per format">
+      <div class="plot-caption">Version comparison — per format.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/version_comparison_radar.png" alt="Version comparison radar">
+      <div class="plot-caption">Version comparison — radar.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_latency_v13_1.png" alt="Latency v13.1">
+      <div class="plot-caption">Latency v13.1 (stage p50 bars: v13 README / before / after).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_funnel.png" alt="Failure funnel">
+      <div class="plot-caption">Failure funnel — A/A′/B/D counts.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_stages.png" alt="Stage funnel">
+      <div class="plot-caption">Stage funnel — per-stage Hit@5 / Recall@100.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_perfile.png" alt="Per-file Hit@5">
+      <div class="plot-caption">Per-file Hit@5 by source file.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_ablation.png" alt="Title-removal ablation">
+      <div class="plot-caption">Ablation (title removal): dense recall@100 0.822 → 0.962.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_errors.png" alt="Errors OOM before vs after">
+      <div class="plot-caption">Errors (OOM) before vs after Cheque fix.</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="note-title">Continue reading</div>
+    <p>Need parameters, latency breakdowns, API/CLI reference, configuration, database schema, benchmarks, and the ambiguity-resolver/classifier evaluation? Go to <a href="technical.html">In-Depth Technical Detail</a>.</p>
+  </div>
+</div>
 
 <footer class="site-footer">
-  <div class="wrap">
-    <div><strong>Dana</strong> — Work RAG KB · High-Level Detail · GitHub Pages</div>
-    <div class="muted">Private — ICS Credit Scoring · <a href="index.html">Overview</a> · <a href="technical.html">Technical Detail</a></div>
+  <div class="footer-inner">
+    <a href="index.html" class="footer-brand">Dana</a>
+    <div class="footer-note">Knowledgebase component &bull; Work Credit RAG Platform &bull; Agent: Dana</div>
   </div>
 </footer>
 

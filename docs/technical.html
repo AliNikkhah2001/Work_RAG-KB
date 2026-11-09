@@ -3,44 +3,63 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dana — Work RAG KB | Technical Detail</title>
+<title>Dana — Knowledgebase In-Depth Technical Detail</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-<script>mermaid.initialize({ startOnLoad: true, theme: 'base', securityLevel: 'loose' });</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true,theme:'base'});</script>
 </head>
 <body>
 
-<!-- ================= HEADER ================= -->
 <header class="site-header">
-  <nav class="navbar wrap">
-    <a href="index.html" class="navbar-brand">
-      <img src="dana-logo.png" alt="Dana Logo" class="dana-logo-img">
-    </a>
-    <div class="navbar-links">
+  <div class="header-inner">
+    <div class="brand">
+      <a href="index.html" class="dana-logo">Dana</a>
+      <span class="dana-tagline">Knowledgebase &bull; RAG</span>
+    </div>
+    <nav class="nav-links">
       <a href="index.html">Overview</a>
       <a href="high-level.html">High-Level Detail</a>
-      <a href="technical.html" class="active">Technical Detail</a>
-    </div>
-    <a href="https://github.com/splunk-data/v1/Work_RAG-KB" class="nav-cta" target="_blank" rel="noopener">View on GitHub</a>
-  </nav>
+      <a href="technical.html" class="active">In-Depth Technical Detail</a>
+    </nav>
+  </div>
 </header>
 
-<!-- ================= HERO ================= -->
-<section class="hero">
-  <div class="wrap">
-    <div class="hero-brand"><img src="dana-logo.png" alt="Dana Logo" class="dana-logo-img"></div>
-    <div class="hero-subtitle">Work RAG Knowledge Base · In-Depth Technical Detail</div>
-    <h1>Technical Reference</h1>
-    <p class="lead">Detailed ingest and retrieval pipeline diagrams, configuration, API endpoints, CLI commands, database schema, latency breakdown, benchmark plots, and the restart runbook.</p>
+<div class="container">
+  <div class="breadcrumb">
+    <a href="index.html">Dana Knowledgebase</a> <span>&rsaquo;</span> In-Depth Technical Detail
   </div>
-</section>
 
-<!-- ================= INGEST DETAILED ================= -->
-<section class="section" id="ingest-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">1</div><h2>Ingest Pipeline — Detailed Technical</h2></div>
-    <p>Matches <code>kb_manager/pipeline/orchestrator.py</code>. Coordinates scan → parse → preprocess → chunk → embed → store → quality gate → version, with full/incremental rebuilds and versioning (<code>pipeline/versioning.py</code>).</p>
+  <h1 class="page-title">In-Depth Technical Detail</h1>
+  <p class="page-subtitle">Parameters, latency, API/CLI reference, configuration, database schema, benchmarks, and evaluation for the Persian RAG Knowledgebase.</p>
+
+  <nav class="toc card">
+    <h4>On this page</h4>
+    <ul>
+      <li><a href="#ingest-detailed">Ingest pipeline — detailed technical</a></li>
+      <li><a href="#retrieval-detailed">Retrieval pipeline — detailed technical</a></li>
+      <li><a href="#key-parameters">Key parameters (v13 RAM-first)</a></li>
+      <li><a href="#latency">Latency — RAM-first + Rust tantivy</a></li>
+      <li><a href="#api-endpoints">API endpoints (KB Manager)</a></li>
+      <li><a href="#cli-commands">CLI commands</a></li>
+      <li><a href="#configuration">Configuration (environment variables)</a></li>
+      <li><a href="#database">Database</a></li>
+      <li><a href="#tests">Tests</a></li>
+      <li><a href="#libraries">Libraries &amp; versions</a></li>
+      <li><a href="#benchmarks">Benchmarks &amp; metrics</a></li>
+      <li><a href="#judge-feedback">LLM-as-judge feedback &amp; root causes</a></li>
+      <li><a href="#evaluation-reports">Evaluation reports</a></li>
+      <li><a href="#build-process">Training / build process</a></li>
+      <li><a href="#ambiguity-eval">Ambiguity resolver &amp; classifier evaluation</a></li>
+      <li><a href="#mizan">Mizan System-1 model &amp; hybrid architecture</a></li>
+      <li><a href="#restart-runbook">Restart runbook — never regress to CPU</a></li>
+    </ul>
+  </nav>
+
+  <!-- Ingest pipeline detailed -->
+  <div class="card" id="ingest-detailed">
+    <h2>Ingest pipeline — detailed technical</h2>
     <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Ingest pipeline — detailed technical (matches <code>kb_manager/pipeline/orchestrator.py</code>)</div>
       <div class="mermaid">
 flowchart TB
     SRC["source files: XLSX / PDF / DOCX in kb-source version folder"]
@@ -48,26 +67,32 @@ flowchart TB
     PARSE["parser registry: xlsx_parser / docx_parser / pdf_parser"]
     PREP["preprocessor pipeline: clean + Persian normalization + validators"]
     CHUNK["semantic chunker: QA-pair / article / kv_pair / reason_detail + parent chunks + question dedup"]
+    QUAL["quality gate — QualityGate.validate_document"]
+    DEDUP["dedup — question + MinHash LSH dedup pipeline"]
     EMBED["embedder: paraphrase-multilingual-MiniLM-L12-v2 384-d — pgvector HNSW store; SQLite: npz cache rebuilt at search"]
     STORE["store chunks + DocumentVersion (SQLite aiosqlite or pgvector HNSW 384-d)"]
-    QUAL["quality gate — QualityGate.validate_document"]
     VER["version snapshot per document — pipeline/versioning.py"]
     ENT["EntityList supplement tables — 'ضمیمه پایگاه دانش' sheets, stored separately, not chunks"]
 
-    SRC --> SCAN --> PARSE --> PREP --> CHUNK --> EMBED --> STORE --> QUAL --> VER
+    SRC --> SCAN --> PARSE --> PREP --> CHUNK --> QUAL --> DEDUP --> EMBED --> STORE --> VER
     PARSE -.-> ENT
       </div>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Detailed ingest pipeline (production code). Source files in the kb-source version folder are scanned by the orchestrator (skipping TestQuestion*, ~$ temp files, excluded stems), parsed via the parser registry (xlsx_parser / docx_parser / pdf_parser), run through the preprocessor pipeline (clean + Persian normalization + validators), semantically chunked (QA-pair / article / kv_pair / reason_detail + parent chunks + question dedup), embedded with paraphrase-multilingual-MiniLM-L12-v2 384-d (pgvector HNSW store; SQLite: npz cache rebuilt at search), stored as chunks + DocumentVersion (SQLite aiosqlite or pgvector HNSW 384-d), passed through the quality gate (QualityGate.validate_document), snapshotted per document (pipeline/versioning.py). EntityList supplementary sheets (ضمیمه پایگاه دانش list sheets) are stored separately (<code>database.py:249</code>) and injected at search step 8, not embedded as chunks.</div>
+    <div class="caption">
+      <ul>
+        <li><strong>SRC → SCAN → PARSE → PREP → CHUNK → QUAL → DEDUP → EMBED → STORE → VER</strong> — the full ingest chain (SCAN skips TestQuestion*, ~$ temp files, excluded stems).</li>
+        <li><strong>PARSE -.-> ENT:</strong> EntityList supplementary sheets (<em>ضمیمه پایگاه دانش</em> list sheets) are stored separately (<code>database.py:249</code>) and injected at search step 8, not embedded as chunks.</li>
+        <li>Pipeline: <code>kb_manager/pipeline/orchestrator.py</code> coordinates scan → parse → preprocess → chunk → embed → store → quality gate → version, with full/incremental rebuilds and versioning (<code>pipeline/versioning.py</code>).</li>
+        <li>Validated against <code>kb_manager/</code>: <code>pipeline/orchestrator.py</code>, <code>parsers/</code>, <code>preprocessor/</code>, <code>chunker/</code>, <code>dedup.py</code>, <code>embedder/</code>, <code>models/database.py</code>, <code>web/routes/search.py</code>, <code>tantivy_bm25.py</code>, <code>dense.py</code>, <code>reranker.py</code>, <code>config.py</code>.</li>
+      </ul>
+    </div>
   </div>
-</section>
 
-<!-- ================= RETRIEVAL DETAILED ================= -->
-<section class="section" id="retrieval-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">2</div><h2>Retrieval Pipeline — Detailed Technical (per query)</h2></div>
-    <p>Matches <code>kb_manager/web/routes/search.py</code>. Flow: <code>POST /search/api</code>.</p>
+  <!-- Retrieval pipeline detailed -->
+  <div class="card" id="retrieval-detailed">
+    <h2>Retrieval pipeline — detailed technical</h2>
     <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Retrieval pipeline — detailed technical (matches <code>kb_manager/web/routes/search.py</code>)</div>
       <div class="mermaid">
 flowchart LR
     Q["Persian query"]
@@ -94,258 +119,116 @@ flowchart LR
     CACHE -.-> TOP
       </div>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Detailed retrieval pipeline (production code, <code>kb_manager/web/routes/search.py</code>). A Persian query is normalized (Arabic→Persian, ZWNJ, digits) and tokenized (word tokens + Persian char 3-grams, stopword removal), expanded via synonym/multi-query beam (default 5), optional HyDE off. Two BM25 legs (content + keywords, keyword_boost×3) run on tantivy RAM index or Python fallback; dense leg uses the MiniLM-L12 384-d matrix from <code>data/dense_embeddings.npz</code> (or pgvector HNSW when <code>KB_DB_MODE=pgvector</code>). Results fuse via RRF k=60, cross-encoder rerank (BAAI/bge-reranker-v2-m3, GPU), then RRF↔cross-encoder score fusion α=0.7 with pin protection (BM25/merged top-3 cannot drop below rank 10), then final top-k gated by <code>min_relevance_threshold</code>. Step 8 injects EntityList rows whose <code>description_embedding</code> cosine ≥ 0.6. Redis (<code>KB_REDIS_URL</code>, TTL 600 s) + in-memory fallback cache keyed by <code>sha256(normalized_query|top_k|boost|filter_path)</code>; errors never cached. <code>KB_FAST_CACHE=true</code> skips the 2.7 s per-search fingerprint scan.</div>
-  </div>
-</section>
-
-<!-- ================= CLASSIFICATION DETAILED ================= -->
-<section class="section" id="classify-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">3</div><h2>Query Classification &amp; Ambiguity Resolver — Detailed (v13.1)</h2></div>
-    <div class="diagram-wrap">
-      <div class="mermaid">
-flowchart TD
-    Q[Persian query] --> CLASSIFY[3-way LLM classifier greeting / specification / question]
-    CLASSIFY -->|greeting| GREET[return greeting no retrieval]
-    CLASSIFY -->|specification| SPEC[extract subspace cheque/facilities_person/legal/general]
-    CLASSIFY -->|question| T5[is_scattered_ambiguous?]
-    T5 -->|no| RETRIEVE[retrieve + rerank]
-    T5 -->|yes| AMBIG[Mizan System-1 subspace routing + ambiguous flag]
-    AMBIG -->|confident| RETRIEVE
-    AMBIG -->|ambiguous| GEMMA[Gemma LLM scattered detection]
-    GEMMA -->|scattered| CLARIFY[ask clarification چک / تسهیلات / شرکت / عمومی]
-    GEMMA -->|not scattered| ROUTE[route to subspace]
-    ROUTE --> RETRIEVE
-      </div>
+    <div class="caption">
+      <ul>
+        <li><strong>Q → NORM → TOKEN → BEAM → BM25/DENSE → RRF → RERANK → FUSE → TOP → ENT</strong> — the full retrieval chain.</li>
+        <li><strong>Normalization:</strong> Arabic→Persian, ZWNJ, digits.</li>
+        <li><strong>Tokenization:</strong> words + Persian char 3-grams.</li>
+        <li><strong>Beam expansion:</strong> synonym / multi-query, beam=5.</li>
+        <li><strong>BM25:</strong> tantivy Rust RAM 50 MB heap, content + keyword, k1=1.5, b=0.75, boost×3.</li>
+        <li><strong>Dense:</strong> cosine MiniLM-L12 384-d, npz cache / pgvector HNSW, GPU cuda.</li>
+        <li><strong>RRF:</strong> fusion k=60.</li>
+        <li><strong>Rerank:</strong> cross-encoder BGE-v2-m3, GPU, pool min(50, top_k×3) / KB_RERANK_POOL.</li>
+        <li><strong>Fusion:</strong> RRF↔cross-encoder α=0.7 + pin protection top-3 ≥ rank 10.</li>
+        <li><strong>Top:</strong> final top-k gated by min_relevance_score threshold.</li>
+        <li><strong>ENT:</strong> step 8 EntityList injection, cosine ≥ 0.6.</li>
+        <li><strong>Cache:</strong> Redis TTL 600s + in-memory, sha256 key; Q -.-> cache hit 2–7 ms.</li>
+        <li><strong>HYDE -.-> DENSE:</strong> optional HyDE (KB_HYDE_ENABLED, off by default).</li>
+      </ul>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Detailed classification flow. The 3-way LLM classifier (<code>nodes/classify.py</code>) routes every query into greeting / specification / question. Greetings return with no retrieval. Specifications extract a subspace label (cheque / facilities_person / legal / general) and lock it. Questions pass to the ambiguity resolver: Mizan System-1 (<code>mizan.py:234-280</code>) provides calibrated subspace routing with choice probabilities + an ambiguous flag; if confident, route to subspace; if ambiguous, Gemma LLM (<code>infer_specification.py</code>) performs scattered detection and either asks a clarifying question (چک / تسهیلات / شرکت / عمومی) or routes. Heuristic keyword-based subspace detection is the fallback when LLMs are unavailable. A trained SVM-RBF classifier (<code>train_eval_ambiguity.py</code>, 7-dim subspace features) provides a fast (~1 ms) binary ambiguity gate.</div>
   </div>
-</section>
 
-<!-- ================= KNOWLEDGE TREE DETAILED ================= -->
-<section class="section" id="knowledgetree-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">4</div><h2>Knowledge Tree — Folder Hierarchy (Detail)</h2></div>
-    <div class="diagram-wrap">
-      <div class="mermaid">
-flowchart TB
-    Root["پایگاه دانش (18 docs, 1123 chunks)"]
-
-    subgraph T1["اشخاص حقیقی — اعتبارسنجی تسهیلات"]
-        direction TB
-        QA["بانک سوالات Q&A 337 + نسخۀ اصلی 244 + جایگزین 0"]
-        DESC_A["توضیح بخش‌های گزارش افراد 37 (article)"]
-        REASON_A["دلایل کاهش امتیاز مدل اصلی 80 + جایگزین 11 (reason_detail)"]
-    end
-
-    subgraph T2["اشخاص حقیقی — گزارش چک"]
-        direction TB
-        QA_C["بانک سوالات مباحث چک 118 (q/a)"]
-        DESC_C1["بخش‌های مختلف گزارش چک 12 (article)"]
-        NOTE_C["نکات قابل توجه چک 10 (article/kv)"]
-        REASON_C["دلایل کاهش امتیاز چک 87 (reason_detail)"]
-    end
-
-    subgraph T3["اشخاص حقوقی — اعتبارسنجی تسهیلات"]
-        direction TB
-        CORP_A["رسا — بخش‌های گزارش اعتباری شرکتها 24 (article)"]
-        CORP_B["بخش‌های مختلف شرکتها 16 (article)"]
-        CORP_REASON["دلایل کاهش امتیاز شرکتها 24 (reason_detail)"]
-    end
-
-    subgraph T4["پایگاه دانش عمومی — بدون برگه سوم"]
-        direction TB
-        CORP_INTRO["معرفی شرکت 4"]
-        BOARD["هیات مدیره 5"]
-        P16["16 کاربرد اعتبارسنجی 17"]
-        PUB_QA["سوالات عمومی 81 (q/a + body)"]
-        LINKS["لینک‌ها 16 (kv_pair)"]
-    end
-
-    Root --> T1
-    Root --> T2
-    Root --> T3
-    Root --> T4
-      </div>
-    </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Detailed folder hierarchy tree (v13, <code>folder_hierarchy</code>). Source ZIP hierarchy → <code>Document.doc_metadata.folder_hierarchy: list[str]</code> (<code>database.py:81</code>) → per-chunk <code>cd[7]</code> at <code>search.py:438</code>. Leaf <code>allowed_ids</code> powers <code>POST /search/api</code> <code>filter_path</code> (<code>search.py:634</code>; tester at <code>search.html:127</code>). KB tester <code>filter_path: "شاخه/چک"</code> (last version) yields only that subtree (<code>allowed_ids</code> = {<code>chunk_id | filter_path in "/".join(hierarchy)</code>}). Chunk types: <code>qa_pair</code> 776 · <code>reason_detail</code> 198 · <code>body</code> 71 · <code>article</code> 46 · <code>kv_pair</code> 19 (+ 13 parent chunks).</div>
-  </div>
-</section>
-
-<!-- ================= SUPPLEMENTS DETAILED ================= -->
-<section class="section" id="supplements-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">5</div><h2>Supplements — EntityList (ضمیمه, NOT chunks)</h2></div>
-    <div class="diagram-wrap">
-      <div class="mermaid">
-flowchart LR
-    XLSX["XLSX sheet لیست بانک‌ها / عناوین وام"] --> PARSER["Importer: EntityList database.py:249"]
-    PARSER --> TBL["entity_lists list_name + description + description_embedding content_json"]
-    TBL --> STEP8["Search step 8 search.py:960 query×MiniLM-L12 cosine vs description_embedding threshold 0.6"]
-    STEP8 --> INJ["SearchSteps.injected_entities search.py:989 [{list_name, description, content: content_json, similarity}]"]
-    INJ --> API["POST /search/api returned with final_results orchestrator next: rag.supplemental: EntityList[]"]
-      </div>
-    </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Detailed EntityList supplements flow. On-disk XLSX list sheets (استفاده کنندگان گزارش, تامین‌کنندگان دیتا, سهامداران, لیست و عناوین وام ها, Word Document placeholder) are imported via EntityList (<code>database.py:249</code>) into <code>entity_lists</code> (<code>list_name</code> + <code>description</code> + <code>description_embedding</code> + <code>content_json</code>), stored separately and NOT as chunks. At search step 8 (<code>search.py:960</code>) the query is embedded with MiniLM-L12 and cosine-compared against <code>description_embedding</code> with threshold 0.6. Matches become <code>SearchSteps.injected_entities</code> (<code>search.py:989</code>: [{<code>list_name</code>, <code>description</code>, <code>content: content_json</code>, <code>similarity</code>}]) and are returned with <code>final_results</code> from <code>POST /search/api</code>; the orchestrator wires this next as <code>rag.supplemental: EntityList[]</code>.</div>
-  </div>
-</section>
-
-<!-- ================= SUBSPACE RETRIEVAL DETAILED ================= -->
-<section class="section" id="subspace-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">6</div><h2>Conditional Subspace Retrieval — filter_path → allowed_ids</h2></div>
-    <div class="diagram-wrap">
-      <div class="mermaid">
-flowchart LR
-    UI["KB tester search.html:127 filter_path: ش.چک / شاخه گزارش"]
-    Q["Query: مثلا چک برگشتی"]
-    HIER["Document.doc_metadata.folder_hierarchy database.py:81 → per-chunk cd[7] search.py:438"]
-    ALLOWED["allowed_ids = {chunk_id | filter_path in /join(hierarchy)} search.py:634"]
-    BM25["tantivy BM25 (content+kw) search(..., allowed_ids) search.py:651"]
-    DENSE["Dense (pgvector HNSW) search(..., allowed_ids)"]
-    RRF["RRF k=60 + cross-encoder rerank — only leaves under filter_path survive"]
-
-    UI --> ALLOWED
-    Q --> BM25
-    Q --> DENSE
-    HIER --> ALLOWED
-    ALLOWED --> BM25
-    ALLOWED --> DENSE
-    BM25 --> RRF
-    DENSE --> RRF
-      </div>
-    </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Conditional subspace retrieval. The KB tester (<code>search.html:127</code>) sets <code>filter_path</code> (e.g. ش.چک / شاخه گزارش). The query runs against <code>allowed_ids</code> = {<code>chunk_id | filter_path in "/".join(hierarchy)</code>} (<code>search.py:634</code>), derived from <code>Document.doc_metadata.folder_hierarchy</code> (<code>database.py:81</code>) → per-chunk <code>cd[7]</code> (<code>search.py:438</code>). tantivy BM25 (content+kw) and Dense (pgvector HNSW) both search with <code>allowed_ids</code>; RRF k=60 + cross-encoder rerank keeps only leaves under <code>filter_path</code>. The Open WebUI scope picker + clarifying question reuse the same <code>filter_path</code> key on <code>POST /v1/chat/completions</code> (<code>schemas.py</code> → <code>knowledgebase.py</code> → <code>retrieve.py:141</code>).</div>
-  </div>
-</section>
-
-<!-- ================= CLARIFYING DETAILED ================= -->
-<section class="section" id="clarify-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">7</div><h2>Clarifying Question — Scattered Retrieval Across Leaves</h2></div>
-    <div class="diagram-wrap">
-      <div class="mermaid">
-flowchart TB
-    Q2["User: مبهم (مثلا تسهیلات و چک هر دو می‌خورند)"]
-    RET1["POST /search/api → stripped leaves پس از retrieve.py:141 sources = {شاخه تسهیلات, شاخه چک}"]
-    GATE{"چند برگ مختلف؟"}
-    CLAR["Orchestrator → Guardrails LLM guarded_generate.py:18 «کدام برگ را ترجیح می‌دهید؟ available_subtrees: [شاخه تسهیلات, شاخه چک]» finish_reason=clarify"]
-    NEXT["User specifies: چک → fix filter_path = ش.چک → دومین retrieve"]
-    ANSWER["Build context + generate build_context.py:18 → format_response.py:38 rag.supplemental + citation badge"]
-
-    Q2 --> RET1 --> GATE
-    GATE -- "یک برگ غالب →" --> ANSWER
-    GATE -- "پراکنده →" --> CLAR --> NEXT --> ANSWER
-      </div>
-    </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Clarifying question flow for scattered retrieval. When a user query is ambiguous (e.g. spans تسهیلات and چک), <code>POST /search/api</code> returns stripped leaves whose sources span multiple leaves (<code>retrieve.py:141</code>). The gate ("چند برگ berbeda؟") branches: if one dominant leaf → build context + generate (<code>build_context.py:18</code> → <code>format_response.py:38</code> with <code>rag.supplemental</code> + citation badge); if scattered → the orchestrator calls the Guardrails LLM (<code>guarded_generate.py:18</code>) to ask a clarifying Persian question ("کدام برگ را ترجیح می‌دهید؟" with <code>available_subtrees</code>, <code>finish_reason=clarify</code>). The user specifies (e.g. چک), <code>filter_path</code> is fixed to ش.چک, a second retrieve runs, then the answer is built.</div>
-  </div>
-</section>
-
-<!-- ================= WEB UI SCOPE DETAILED ================= -->
-<section class="section" id="scope-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">8</div><h2>Open WebUI Scope Picker + Per-Chunk Provenance</h2></div>
-    <div class="diagram-wrap">
-      <div class="mermaid">
-flowchart LR
-    SEL["WebUI picker # Cheque / گزارش / تسهیلات / ضمیمه (GET /v1/models → folder_hierarchy tree)"]
-    BODY["POST /v1/chat/completions schemas.py:9 {query, filter_path: ش.چک}"]
-    FILTER["retrieve.py:141 → KnowledgebaseClient knowledgebase.py:74 json={query, top_k, filter_path: body.filter_path}"]
-    LEAF["search.py:634 allowed_ids — only ش.چک chunks survive"]
-    RENDER["Dashboard / Response renderChunkCard: from which part: ش.چک / Nex name + content 600-char + score bar + citation badge + supplemental envelope rag.supplemental: EntityList[]"]
-
-    SEL --> BODY --> FILTER --> LEAF --> RENDER
-      </div>
-    </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Open WebUI scope picker + per-chunk provenance. The WebUI picker (Cheque / گزارش / تسهیلات / ضمیمه) reads the <code>folder_hierarchy</code> tree via <code>GET /v1/models</code>. The chat body (<code>schemas.py:9</code>) carries {<code>query</code>, <code>filter_path: ش.چک</code>}. <code>retrieve.py:141</code> → <code>KnowledgebaseClient</code> (<code>knowledgebase.py:74</code>) sends <code>{query, top_k, filter_path: body.filter_path}</code>. <code>search.py:634</code> computes <code>allowed_ids</code> so only ش.چک chunks survive. The response renders each chunk card: from which part (ش.چک), leaf name + 600-char content, score bar, citation badge, plus supplemental envelope <code>rag.supplemental: EntityList[]</code>. Method B (scope picker UI valve) injects <code>body["filter_path"]</code> via <code>rag_trace_capture.py:108</code> before the request hits the orchestrator — fail-silent if already set.</div>
-  </div>
-</section>
-
-<!-- ================= TECH STACK ================= -->
-<section class="section" id="techstack">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">9</div><h2>Tech Stack</h2></div>
+  <!-- Key parameters -->
+  <div class="card" id="key-parameters">
+    <h2>Key parameters (v13 RAM-first)</h2>
     <table>
-      <thead><tr><th>Layer</th><th>Libraries / models (pinned in pyproject.toml)</th></tr></thead>
+      <thead><tr><th>Stage</th><th>Param</th><th>Value</th><th>Where</th></tr></thead>
       <tbody>
-        <tr><td>API / server</td><td><code>fastapi>=0.115.0</code>, <code>uvicorn[standard]>=0.30.0</code>, <code>jinja2</code>, <code>python-multipart</code>, <code>pyyaml</code></td></tr>
-        <tr><td>Data</td><td><code>sqlalchemy[asyncio]>=2.0.0</code> (<code>aiosqlite</code> / <code>asyncpg</code>), <code>pgvector>=0.3.0</code>, <code>psycopg2-binary>=2.9.0</code></td></tr>
-        <tr><td>Retrieval</td><td><code>sentence-transformers>=3.0.0</code> (MiniLM-L12 384d, GPU), <code>torch>=2.0.0</code> (cuda, H200), <code>tantivy==0.26.2</code> (Rust BM25, RAM), <code>numpy>=1.24.0</code>, cross-encoders: <code>BAAI/bge-reranker-v2-m3</code> (default), <code>cross-encoder/mmarco-mMiniLMv2-L12-H384-v1</code> (benchmarks)</td></tr>
-        <tr><td>Persian NLP</td><td><code>hazm>=0.10.0</code>, <code>shekar>=0.5.0</code> + local <code>regex_persian.py</code> maps</td></tr>
-        <tr><td>Parsing</td><td><code>openpyxl>=3.1.0</code> (+calamine), <code>python-docx>=1.1.0</code>, <code>PyMuPDF>=1.24.0</code>, <code>pandas>=2.0.0,<2.1.0</code></td></tr>
-        <tr><td>CLI</td><td><code>click>=8.1.0</code>, <code>rich>=13.0.0</code> (<code>kb-manager = kb_manager.cli:main</code>)</td></tr>
-        <tr><td>Cache</td><td><code>redis</code> async client (lazy import, TTL 600 s, 2–7 ms hits) + in-memory dict fallback</td></tr>
-        <tr><td>Dev / QA</td><td><code>pytest>=8.0.0</code>, <code>pytest-asyncio>=0.23.0</code>, <code>pytest-cov>=5.0.0</code>, <code>httpx>=0.27.0</code>, <code>ruff>=0.5.0</code>, <code>mypy>=1.10.0</code></td></tr>
-        <tr><td>Reporting</td><td><code>matplotlib</code> (plots), <code>fpdf2</code> (PDF export)</td></tr>
-      </tbody>
-    </table>
-    <p class="muted">Models: Embedding <code>sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2</code> (384-d) · Reranker <code>BAAI/bge-reranker-v2-m3</code>.</p>
-  </div>
-</section>
-
-<!-- ================= CONFIGURATION ================= -->
-<section class="section" id="configuration">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">10</div><h2>Configuration (environment variables)</h2></div>
-    <table>
-      <thead><tr><th>Key</th><th>Default</th><th>Notes</th></tr></thead>
-      <tbody>
-        <tr><td><code>KB_DB_MODE</code></td><td><code>sqlite</code></td><td><code>sqlite</code> (aiosqlite) or <code>pgvector</code> (asyncpg); prod <code>pgvector</code> at <code>127.0.0.1:5433</code> with <code>shared_buffers=16GB</code> <code>effective_cache_size=800GB</code> + <code>pg_prewarm</code></td></tr>
-        <tr><td><code>KB_DB_URL</code></td><td>—</td><td>URL override; infers mode from driver</td></tr>
-        <tr><td><code>KB_SQLITE_PATH</code></td><td><code>./data/kb_test.db</code></td><td>sqlite path</td></tr>
-        <tr><td><code>KB_SOURCE_DIR</code></td><td><code>./kb-source</code></td><td>version folder <code>1405-07-06</code> (18 docs)</td></tr>
-        <tr><td><code>KB_WEB_HOST</code> / <code>KB_WEB_PORT</code></td><td><code>0.0.0.0</code> / <code>8000</code></td><td>web server</td></tr>
-        <tr><td><code>KB_EMBED_MODEL</code></td><td><code>sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2</code></td><td>embedding model</td></tr>
-        <tr><td><code>KB_EMBED_DIM</code> / <code>BATCH</code></td><td><code>384</code> / <code>64</code></td><td>embedding params</td></tr>
-        <tr><td><code>KB_EMBED_DEVICE</code> / <code>KB_RERANKER_DEVICE</code></td><td>cuda if available else <code>cpu</code></td><td>GPU-first default; <code>cuda</code> on H200 (3 GB HBM)</td></tr>
-        <tr><td><code>KB_USE_TANTIVY</code></td><td><code>true</code></td><td>Rust tantivy RAM BM25 (50 MB heap) vs Python fallback</td></tr>
-        <tr><td><code>KB_FAST_CACHE</code></td><td><code>true</code></td><td>skip 2.7 s per-search fingerprint DB scan</td></tr>
-        <tr><td><code>KB_SYNONYM_BEAM</code></td><td><code>5</code></td><td>set <code>1</code> to cut BM25 5×</td></tr>
-        <tr><td><code>KB_KEYWORD_BOOST</code></td><td><code>3.0</code></td><td>keyword BM25 field weight</td></tr>
-        <tr><td><code>KB_CHUNK_STRATEGY</code> / <code>MAX</code></td><td><code>semantic</code> / <code>512</code></td><td>chunking</td></tr>
-        <tr><td><code>KB_CHUNK_PARENT_MAX</code> / <code>SCOPE</code></td><td><code>1536</code> / <code>sheet</code></td><td>parent chunks</td></tr>
-        <tr><td><code>KB_CHUNK_DEDUP_QUESTIONS</code></td><td><code>true</code></td><td>keep one canonical chunk per normalized question</td></tr>
-        <tr><td><code>KB_RERANKER_MODEL</code></td><td><code>BAAI/bge-reranker-v2-m3</code></td><td>cross-encoder (GPU)</td></tr>
-        <tr><td><code>KB_RERANK_POOL</code></td><td><code>0</code></td><td>legacy <code>min(50, top_k×3)</code>; &gt;0 overrides cap</td></tr>
-        <tr><td><code>KB_RERANK_FUSION_ALPHA</code></td><td><code>0.7</code></td><td>RRF↔rerank fusion weight</td></tr>
-        <tr><td><code>KB_REDIS_URL</code></td><td><code>redis://127.0.0.1:16379/0</code></td><td>result cache</td></tr>
-        <tr><td><code>KB_REDIS_TTL</code></td><td><code>600</code></td><td>cache TTL seconds</td></tr>
-        <tr><td><code>KB_HYDE_ENABLED</code></td><td><code>false</code></td><td>optional HyDE</td></tr>
-        <tr><td><code>KB_LLM_BACKEND</code></td><td><code>mock</code></td><td><code>mock</code>/<code>openai</code>/<code>ollama</code>/<code>vllm</code> (HyDE)</td></tr>
+        <tr><td>Postgres</td><td>shared_buffers / effective_cache_size</td><td>16 GB / 800 GB + pg_prewarm (chunks 152 + HNSW 598 blks RAM)</td><td>ALTER SYSTEM SET … + restart</td></tr>
+        <tr><td>BM25</td><td>engine</td><td>Rust tantivy 0.26.2, RAMDirectory heap 50 MB, whitespace over Persian 3-gram</td><td>kb_manager/tantivy_bm25.py</td></tr>
+        <tr><td>BM25</td><td>k1 / b / keyword boost / n-grams</td><td>1.5 / 0.75 / ×3 / 3</td><td>search.py / tantivy_bm25.py</td></tr>
+        <tr><td>BM25</td><td>beam</td><td>5 (KB_SYNONYM_BEAM=1 cuts 5×)</td><td>query_expansion.py</td></tr>
+        <tr><td>Dense</td><td>model / dim / batch / device</td><td>paraphrase-multilingual-MiniLM-L12-v2 / 384 / 64 / cuda (H200 3 GB)</td><td>KB_EMBED_DEVICE=cuda</td></tr>
+        <tr><td>Dense</td><td>index</td><td>pgvector HNSW vector_cosine_ops m=16 ef=64, RAM (4.8 MB) + npz cache</td><td>models/database.py</td></tr>
+        <tr><td>RRF</td><td>k</td><td>60</td><td>search.py</td></tr>
+        <tr><td>Rerank</td><td>model / pool / device</td><td>BAAI/bge-reranker-v2-m3 / legacy min(50, top_k×3) or KB_RERANK_POOL / cuda</td><td>KB_RERANKER_DEVICE=cuda reranker.py</td></tr>
+        <tr><td>Fusion</td><td>α (RRF↔rerank)</td><td>0.7</td><td>search.py</td></tr>
+        <tr><td>Cache</td><td>KB_FAST_CACHE</td><td>true (skip 2.7 s fingerprint scan)</td><td>search.py</td></tr>
+        <tr><td>Cache</td><td>Redis TTL</td><td>600 s, 2–7 ms hits, 150×</td><td>KB_REDIS_URL</td></tr>
+        <tr><td>Chunk</td><td>strategy / max tokens</td><td>semantic / 512</td><td>config.py</td></tr>
+        <tr><td>Chunk</td><td>parent max / scope</td><td>1536 / sheet</td><td>config.py</td></tr>
       </tbody>
     </table>
   </div>
-</section>
 
-<!-- ================= API ENDPOINTS ================= -->
-<section class="section" id="api">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">11</div><h2>API Endpoints (KB Manager)</h2></div>
+  <!-- Latency -->
+  <div class="card" id="latency">
+    <h2>Latency — RAM-first + Rust tantivy (1405-07-06, 1110 chunks, measured 2026-10-07)</h2>
+    <p>Host: 1.0 TiB RAM (867 Gi free) · 2× H200 143 GB HBM · Postgres shared_buffers=16GB effective_cache_size=800GB pg_prewarm · KB_EMBED_DEVICE=cuda KB_RERANKER_DEVICE=cuda (3 GB HBM) · tantivy==0.26.2 RAM (50 MB heap) · KB_FAST_CACHE=true · KB_SYNONYM_BEAM=5.</p>
+    <table>
+      <thead><tr><th>Stage</th><th>Before (Python BM25, CPU)</th><th>After (tantivy, GPU)</th><th>Share after</th></tr></thead>
+      <tbody>
+        <tr><td>BM25 lexical (content+kw, beam5)</td><td>~3000 ms</td><td>3.8–5.9 ms</td><td>7%</td></tr>
+        <tr><td>Dense cosine (pgvector HNSW, GPU)</td><td>24 ms (CPU 3000)</td><td>22–27 ms</td><td>44%</td></tr>
+        <tr><td>RRF fusion k=60</td><td>0.1–0.2 ms</td><td>0.1–0.2 ms</td><td>&lt;1%</td></tr>
+        <tr><td>Cross-encoder rerank (BGE-v2-m3, GPU)</td><td>24 ms (CPU 5400)</td><td>21–25 ms</td><td>44%</td></tr>
+        <tr><td><strong>Total warm</strong></td><td><strong>~3100 ms</strong> / 12 s cold</td><td><strong>51–66 ms</strong> avg <strong>55 ms</strong></td><td><strong>100%</strong></td></tr>
+        <tr><td>Redis hit</td><td>2–7 ms</td><td>2 ms</td><td>150× vs cold</td></tr>
+        <tr><td>Cold first query</td><td>12 s</td><td>~7–9 s one-time (lazy GPU load)</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <div class="plot-wrap">
+      <img src="plots/latency_breakdown_ram_tantivy.png" alt="Latency breakdown RAM tantivy">
+      <div class="plot-caption">Latency breakdown before vs after (RAM-first + Rust tantivy).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/latency_breakdown_pie_after.png" alt="Stage share after 55 ms">
+      <div class="plot-caption">Stage share after (55 ms total warm).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/improvement_factor.png" alt="Improvement factor">
+      <div class="plot-caption">Improvement factor (log scale).</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/postgres_ram_fit.png" alt="Postgres RAM fit">
+      <div class="plot-caption">Postgres vectors fit entirely in RAM (shared_buffers + effective_cache_size + pg_prewarm).</div>
+    </div>
+    <div class="note">
+      <div class="note-title">Does Postgres save vectors on RAM and leverage GPU?</div>
+      <p>No GPU — pgvector HNSW (chunks_embedding_hnsw 4.8 MB, chunks 1.2 MB, pg_total_relation_size 203 MB for 1110 chunks) lives on disk but is fully cached in RAM via shared_buffers + effective_cache_size + pg_prewarm(152+598 blocks). HNSW distance (vector_cosine_ops) is CPU-only. Dense embeddings and reranker are GPU (H200, torch.cuda.is_available(), nvidia-smi ~3 GB for KB PID, KB_EMBED_DEVICE=cuda KB_RERANKER_DEVICE=cuda).</p>
+    </div>
+    <div class="note">
+      <div class="note-title">Is cross-encoder on GPU?</div>
+      <p>Yes — reranker.py model.to(actual_device) dtype=float16 on cuda. Before: CPU 5.4 s → 24 ms GPU.</p>
+    </div>
+  </div>
+
+  <!-- API endpoints -->
+  <div class="card" id="api-endpoints">
+    <h2>API endpoints (KB Manager)</h2>
+    <p>Routers mounted in <code>kb_manager/web/app.py</code>: /documents, /chunks, /pipeline, /versions, /monitoring, /search, /benchmarks, /cleanup, /transparency (+ zip browser), /ingestion (+ KB history) — plus /health, /api/health, /ready and / dashboard. Persian RTL UI (Vazirmatn).</p>
     <table>
       <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
       <tbody>
-        <tr><td><code>POST</code></td><td><code>/search/api</code></td><td>Hybrid search — returns step-by-step <code>SearchSteps</code> + <code>final_results</code></td></tr>
-        <tr><td><code>GET</code></td><td><code>/documents</code></td><td>List docs (filters + pagination)</td></tr>
-        <tr><td><code>GET</code></td><td><code>/documents/{doc_id}</code></td><td>Doc detail with chunks</td></tr>
-        <tr><td><code>POST</code></td><td><code>/documents/upload</code></td><td>Upload file (creates draft doc)</td></tr>
-        <tr><td><code>POST</code></td><td><code>/documents/{doc_id}/delete</code></td><td>Soft-delete (archive)</td></tr>
-        <tr><td><code>GET</code></td><td><code>/chunks</code> / <code>/chunks/{chunk_id}</code></td><td>List / detail chunks</td></tr>
-        <tr><td><code>POST</code></td><td><code>/chunks/{id}/verify</code> / <code>/edit</code></td><td>Verify / edit chunk</td></tr>
-        <tr><td><code>GET</code></td><td><code>/pipeline</code> / <code>POST /pipeline/run</code> / <code>GET /pipeline/status/{job_id}</code></td><td>Pipeline control</td></tr>
-        <tr><td><code>GET</code></td><td><code>/versions</code> / <code>POST /versions/{doc_id}/rollback/{version_id}</code></td><td>Version history + rollback</td></tr>
-        <tr><td><code>GET</code></td><td><code>/monitoring/staleness</code>, <code>/monitoring/metrics</code></td><td>Staleness + metrics</td></tr>
-        <tr><td><code>POST</code></td><td><code>/benchmarks/run</code>, <code>GET /benchmarks/status/{job_id}</code>, <code>GET /benchmarks/result</code></td><td>Benchmark runner</td></tr>
+        <tr><td>POST</td><td>/search/api</td><td>Hybrid search — returns step-by-step SearchSteps + final_results</td></tr>
+        <tr><td>GET</td><td>/documents</td><td>List docs (filters + pagination)</td></tr>
+        <tr><td>GET</td><td>/documents/{doc_id}</td><td>Doc detail with chunks</td></tr>
+        <tr><td>POST</td><td>/documents/upload</td><td>Upload file (creates draft doc)</td></tr>
+        <tr><td>POST</td><td>/documents/{doc_id}/delete</td><td>Soft-delete (archive)</td></tr>
+        <tr><td>GET</td><td>/chunks / /chunks/{chunk_id}</td><td>List / detail chunks</td></tr>
+        <tr><td>POST</td><td>/chunks/{id}/verify / /edit</td><td>Verify / edit chunk</td></tr>
+        <tr><td>GET/POST/GET</td><td>/pipeline / POST /pipeline/run / GET /pipeline/status/{job_id}</td><td>Pipeline control</td></tr>
+        <tr><td>GET/POST</td><td>/versions / POST /versions/{doc_id}/rollback/{version_id}</td><td>Version history + rollback</td></tr>
+        <tr><td>GET</td><td>/monitoring/staleness, /monitoring/metrics</td><td>Staleness + metrics</td></tr>
+        <tr><td>POST/GET/GET</td><td>/benchmarks/run, GET /benchmarks/status/{job_id}, GET /benchmarks/result</td><td>Benchmark runner</td></tr>
       </tbody>
     </table>
-    <p class="muted">Plus <code>/health</code>, <code>/api/health</code>, <code>/ready</code> and <code>/</code> dashboard. Routers mounted in <code>kb_manager/web/app.py</code>. Search response (<code>/search/api</code>) returns <code>final_results</code> with <code>chunk_id</code>, <code>doc_id</code>, <code>doc_title</code>, <code>heading_path</code>, <code>content_preview</code>, <code>rerank_score</code>, <code>hybrid_score</code>, plus <code>injected_entities</code> from step 8.</p>
+    <p class="caption">Search response (/search/api) returns final_results with chunk_id, doc_id, doc_title, heading_path, content_preview, rerank_score, hybrid_score, plus injected_entities from step 8.</p>
   </div>
-</section>
 
-<!-- ================= CLI ================= -->
-<section class="section" id="cli">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">12</div><h2>CLI Commands</h2></div>
+  <!-- CLI commands -->
+  <div class="card" id="cli-commands">
+    <h2>CLI commands</h2>
     <table>
       <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
       <tbody>
@@ -359,119 +242,329 @@ flowchart LR
         <tr><td><code>kb-manager status-chunks</code></td><td>Chunk statistics (types, tokens, QA completeness)</td></tr>
       </tbody>
     </table>
-    <p class="muted">Entry point: <code>kb-manager = kb_manager.cli:main</code>. Useful extras: <code>inspect &lt;file&gt;</code> (parser dump), <code>status-chunks</code>, <code>dedup --dry-run</code>, <code>eval-generate</code> / <code>eval-run</code>.</p>
+    <p class="caption">Entry point: <code>kb-manager = kb_manager.cli:main</code>.</p>
   </div>
-</section>
 
-<!-- ================= DATABASE ================= -->
-<section class="section" id="database">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">13</div><h2>Database</h2></div>
+  <!-- Configuration -->
+  <div class="card" id="configuration">
+    <h2>Configuration (environment variables)</h2>
+    <p>Defaults from <code>kb_manager/config.py</code> / <code>settings.py</code> (all overridable via <code>KB_*</code> env):</p>
+    <table>
+      <thead><tr><th>Key</th><th>Default</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>KB_DB_MODE</td><td>sqlite</td><td>sqlite (aiosqlite) or pgvector (asyncpg); prod pgvector at 127.0.0.1:5433 with shared_buffers=16GB effective_cache_size=800GB + pg_prewarm</td></tr>
+        <tr><td>KB_DB_URL</td><td>—</td><td>URL override; infers mode from driver</td></tr>
+        <tr><td>KB_SQLITE_PATH</td><td>./data/kb_test.db</td><td>sqlite path</td></tr>
+        <tr><td>KB_SOURCE_DIR</td><td>./kb-source</td><td>version folder 1405-07-06 (18 docs)</td></tr>
+        <tr><td>KB_WEB_HOST / KB_WEB_PORT</td><td>0.0.0.0 / 8000</td><td>web server</td></tr>
+        <tr><td>KB_EMBED_MODEL</td><td>sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2</td><td>embedding model</td></tr>
+        <tr><td>KB_EMBED_DIM / BATCH</td><td>384 / 64</td><td>embedding params</td></tr>
+        <tr><td>KB_EMBED_DEVICE / KB_RERANKER_DEVICE</td><td>cuda if available else cpu</td><td>GPU-first default; cuda on H200 (3 GB HBM)</td></tr>
+        <tr><td>KB_USE_TANTIVY</td><td>true</td><td>Rust tantivy RAM BM25 (50 MB heap) vs Python fallback</td></tr>
+        <tr><td>KB_FAST_CACHE</td><td>true</td><td>skip 2.7 s per-search fingerprint DB scan</td></tr>
+        <tr><td>KB_SYNONYM_BEAM</td><td>5</td><td>set 1 to cut BM25 5×</td></tr>
+        <tr><td>KB_KEYWORD_BOOST</td><td>3.0</td><td>keyword BM25 field weight</td></tr>
+        <tr><td>KB_CHUNK_STRATEGY / MAX</td><td>semantic / 512</td><td>chunking</td></tr>
+        <tr><td>KB_CHUNK_PARENT_MAX / SCOPE</td><td>1536 / sheet</td><td>parent chunks</td></tr>
+        <tr><td>KB_CHUNK_DEDUP_QUESTIONS</td><td>true</td><td>keep one canonical chunk per normalized question</td></tr>
+        <tr><td>KB_RERANKER_MODEL</td><td>BAAI/bge-reranker-v2-m3</td><td>cross-encoder (GPU)</td></tr>
+        <tr><td>KB_RERANK_POOL</td><td>0</td><td>legacy min(50, top_k×3); &gt;0 overrides cap</td></tr>
+        <tr><td>KB_RERANK_FUSION_ALPHA</td><td>0.7</td><td>RRF↔rerank fusion weight</td></tr>
+        <tr><td>KB_REDIS_URL</td><td>redis://127.0.0.1:16379/0</td><td>result cache</td></tr>
+        <tr><td>KB_REDIS_TTL</td><td>600</td><td>cache TTL seconds</td></tr>
+        <tr><td>KB_HYDE_ENABLED</td><td>false</td><td>optional HyDE</td></tr>
+        <tr><td>KB_LLM_BACKEND</td><td>mock</td><td>mock/openai/ollama/vllm (HyDE)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Database -->
+  <div class="card" id="database">
+    <h2>Database</h2>
     <ul>
-      <li><strong>Runtime:</strong> SQLite (<code>sqlite+aiosqlite</code>) — used by the web server and tests.</li>
-      <li><strong>Production target:</strong> PostgreSQL + pgvector (<code>postgresql+asyncpg</code>), provisioned by <code>docker-compose.yml</code> (<code>scripts/init_db.sql</code> enables <code>vector</code>, <code>pg_trgm</code>, <code>uuid-ossp</code>).</li>
-      <li><strong>ORM models</strong> (SQLAlchemy 2.0 async): <code>Document</code>, <code>Chunk</code> (self-FK <code>parent_id</code>, <code>embedding_model</code>, <code>quality_score</code>, <code>is_verified</code>), <code>DocumentVersion</code>, <code>IngestionJob</code>, <code>RetrievalLog</code>, <code>EntityList</code>.</li>
+      <li><strong>Runtime:</strong> SQLite (sqlite+aiosqlite) — used by the web server and tests.</li>
+      <li><strong>Production target:</strong> PostgreSQL + pgvector (postgresql+asyncpg), provisioned by docker-compose.yml (scripts/init_db.sql enables vector, pg_trgm, uuid-ossp).</li>
+      <li><strong>ORM models</strong> (SQLAlchemy 2.0 async): Document, Chunk (self-FK parent_id, embedding_model, quality_score, is_verified), DocumentVersion, IngestionJob, RetrievalLog, EntityList.</li>
     </ul>
-    <pre><code>cd kb-manager
-docker compose up -d   # pgvector on :5432 + kb-manager on :8000</code></pre>
+    <pre>cd kb-manager
+docker compose up -d   # pgvector on :5432 + kb-manager on :8000</pre>
   </div>
-</section>
 
-<!-- ================= TESTS ================= -->
-<section class="section" id="tests">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">14</div><h2>Tests</h2></div>
+  <!-- Tests -->
+  <div class="card" id="tests">
+    <h2>Tests</h2>
     <table>
       <thead><tr><th>File</th><th>Covers</th></tr></thead>
       <tbody>
-        <tr><td><code>test_chunker.py</code></td><td>semantic chunking, incomplete-QA skip, parent scope, QA Persian field formatting, FixedChunker</td></tr>
-        <tr><td><code>test_parsers.py</code></td><td>XLSX (reason_codes, crm_qa), DOCX, parser registry</td></tr>
-        <tr><td><code>test_preprocessor.py</code></td><td>Persian normalization, HTML/URL/whitespace, pipeline quality</td></tr>
-        <tr><td><code>test_pipeline.py</code></td><td>orchestrator scan (full vs incremental)</td></tr>
-        <tr><td><code>test_embedder.py</code></td><td>dims, query embed, content-hash cache</td></tr>
-        <tr><td><code>test_evaluation.py</code></td><td>Ranx vs pure-Python fallback, Ragas availability</td></tr>
-        <tr><td><code>test_cli.py</code></td><td>version, inspect</td></tr>
+        <tr><td>test_chunker.py</td><td>semantic chunking, incomplete-QA skip, parent scope, QA Persian field formatting, FixedChunker</td></tr>
+        <tr><td>test_parsers.py</td><td>XLSX (reason_codes, crm_qa), DOCX, parser registry</td></tr>
+        <tr><td>test_preprocessor.py</td><td>Persian normalization, HTML/URL/whitespace, pipeline quality</td></tr>
+        <tr><td>test_pipeline.py</td><td>orchestrator scan (full vs incremental)</td></tr>
+        <tr><td>test_embedder.py</td><td>dims, query embed, content-hash cache</td></tr>
+        <tr><td>test_evaluation.py</td><td>Ranx vs pure-Python fallback, Ragas availability</td></tr>
+        <tr><td>test_cli.py</td><td>version, inspect</td></tr>
       </tbody>
     </table>
-    <pre><code>cd kb-manager
-pytest tests/ -v</code></pre>
-    <p class="muted">Validated: <code>compileall</code> clean · <code>pytest</code> <strong>116 passed</strong>, 6 skipped, 1 pre-existing env-dependent failure (<code>test_qa_massive_count</code> — newest <code>kb-source/1405-*</code> folder exposes 4 QA files &lt; 5).</p>
+    <pre>cd kb-manager
+pytest tests/ -v</pre>
+    <p class="caption">Validated: compileall clean · pytest 116 passed, 6 skipped, 1 pre-existing env-dependent failure (test_qa_massive_count — newest kb-source/1405-* folder exposes 4 QA files &lt; 5).</p>
   </div>
-</section>
 
-<!-- ================= LATENCY DETAILED ================= -->
-<section class="section" id="latency-detail">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">15</div><h2>Latency — Detailed Breakdown</h2></div>
-    <h3>v13 RAM-first (tantivy + GPU + fast cache — 1405-07-06, 1110 chunks, top_k=5, measured 2026-10-07)</h3>
-    <p class="muted">Host: 1.0 TiB RAM (867 Gi free) · 2× H200 143 GB HBM · Postgres <code>shared_buffers=16GB</code> <code>effective_cache_size=800GB</code> <code>pg_prewarm</code> · <code>KB_EMBED_DEVICE=cuda</code> <code>KB_RERANKER_DEVICE=cuda</code> (3 GB HBM) · tantivy==0.26.2 RAM (50 MB heap) · <code>KB_FAST_CACHE=true</code> · <code>KB_SYNONYM_BEAM=5</code>.</p>
+  <!-- Libraries -->
+  <div class="card" id="libraries">
+    <h2>Libraries &amp; versions</h2>
     <table>
-      <thead><tr><th>Stage</th><th>Python BM25 (before)</th><th>Rust tantivy (after)</th><th>Share after</th></tr></thead>
+      <thead><tr><th>Layer</th><th>Libraries / models (pinned in pyproject.toml)</th></tr></thead>
       <tbody>
-        <tr><td>BM25 lexical (content+kw, beam5)</td><td>~3000 ms</td><td>3.8–5.9 ms</td><td>7%</td></tr>
-        <tr><td>Dense cosine (pgvector HNSW, GPU)</td><td>16–50 ms (CPU: 3000 ms)</td><td>22–27 ms</td><td>44%</td></tr>
-        <tr><td>RRF fusion k=60</td><td>0.1–0.2 ms</td><td>0.1–0.2 ms</td><td>&lt;1%</td></tr>
-        <tr><td>Cross-encoder rerank (BGE-v2-m3, GPU)</td><td>20–23 ms (CPU: 5400 ms)</td><td>21–25 ms</td><td>44%</td></tr>
-        <tr><td><strong>Total</strong></td><td><strong>~3100 ms</strong> (warm) / 12 s cold</td><td><strong>51–66 ms</strong> (warm, <strong>55 ms</strong> avg)</td><td><strong>100%</strong></td></tr>
-        <tr><td>Redis hit</td><td>2–7 ms</td><td>2–7 ms</td><td>150× vs cold</td></tr>
+        <tr><td>API / server</td><td>fastapi>=0.115.0, uvicorn[standard]>=0.30.0, jinja2, python-multipart, pyyaml</td></tr>
+        <tr><td>Data</td><td>sqlalchemy[asyncio]>=2.0.0 (aiosqlite / asyncpg), pgvector>=0.3.0, psycopg2-binary>=2.9.0</td></tr>
+        <tr><td>Retrieval</td><td>sentence-transformers>=3.0.0 (MiniLM-L12 384d, GPU), torch>=2.0.0 (cuda, H200), tantivy==0.26.2 (Rust BM25, RAM), numpy>=1.24.0</td></tr>
+        <tr><td>Persian NLP</td><td>hazm>=0.10.0, shekar>=0.5.0 + local regex_persian.py maps</td></tr>
+        <tr><td>Parsing</td><td>openpyxl>=3.1.0 (+calamine engine option), python-docx>=1.1.0, PyMuPDF>=1.24.0, pandas>=2.0.0,&lt;2.1.0</td></tr>
+        <tr><td>CLI</td><td>click>=8.1.0, rich>=13.0.0 (kb-manager = kb_manager.cli:main)</td></tr>
+        <tr><td>Cache (optional)</td><td>redis async client (lazy import, TTL 600 s, 2–7 ms hits) + in-memory dict fallback</td></tr>
+        <tr><td>Dev / QA</td><td>pytest>=8.0.0, pytest-asyncio>=0.23.0, pytest-cov>=5.0.0, httpx>=0.27.0, ruff>=0.5.0, mypy>=1.10.0</td></tr>
+        <tr><td>Reporting (optional)</td><td>matplotlib (plots), fpdf2 (PDF export)</td></tr>
       </tbody>
     </table>
-    <p class="muted">Warm = after first query loads GPU models; cold first query after restart: dense 4246 ms + rerank 5396 ms + BM25 5 ms → ~12 s one-time. Subsequent queries: 55 ms avg.</p>
-    <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:1rem;">
-      <div style="flex:1; min-width:280px;">
-        <figure style="margin:0;">
-          <img src="assets/plots/latency_breakdown_ram_tantivy.png" alt="Latency breakdown" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-          <figcaption class="diagram-caption"><strong>Caption:</strong> Latency breakdown before vs after (log scale) — BM25 ~3000 ms → ~4 ms; dense 3000 ms → ~24 ms; rerank 5400 ms → ~24 ms; total ~3100 ms → 55 ms.</figcaption>
-        </figure>
-      </div>
-      <div style="flex:1; min-width:280px;">
-        <figure style="margin:0;">
-          <img src="assets/plots/latency_breakdown_pie_after.png" alt="Stage share after" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-          <figcaption class="diagram-caption"><strong>Caption:</strong> Stage share after (55 ms) — dense 44%, rerank 44%, BM25 7%, RRF &lt;1%.</figcaption>
-        </figure>
-      </div>
-      <div style="flex:1; min-width:280px;">
-        <figure style="margin:0;">
-          <img src="assets/plots/improvement_factor.png" alt="Improvement factor" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-          <figcaption class="diagram-caption"><strong>Caption:</strong> Improvement factor (log scale) — speedup of RAM-first + GPU path over Python BM25 / CPU baseline.</figcaption>
-        </figure>
-      </div>
-      <div style="flex:1; min-width:280px;">
-        <figure style="margin:0;">
-          <img src="assets/plots/postgres_ram_fit.png" alt="Postgres RAM fit" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-          <figcaption class="diagram-caption"><strong>Caption:</strong> Postgres vectors fit entirely in RAM — chunks + HNSW resident via <code>shared_buffers</code> + <code>effective_cache_size</code> + <code>pg_prewarm</code>.</figcaption>
-        </figure>
+    <p class="caption">Models: Embedding: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (384-d) · Reranker: BAAI/bge-reranker-v2-m3.</p>
+  </div>
+
+  <!-- Benchmarks -->
+  <div class="card" id="benchmarks">
+    <h2>Benchmarks &amp; metrics</h2>
+    <p><strong>v11 final run (663 gold rows, 0 errors; reranker cross-encoder/mmarco-mMiniLMv2-L12-H384-v1):</strong></p>
+    <table>
+      <thead><tr><th>Label</th><th>Count</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>D success</td><td>617</td><td>gold in final top-5</td></tr>
+        <tr><td>A retriever miss</td><td>25</td><td>gold in neither BM25 nor dense top-100 (Company 14, Individual 7, Public 4, Cheque 0)</td></tr>
+        <tr><td>A′ fusion loss</td><td>8</td><td>one leg found gold, RRF dropped it</td></tr>
+        <tr><td>B reranker loss</td><td>13</td><td>merged top-100 → dropped from top-5</td></tr>
+      </tbody>
+    </table>
+    <p class="caption"><strong>Hit@5 0.9306</strong> (617/663), Hit@1 0.7511 (498/663), MRR 0.8281 — recomputed from the committed JSONL (report_metrics.json).</p>
+
+    <h3>Per-File Hit@5 (663 gold rows, 0 errors)</h3>
+    <table>
+      <thead><tr><th>File</th><th>n</th><th>Hit@5</th><th>Funnel</th></tr></thead>
+      <tbody>
+        <tr><td>Company_CRM_Questions</td><td>332</td><td>0.9157</td><td>D=304 A=14 A′=6 B=8</td></tr>
+        <tr><td>IndividualCRMQuestions</td><td>179</td><td>0.9330</td><td>D=167 A=7 A′=1 B=4</td></tr>
+        <tr><td>PublicQuestions.xlsx</td><td>55</td><td>0.9273</td><td>D=51 A=4</td></tr>
+        <tr><td>Individual_CRM_Questions_categorized</td><td>10</td><td>0.9000</td><td>D=9 A′=1</td></tr>
+        <tr><td>DisputeQuestions / EtebaritoProblems / مباحثی</td><td>21</td><td>1.0000</td><td>D=21</td></tr>
+        <tr><td><strong>ChequeQuestions</strong></td><td>66</td><td><strong>0.9848</strong></td><td>D=65 B=1</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Stage Funnel (663 rows)</h3>
+    <table>
+      <thead><tr><th>Stage</th><th>Hit@5</th><th>Recall@100</th></tr></thead>
+      <tbody>
+        <tr><td>BM25</td><td>382 (0.576)</td><td>576 (0.869)</td></tr>
+        <tr><td>Dense</td><td>399 (0.602)</td><td>552 (0.833)</td></tr>
+        <tr><td>Merged RRF</td><td>437 (0.659)</td><td>630 (0.950)</td></tr>
+        <tr><td><strong>Final Rerank</strong></td><td><strong>617 (0.931)</strong></td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="plot-wrap">
+      <img src="plots/p_funnel.png" alt="Failure funnel">
+      <div class="plot-caption">Failure funnel — A/A′/B/D counts.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_stages.png" alt="Stage funnel">
+      <div class="plot-caption">Stage funnel — per-stage Hit@5 / Recall@100.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_perfile.png" alt="Per-file Hit@5">
+      <div class="plot-caption">Per-file Hit@5 by source file.</div>
+    </div>
+
+    <h3>v10 vs v11</h3>
+    <table>
+      <thead><tr><th>Metric</th><th>v10 pre-fix</th><th>v11 intermediate (OOM episode)</th><th>v11 final (current)</th></tr></thead>
+      <tbody>
+        <tr><td>Gold rows</td><td>714</td><td>714</td><td><strong>663</strong></td></tr>
+        <tr><td>Hit@5</td><td>0.9244</td><td>0.8585 (0.9302 on executed)</td><td><strong>0.9306</strong></td></tr>
+        <tr><td>MRR</td><td>0.8369</td><td>0.8271</td><td><strong>0.8281</strong></td></tr>
+        <tr><td>Funnel</td><td>A=46 (lumped) B=6 C=2 D=660, err=0</td><td>A=25 A′=8 B=13 D=613, err=55</td><td>A=25 A′=8 B=13 <strong>D=617</strong>, err=0</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Title-removal ablation (measured)</h3>
+    <p>Dense recall@100 <strong>0.822 → 0.962</strong>, recall@5 0.413 → 0.793 with content-only embeddings.</p>
+    <div class="plot-wrap">
+      <img src="plots/p_ablation.png" alt="Title-removal ablation">
+      <div class="plot-caption">Title-removal ablation: dense recall@100 0.822 → 0.962.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_errors.png" alt="Errors OOM before vs after">
+      <div class="plot-caption">Errors (OOM) before vs after Cheque fix.</div>
+    </div>
+    <div class="plot-wrap">
+      <img src="plots/p_latency_v13_1.png" alt="Latency v13.1">
+      <div class="plot-caption">Latency v13.1 — stage p50 bars (v13 README / before / after).</div>
+    </div>
+  </div>
+
+  <!-- Judge feedback -->
+  <div class="card" id="judge-feedback">
+    <h2>LLM-as-judge feedback &amp; root causes</h2>
+    <p>Judge corpus: artifacts/retrieval_training/rca_judge/judge_*.md (gold full text vs retrieved-winner full text + token-Jaccard) with group RCAs in rca/. Note the judge files were built pre-fix, so their gold excerpts still show the old ... prefix and کلیدواژه‌ها: label — itself evidence of the pollution v11 removed.</p>
+    <ul>
+      <li><strong>Company#141 (B)</strong> — q↔gold Jaccard 0.292 (7 shared: اعضای، گذارد…) vs q↔winner 0.083. Fusion casualty: dense had gold at 15, RRF pushed it to merged-62, reranker never recovered (final 11). → weighted fusion / merged-top pinning.</li>
+      <li><strong>Company#151 (C)</strong> — q↔gold 0.084 vs q↔winner 0.075. Lexical trap: 9 near-identical Cheque_ReasonCode keyword-stuffed rows (≈249.17 BM25) buried gold at BM25-28. → reason-code sheet quarantine / keyword de-boost.</li>
+      <li><strong>Company#202 (B)</strong> — dense 80 → merged 94 → final 43. Dense-invisible phrasing («چه زمانی… اقدام کنم»). → query-rewrite / paraphrase augmentation.</li>
+      <li><strong>Cheque#26 (B)</strong> — BM25=7, merged=12, final=6. Twin crowding, correct-but-second: two distractors carry the identical short answer as the gold's family (scores 1.0/0.9999); 17 of 92 Cheque short answers are duplicated (current DB). → answer-level dedup before scoring.</li>
+      <li><strong>Cheque OOM episode (resolved)</strong> — 55 rows with empty rank lists (MemoryError / paging-1455, worst elapsed 108.8 s). Not a retrieval judgment. Re-run cleared all 55. → infra headroom (rerank batch/RAM/pagefile) + --resume re-runs.</li>
+    </ul>
+    <p class="caption">Ranked root causes (final 663-row run): (1) true retriever misses A=25 in Company/Individual/Public; (2) reranker near-misses B=13, the largest rescue opportunity; (3) fusion losses A′=8 — RRF dropped single-leg finds; (4) twin crowding — real but small (1 B row, −1 slot); (5) the resolved Cheque OOM episode.</p>
+  </div>
+
+  <!-- Evaluation reports -->
+  <div class="card" id="evaluation-reports">
+    <h2>Evaluation reports</h2>
+    <ul>
+      <li>artifacts/retrieval_training/cheque_eval_report.html — full breakdown with Persian samples + plots (218 KB)</li>
+      <li>artifacts/retrieval_training/cheque_eval_report.pdf — plots + tables, ASCII-safe (168 KB)</li>
+      <li>artifacts/retrieval_training/report_metrics.json — machine-readable funnel/stage/latency summary</li>
+      <li>artifacts/retrieval_training/retrieval_failures_v10_1405-06-23.jsonl — 663 rows with per-stage top-k (plus .pre_cheque_rebuild.jsonl, 714-row OOM backup)</li>
+      <li>artifacts/retrieval_training/live_dashboard.py — live funnel TUI</li>
+      <li>docs/retrieval_training/RCA_v10_README.md — consolidated RCA</li>
+    </ul>
+  </div>
+
+  <!-- Build process -->
+  <div class="card" id="build-process">
+    <h2>Training / build process</h2>
+    <p>The KB is <strong>not a trained model</strong> but a retrieval index built from source documents:</p>
+    <ol>
+      <li><strong>Ingest</strong> (kb_manager.cli ingest --full): Parse .xlsx / .docx / .pdf via parser registry · Preprocess: clean + Persian normalization + validators · Semantic chunking (max 512 / min 100 tokens, overlap 50) · Quality gates + Question dedup + MinHash LSH dedup · Embed via MiniLM-L12 (GPU fp16) → npz cache + pgvector HNSW.</li>
+      <li><strong>Index Build</strong> (lifespan pre-warm): Tantivy BM25 RAM index (50 MB heap, 1110 docs, ~5 ms) · Dense npz fingerprint → load or rebuild · Cross-encoder reranker warmup (fp16 on cuda:1) · Total pre-warm: ~30–60 s first run.</li>
+      <li><strong>Incremental / Rebuild:</strong> --incremental flag for new/changed files · Fingerprint-based invalidation (model + texts + chunk types) · Versioning via versions/ snapshots.</li>
+    </ol>
+  </div>
+
+  <!-- Ambiguity eval -->
+  <div class="card" id="ambiguity-eval">
+    <h2>Ambiguity resolver &amp; classifier evaluation (v13.1)</h2>
+    <p>The ambiguity resolution system uses a <strong>hybrid Mizan System-1 + Gemma LLM</strong> approach with a trained SVM-RBF classifier on 7-dimensional subspace features.</p>
+    <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Mizan System-1 + Gemma hybrid resolver</div>
+      <div class="mermaid">
+flowchart TD
+    Q[User Query] --> CLASSIFY[3-way LLM Classifier greeting / specification / question]
+    CLASSIFY -->|greeting| GREET[Return greeting no retrieval]
+    CLASSIFY -->|specification| SPEC[Extract subspace label cheque/facilities_person/legal/general]
+    CLASSIFY -->|question| T5[is_scattered_ambiguous?]
+    T5 -->|no| RETRIEVE[Retrieve + rerank]
+    T5 -->|yes| MIZAN[Mizan System-1 subspace routing + ambiguous flag]
+    MIZAN -->|confident| ROUTE[Route to subspace]
+    MIZAN -->|ambiguous| GEMMA[Gemma LLM scattered detection + clarify]
+    GEMMA -->|scattered| CLARIFY[Ask clarification چک / تسهیلات / شرکت / عمومی]
+    GEMMA -->|not scattered| ROUTE
+    ROUTE --> RETRIEVE[Retrieve with subspace]
       </div>
     </div>
-    <div class="callout"><b>Does Postgres save vectors on RAM and leverage GPU?</b> No GPU — pgvector HNSW (<code>chunks_embedding_hnsw</code> 4.8 MB, <code>chunks</code> 1.2 MB, <code>pg_total_relation_size</code> 203 MB for 1110 chunks) lives on disk but is fully cached in RAM via <code>shared_buffers</code> + <code>effective_cache_size</code> + <code>pg_prewarm(152+598 blocks)</code>. HNSW distance (<code>vector_cosine_ops</code>) is <strong>CPU-only</strong>. Dense embeddings and reranker are on <strong>GPU</strong> (H200, <code>torch.cuda.is_available()</code>, <code>nvidia-smi</code> ~3 GB for KB PID, <code>KB_EMBED_DEVICE=cuda</code> <code>KB_RERANKER_DEVICE=cuda</code>).</div>
-  </div>
-</section>
+    <div class="caption">
+      <ul>
+        <li><strong>3-way LLM Classifier</strong> (nodes/classify.py): greeting / specification / question.</li>
+        <li><strong>Mizan System-1</strong> (mizan.py:234-280): calibrated subspace routing with choice probabilities + ambiguous flag via /v1/systemone.</li>
+        <li><strong>Gemma LLM</strong> (infer_specification.py): scattered detection + clarifying question generation.</li>
+        <li><strong>Trained SVM-RBF Classifier</strong> (train_eval_ambiguity.py): 7-dim subspace features → ambiguity binary decision.</li>
+        <li><strong>Fallback:</strong> heuristic keyword-based when LLMs unavailable.</li>
+      </ul>
+    </div>
 
-<!-- ================= LLAM JUDGE ================= -->
-<section class="section" id="judge">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">16</div><h2>LLM-as-Judge Feedback &amp; Root Causes</h2></div>
-    <p>Judge corpus: <code>artifacts/retrieval_training/rca_judge/judge_*.md</code> (gold full text vs retrieved-winner full text + token-Jaccard) with group RCAs in <code>rca/</code>. Note the judge files were built pre-fix, so their gold excerpts still show the old <code>...</code> prefix and <code>کلیدواژه‌ها:</code> label — itself evidence of the pollution v11 removed.</p>
+    <h3>Classifier Training &amp; Evaluation</h3>
+    <p><strong>Dataset Construction</strong> (scripts/build_ambiguity_dataset.py): 800 real KB questions extracted from qa_pair chunks with ground-truth subspace labels · 200 ambiguous questions generated via cross-subspace mixing, negation patterns, aliases · Total 1000 samples (800 per-subspace × 4 + 200 ambiguous) → 80/10/10 train/test/eval split · Judge: Gemma 4-31B validates each sample for subspace membership / ambiguity.</p>
+    <p><strong>Feature Engineering</strong> (build_subspace_protos.py): 7-dimensional subspace features: 4 cosine similarities to subspace prototypes + margin + top1 + entropy · Extracted via MiniLM-L12 (384-d) → cosine similarity to 4 subspace prototypes · Interpretable, computationally efficient (no raw embeddings).</p>
+
+    <h3>Trained Classifier Performance (svm_rbf — Best Model)</h3>
+    <table>
+      <thead><tr><th>Metric</th><th>Value (Eval Set)</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Multiclass Balanced Accuracy</strong></td><td><strong>0.7006</strong></td></tr>
+        <tr><td><strong>Binary Balanced Accuracy (Ambiguous vs Non)</strong></td><td><strong>0.7804</strong></td></tr>
+        <tr><td>Binary F1 (Ambiguous)</td><td>0.6190</td></tr>
+        <tr><td>Binary ROC-AUC</td><td>0.4211</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Model Comparison (Eval Set)</h3>
+    <table>
+      <thead><tr><th>Model</th><th>Multiclass Bal Acc</th><th>Binary Bal Acc</th><th>Binary F1</th></tr></thead>
+      <tbody>
+        <tr><td><strong>svm_rbf</strong></td><td><strong>0.7006</strong></td><td><strong>0.7804</strong></td><td><strong>0.6190</strong></td></tr>
+        <tr><td>lr</td><td>0.6835</td><td>0.7680</td><td>0.5909</td></tr>
+        <tr><td>svm_linear</td><td>0.6585</td><td>0.7804</td><td>0.6190</td></tr>
+        <tr><td>mlp</td><td>0.6560</td><td>0.7417</td><td>0.5581</td></tr>
+        <tr><td>rf</td><td>0.6292</td><td>0.7277</td><td>0.5500</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Confusion Matrix (Best Model: svm_rbf, Eval Set)</h3>
+    <table>
+      <thead><tr><th></th><th>ambiguous</th><th>cheque</th><th>facilities_legal</th><th>facilities_person</th><th>general</th></tr></thead>
+      <tbody>
+        <tr><td><strong>ambiguous</strong></td><td>13</td><td>1</td><td>0</td><td>1</td><td>4</td></tr>
+        <tr><td><strong>cheque</strong></td><td>1</td><td>22</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td><strong>facilities_legal</strong></td><td>1</td><td>2</td><td>5</td><td>1</td><td>2</td></tr>
+        <tr><td><strong>facilities_person</strong></td><td>5</td><td>1</td><td>0</td><td>15</td><td>3</td></tr>
+        <tr><td><strong>general</strong></td><td>3</td><td>0</td><td>1</td><td>1</td><td>18</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Per-Class F1 (svm_rbf)</h3>
     <ul>
-      <li><strong>Company#141 (B)</strong> — q↔gold Jaccard 0.292 (7 shared: اعضای، گذارد…) vs q↔winner 0.083. <i>Fusion casualty:</i> dense had gold at 15, RRF pushed it to merged-62, reranker never recovered (final 11). → weighted fusion / merged-top pinning.</li>
-      <li><strong>Company#151 (C)</strong> — q↔gold 0.084 vs q↔winner 0.075. <i>Lexical trap:</i> 9 near-identical Cheque_ReasonCode keyword-stuffed rows (≈249.17 BM25) buried gold at BM25-28. → reason-code sheet quarantine / keyword de-boost.</li>
-      <li><strong>Company#202 (B)</strong> — dense 80 → merged 94 → final 43. <i>Dense-invisible phrasing</i> («چه زمانی… اقدام کنم»). → query-rewrite / paraphrase augmentation.</li>
-      <li><strong>Cheque#26 (B)</strong> — BM25=7, merged=12, final=6. <i>Twin crowding, correct-but-second:</i> two distractors carry the identical short answer as the gold's family (scores 1.0/0.9999); 17 of 92 Cheque short answers are duplicated (current DB). → answer-level dedup before scoring.</li>
-      <li><strong>Cheque OOM episode</strong> (resolved, pre-rebuild backup) — 55 rows with empty rank lists (<code>MemoryError</code> / paging-1455, worst elapsed 108.8 s). <i>Not a retrieval judgment.</i> Re-run cleared all 55. → infra headroom (rerank batch/RAM/pagefile) + <code>--resume</code> re-runs.</li>
+      <li>cheque: 0.8980 (support 23)</li>
+      <li>facilities_person: 0.7143 (support 24)</li>
+      <li>general: 0.7200 (support 23)</li>
+      <li>ambiguous: 0.6190 (support 19)</li>
+      <li>facilities_legal: 0.5882 (support 11)</li>
     </ul>
-    <p class="muted">Ranked root causes (final 663-row run): (1) true retriever misses A=25 in Company/Individual/Public; (2) reranker near-misses B=13, the largest rescue opportunity; (3) fusion losses A′=8 — RRF dropped single-leg finds; (4) twin crowding — real but small (1 B row, −1 slot); (5) the resolved Cheque OOM episode.</p>
-    <figure style="margin:1rem 0;">
-      <img src="assets/plots/p_errors.png" alt="OOM before vs after" style="width:100%; height:auto; border:1px solid var(--dana-border); border-radius:var(--dana-radius);">
-      <figcaption class="diagram-caption"><strong>Caption:</strong> OOM before vs after — Cheque OOM episode resolved; all 55 rows cleared on re-run.</figcaption>
-    </figure>
-  </div>
-</section>
 
-<!-- ================= MIZAN ================= -->
-<section class="section" id="mizan">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">17</div><h2>Mizan System-1 Model &amp; Hybrid Architecture (v13.1)</h2></div>
+    <h3>Classifier Integration in Pipeline</h3>
+    <pre>query → MiniLM-L12 embed → 7-dim subspace features → SVM-RBF → ambiguous? → Mizan/Gemma resolver</pre>
+    <p>The trained svm_rbf model is serialized to data/model_eval/best_ambiguity_model.joblib and loaded at runtime. It operates on the 7-dim subspace features extracted from query embeddings, providing a fast (~1 ms) ambiguity decision that complements the Mizan+Gemma resolver.</p>
+
+    <h3>Classifier Training Artifacts</h3>
+    <ul>
+      <li><strong>Best model:</strong> components/orchestrator/data/model_eval/best_ambiguity_model.joblib (svm_rbf, eval bal acc 0.7006)</li>
+      <li><strong>Evaluation report:</strong> components/orchestrator/data/model_eval/evaluation_report.md</li>
+      <li><strong>Results JSON:</strong> components/orchestrator/data/model_eval/evaluation_results.json</li>
+      <li><strong>Plots:</strong> components/orchestrator/data/model_eval/plots/*.png</li>
+    </ul>
+
+    <h3>Key Findings (from evaluation_report.md)</h3>
+    <ol>
+      <li><strong>Best model:</strong> svm_rbf (eval balanced accuracy 0.7006)</li>
+      <li><strong>Binary classification:</strong> svm_linear / svm_rbf tied at 0.7804 balanced accuracy</li>
+      <li><strong>Overfitting check:</strong> All models show minimal overfitting (CV vs Eval diff &lt; 0.05)</li>
+      <li><strong>Feature efficiency:</strong> 7-dim subspace features achieve 70% balanced accuracy with only 7 interpretable features</li>
+      <li><strong>Data efficiency:</strong> Learning curves show diminishing returns after ~400 samples</li>
+    </ol>
+  </div>
+
+  <!-- Mizan -->
+  <div class="card" id="mizan">
+    <h2>Mizan System-1 model &amp; hybrid architecture (v13.1)</h2>
+    <table>
+      <thead><tr><th>Property</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Model</strong></td><td>mizan-v3-3b (System-1)</td></tr>
+        <tr><td><strong>Format</strong></td><td>GGUF Q4_K_M (977 MB)</td></tr>
+        <tr><td><strong>Path</strong></td><td>offline-prep/models/huggingface/Nimruz_Mizan-v3-3B-GGUF/mizan-v3-3b-Q4_K_M.gguf</td></tr>
+        <tr><td><strong>API Endpoint</strong></td><td>/v1/systemone (via Manager :9000 or direct :8083)</td></tr>
+        <tr><td><strong>Status</strong></td><td>Model available, not currently deployed</td></tr>
+        <tr><td><strong>Capabilities</strong></td><td>System-1 calibrated decisions: choice/noul/score with probabilities</td></tr>
+      </tbody>
+    </table>
+
     <div class="diagram-wrap">
+      <div class="diagram-title"><span class="cap-dot"></span>Figure: Mizan Hybrid Architecture (Production Design)</div>
       <div class="mermaid">
 flowchart TD
     Q[User Query] --> CLASSIFY[3-way Classifier greeting / specification / question]
@@ -489,7 +582,11 @@ flowchart TD
     ROUTE --> RETRIEVE[Retrieve with subspace]
       </div>
     </div>
-    <div class="diagram-caption"><strong>Caption:</strong> Mizan hybrid architecture. The hybrid resolver combines Mizan System-1 (fast, calibrated) with Gemma LLM (flexible, fallback). The 3-way classifier routes greeting / specification / question; questions are checked for scattered ambiguity. Non-ambiguous queries go straight to retrieve + rerank. Ambiguous queries go to Mizan System-1 (<code>/v1/systemone</code>) for subspace routing + ambiguous flag; confident (<i>p > 0.7</i>) routes to subspace, ambiguous falls to Gemma LLM for scattered detection + clarifying question (چک / تسهیلات / شرکت / عمومی) or route. Mizan-v3-3b (GGUF Q4_K_M, 977 MB) is available at <code>offline-prep/models/huggingface/Nimruz_Mizan-v3-3B-GGUF/mizan-v3-3b-Q4_K_M.gguf</code> but not currently deployed; the resolver falls back to Gemma LLM when Mizan is unavailable.</div>
+    <div class="caption">
+      <p>The hybrid resolver combines Mizan System-1 (fast, calibrated) with Gemma LLM (flexible, fallback). Full classifier flow: 3-way Classifier → (greeting/specification/question) → SVM-RBF ambiguity gate → Mizan System-1 /v1/systemone → Gemma LLM scattered detection → clarify → route → retrieve.</p>
+    </div>
+
+    <h3>Mizan vs. Classifier: Side-by-Side Comparison</h3>
     <table>
       <thead><tr><th>Aspect</th><th>SVM-RBF Classifier</th><th>Mizan System-1</th></tr></thead>
       <tbody>
@@ -499,23 +596,94 @@ flowchart TD
         <tr><td>Guardrails</td><td>❌</td><td>✅ Safety/Scope/Severity</td></tr>
         <tr><td>Retrieval Judge</td><td>❌</td><td>✅ Relevance/Subspace/Sufficiency</td></tr>
         <tr><td>Subspace Change</td><td>❌</td><td>✅ Multi-turn tracking</td></tr>
-        <tr><td>Latency</td><td><b>~1 ms</b> (local)</td><td>~50–100 ms (HTTP + GPU)</td></tr>
+        <tr><td>Latency</td><td>~1 ms (local)</td><td>~50-100 ms (HTTP + GPU)</td></tr>
         <tr><td>Calibration</td><td>SVM decision function</td><td>Native System-1 calibration</td></tr>
         <tr><td>Training</td><td>1000 samples (7-dim features)</td><td>Pre-trained System-1 (Mizan-v3-3B)</td></tr>
         <tr><td>Fallback</td><td>Heuristic keywords</td><td>Gemma LLM</td></tr>
         <tr><td>Deployment</td><td>Local joblib (~2 MB)</td><td>HTTP service (Manager :9000 → Mizan :8083)</td></tr>
       </tbody>
     </table>
-    <p class="muted">Mizan integration points: Guardrails (Safety/Scope/Severity judge, <code>mizan_guardrails_judge()</code>), Subspace Routing (<code>mizan_subspace_route()</code>), Retrieval Judge (<code>mizan_retrieval_judge()</code>), Subspace Change (<code>mizan_subspace_change_decision()</code>). Endpoint: <code>POST {MIZAN_BASE_URL}/systemone</code>.</p>
-  </div>
-</section>
 
-<!-- ================= RESTART ================= -->
-<section class="section" id="restart">
-  <div class="wrap">
-    <div class="section-title"><div class="badge">18</div><h2>Restart Runbook — Never Regress to CPU</h2></div>
-    <div class="callout"><b>Incident:</b> after a 2026-10-12 restart (NVIDIA module reload + <code>restore_services.sh</code>), a bare relaunch dropped <code>KB_EMBED_DEVICE</code>/<code>KB_RERANKER_DEVICE</code> (cpu default turned 55 ms retrieval into ~2.6 s) and set <code>HF_HOME=/tmp/hf_clean</code> (nonexistent) + <code>HF_HUB_OFFLINE=1</code>, silently taking the cross-encoder reranker offline on every query.</div>
-    <pre><code># Stop
+    <h3>Mizan Integration Points in Pipeline</h3>
+    <table>
+      <thead><tr><th>Pipeline Stage</th><th>Mizan Function</th><th>Endpoint</th></tr></thead>
+      <tbody>
+        <tr><td>Guardrails</td><td>Safety/Scope/Severity judge</td><td>mizan_guardrails_judge()</td></tr>
+        <tr><td>Subspace Routing</td><td>Subspace choice + ambiguous flag</td><td>mizan_subspace_route()</td></tr>
+        <tr><td>Retrieval Judge</td><td>Relevance/Subspace/Sufficiency/Quality</td><td>mizan_retrieval_judge()</td></tr>
+        <tr><td>Subspace Change</td><td>Conversation-level change decision</td><td>mizan_subspace_change_decision()</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Mizan API Specification</h3>
+    <p><strong>Endpoint:</strong> POST {MIZAN_BASE_URL}/systemone</p>
+    <pre>{
+  "model": "mizan-v3-3b",
+  "record": {"text": "...", "stage": "input"},
+  "questions": [
+    {"id": "safety", "question": "Is this input safe?", "type": "choice", "options": ["allow","block","clarify"]},
+    {"id": "scope", "question": "Is this in-domain?", "type": "noul"},
+    {"id": "severity", "question": "Rate severity 0-10", "type": "score", "min_value": 0, "max_value": 10}
+  ],
+  "temperature": 0.0
+}</pre>
+    <p><strong>Response:</strong></p>
+    <pre>{
+  "answers": [
+    {"question_id": "safety", "type": "choice", "choice": "allow", "choice_probs": {"allow": 0.95}},
+    {"question_id": "scope", "type": "noul", "noul": true, "noul_probs": {"true": 0.98}},
+    {"question_id": "severity", "type": "score", "score": 1.2, "score_distribution": {...}}
+  ]
+}</pre>
+
+    <h3>Mizan Deployment (To Activate)</h3>
+    <pre># 1. Launch Mizan via llama.cpp (GGUF) on port 8083
+cd /splunk-data/v1/Work_RAG-Server-Setup
+nohup /tmp/llama-venv/bin/python scripts/services/llama_chat_server.py \
+  --model offline-prep/models/huggingface/Nimruz_Mizan-v3-3B-GGUF/mizan-v3-3b-Q4_K_M.gguf \
+  --host 0.0.0.0 --port 8083 --model-id mizan-v3-3b --n-ctx 4096 &gt; /tmp/mizan.log 2>&1 &amp;
+
+# 2. Verify
+curl -s http://127.0.0.1:8083/health
+
+# 3. Update guardrails/orchestrator env
+export MIZAN_BASE_URL=http://127.0.0.1:8083/v1
+export GUARD_JUDGE_BACKEND=mizan</pre>
+  </div>
+
+  <!-- Restart runbook -->
+  <div class="card" id="restart-runbook">
+    <h2>Restart runbook — never regress to CPU (2026-10-13)</h2>
+    <p><strong>Incident:</strong> after a 2026-10-12 restart (NVIDIA module reload + restore_services.sh), a bare relaunch (a) dropped KB_EMBED_DEVICE/KB_RERANKER_DEVICE, so the old "cpu" dataclass default turned 55 ms retrieval into ~2.6 s (dense leg on CPU), and (b) set HF_HOME=/tmp/hf_clean (nonexistent) + HF_HUB_OFFLINE=1, so transformers 4.57's is_base_mistral() network probe hard-failed and the cross-encoder reranker was silently offline on every query (RRF-only results; stage_ms.rerank≈0.7 is the passthrough timer, not real scoring). Note HF_HUB_CACHE must point at the …/huggingface/hub subdirectory, not its parent.</p>
+    <div class="note">
+      <div class="note-title">Fixes (all in code now — defaults are safe)</div>
+      <ul>
+        <li>config.py _default_torch_device(): device defaults are GPU-first (cuda when torch.cuda.is_available()), explicit KB_*_DEVICE env still wins — a bare restart can no longer land on CPU.</li>
+        <li>kb_manager/model_cache.py resolve_local_model_path(): reranker/dense/embedder loads resolve repo ids to local dirs first (offline-prep mirror Work_RAG-Server-Setup/offline-prep/models/huggingface/<org_model>, then HF cache snapshot) — local paths set _is_local in transformers and skip the offline-mode network probe entirely. Reranker weights are mirrored at offline-prep/models/huggingface/BAAI_bge-reranker-v2-m3 (2.2 GB).</li>
+        <li>Canonical launcher: Work_Credit-RAG_Phase1/deploy/h200/start_kb.sh + kb_env.sh (idempotent restart, health/GPU/reranker post-checks, warm-up query); /tmp/reload_backup/restore_services.sh sources the same env.</li>
+      </ul>
+    </div>
+    <p class="caption">Benchmark after fix (2026-10-13, 30 unique queries, warm): p50 44.0 ms / p95 56.2 ms (normal load) — beats the 55 ms v13 baseline; under concurrent host load ≈60 (other GPU work), p50 55 ms / p95 76 ms. Stage split (normal load): BM25 3.7 · dense 17.8 · RRF 0.1 · rerank 19.3 (all p50, ms). RAM residency verified via pg_buffercache: chunks 153/153 blocks, chunks_embedding_hnsw 598/598 blocks resident; KB GPU footprint ~2.5–2.9 GB (nvidia-smi); Redis hits ~29 ms wall (curl overhead). Cold first query after restart ≈7–9 s one-time (lazy GPU model load) — subsequent queries warm.</p>
+    <div class="note">
+      <div class="note-title">Verify a restart is healthy</div>
+      <p>nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader | grep &lt;kb_pid&gt; (expect ~2.5 GB), grep -c "reranker offline fallback" /tmp/kb-logs/kb_8000.log (expect 0), then one uncached POST /search/api and check stage_ms dense/rerank ≈20 ms each.</p>
+    </div>
+
+    <h3>Optimization pass 2026-10-13 (dense leg)</h3>
+    <table>
+      <thead><tr><th>Change</th><th>Dense p50</th><th>Quality guard</th></tr></thead>
+      <tbody>
+        <tr><td>In-process RAM cosine matrix replaces per-beam pgvector SQL roundtrip (1 encode + (1110×384) @ (n_beam×384); HNSW now only at ingestion)</td><td>20.5 → 15.1 ms</td><td>100% top-5 overlap vs pgvector (60/60, 12 queries)</td></tr>
+        <tr><td>All beam variants encoded in one batched GPU call (was 1 GPU round-trip per variant)</td><td>+</td><td>identical</td></tr>
+        <tr><td>fp16 encode via model.half() (corpus matrix stays float32; query cast back)</td><td>+2–3 ms (load)</td><td>fp16 query vs fp32 corpus, 100% overlap</td></tr>
+        <tr><td>Reranker score memoization: (query,passage)-keyed TTL cache (600 s); repeated candidate pairs skip the forward pass</td><td>rerank repeats → ~0 ms</td><td>order identical (reranker is deterministic)</td></tr>
+        <tr><td>ORJSONResponse on the search route (26 KB payloads)</td><td>~−1 ms serialization</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="caption">Fresh-query p50 33.1 ms / p95 36.0 ms (load 61–66 from co-tenant session; v13 README baseline 55 ms). Cached path ~5 ms server-side (Redis exact-match, 2–7 ms, 150× vs the 2.6 s pre-RAM state). Stage split (p50, warm): BM25 3.5 · dense 8.2 · RRF 0.1 · rerank 20.7. Cold first query after restart ≈7–9 s one-time (lifespan pre-warming the models); subsequent queries warm. RAM residency unchanged: chunks 153/153 + HNSW 598/598 blocks in Postgres shared_buffers (verified via pg_buffercache).</p>
+
+    <h3>Restart commands</h3>
+    <pre># Stop
 fuser -k 8000/tcp; sleep 3
 
 # Start (with optimized env)
@@ -524,20 +692,24 @@ KB_EMBED_DEVICE=cuda KB_RERANKER_DEVICE=cuda KB_DENSE_BACKEND=ram \
 KB_USE_TANTIVY=true KB_FAST_CACHE=true KB_SYNONYM_BEAM=5 \
 KB_REDIS_URL=redis://127.0.0.1:16379/0 KB_REDIS_TTL=600 \
 HF_HOME=/root/.cache/huggingface HF_HUB_CACHE=/root/.cache/huggingface/hub HF_HUB_OFFLINE=1 \
-nohup /tmp/kb-venv/bin/python -m uvicorn kb_manager.web.app:app --host 0.0.0.0 --port 8000 &gt; /tmp/kb.log 2>&1 &
+nohup /tmp/kb-venv/bin/python -m uvicorn kb_manager.web.app:app --host 0.0.0.0 --port 8000 &gt; /tmp/kb.log 2>&1 &amp;
 
 # Verify
 nvidia-smi --query-compute-apps=pid,used_memory --format=csv,noheader | grep &lt;pid&gt;
 grep -c "reranker offline fallback" /tmp/kb-logs/kb_8000.log  # expect 0
-curl --noproxy "*" -X POST :8000/search/api -d '{"query":"اعتبارسنجی چیست","top_k":5}' | jq .stage_ms</code></pre>
-    <p class="muted">Fixes (all in code now — defaults are safe): <code>config.py</code> <code>_default_torch_device()</code> GPU-first defaults; <code>kb_manager/model_cache.py</code> <code>resolve_local_model_path()</code> resolves repo ids to local dirs first (offline-prep mirror, then HF cache snapshot); canonical launcher <code>Work_Credit-RAG_Phase1/deploy/h200/start_kb.sh</code> + <code>kb_env.sh</code> (idempotent restart, health/GPU/reranker post-checks, warm-up query).</p>
+curl --noproxy "*" -X POST :8000/search/api -d '{"query":"اعتبارسنجی چیست","top_k":5}' | jq .stage_ms</pre>
   </div>
-</section>
+
+  <div class="note">
+    <div class="note-title">Source</div>
+    <p>All content reorganized from <code>README.md</code>, <code>kb-manager/README.md</code>, and <code>KB_ARCHITECTURE.md</code> in the knowledgebase component. Diagrams validated as compilable Mermaid. Plots copied from <code>kb-manager/data/plots/</code> and <code>kb-manager/artifacts/retrieval_training/report_plots/</code>.</p>
+  </div>
+</div>
 
 <footer class="site-footer">
-  <div class="wrap">
-    <div><strong>Dana</strong> — Work RAG KB · In-Depth Technical Detail · GitHub Pages</div>
-    <div class="muted">Private — ICS Credit Scoring · <a href="index.html">Overview</a> · <a href="high-level.html">High-Level Detail</a></div>
+  <div class="footer-inner">
+    <a href="index.html" class="footer-brand">Dana</a>
+    <div class="footer-note">Knowledgebase component &bull; Work Credit RAG Platform &bull; Agent: Dana</div>
   </div>
 </footer>
 
