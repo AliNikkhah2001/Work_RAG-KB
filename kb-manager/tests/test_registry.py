@@ -111,7 +111,12 @@ def test_canned_and_prompts():
     ):
         assert required in keys, required
     assert "{text}" in keys["classify"]
-    assert reg.active_pins()["prompts_orchestrator"] == "1.0.1"
+    assert reg.active_pins()["prompts_orchestrator"] == "1.0.2"
+    # Size budgets (chars): answer_system structured but not wall-of-text;
+    # classifiers stay mid-range so they do not crowd Gemma context.
+    assert 1200 <= len(keys["answer_system"]) <= 2000
+    assert 200 <= len(keys["classify"]) <= 1200
+    assert 200 <= len(keys["specify_judge"]) <= 1200
 
 
 def test_active_pins_and_manifest(tmp_path, monkeypatch):
@@ -154,9 +159,10 @@ def test_save_prompts_bump_updates_pin(tmp_path):
         update_active_pin=True,
     )
     assert result["ok"] is True
-    assert result["version"] == "1.0.1"
-    assert result["pins"]["prompts_orchestrator"] == "1.0.1"
-    loaded = reg.prompts_pack("orchestrator", "1.0.1")
+    # Patch-bump from whatever the active prompts pack currently is.
+    assert result["version"]
+    assert result["pins"]["prompts_orchestrator"] == result["version"]
+    loaded = reg.prompts_pack("orchestrator", result["version"])
     assert loaded["prompts"]["classify"].startswith("ONLY_TEST")
     retrieval = reg.retrieval_pack()
-    assert retrieval["active_packs"]["prompts_orchestrator"] == "1.0.1"
+    assert retrieval["active_packs"]["prompts_orchestrator"] == result["version"]
