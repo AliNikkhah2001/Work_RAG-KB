@@ -185,20 +185,22 @@ def _dense_query_vec(dense: DenseSemanticIndex | None, text: str):
     DenseSemanticIndex exposes `_ensure_model()` / `_encode()`, not a public
     `.model` attribute. Older `hasattr(dense, "model")` guards always failed
     and silently disabled pgvector query embed + EntityList injection.
+
+    Encode failures raise — never return None after a broken embed call.
     """
     if dense is None or not text:
         return None
     try:
         vecs = dense._encode([text])
-        if vecs is None:
-            return None
-        arr = np.asarray(vecs)
-        if arr.ndim == 2:
-            return arr[0]
-        return arr
-    except Exception:
-        logging.getLogger(__name__).debug("dense encode failed for %r", text[:80], exc_info=True)
-        return None
+    except Exception as e:
+        logging.getLogger(__name__).exception("dense encode failed for %r", text[:80])
+        raise RuntimeError(f"Dense query encode failed: {e}") from e
+    if vecs is None:
+        raise RuntimeError("Dense query encode returned None")
+    arr = np.asarray(vecs)
+    if arr.ndim == 2:
+        return arr[0]
+    return arr
 
 
 _CODE_TOKEN_RE = re.compile(r"(?i)(?<![A-Za-z0-9])([A-Z]{2,5}\d{1,4})(?![A-Za-z0-9])")
@@ -814,15 +816,24 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                     logging.getLogger(__name__).info(
                         "rare-term rescue promoted %d chunks for terms %s", _promoted, _rare_terms
                     )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger(__name__).warning("rare-term rescue skipped: %s", e)
 
     stage_ms["bm25"] = round((time.monotonic() - t_mark) * 1000, 1)
     t_mark = time.monotonic()
     # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
-    # Try pgvector first if available (HNSW), fallback to file dense
-    dense_raw_base = None
-    if use_pgvector:
+    # Try pgvector first if available (HNSW); file dense is the hard fallback.
+    # Encode / file-dense failures raise — never silently drop the dense leg.
+    dense_raw_base: list[tuple[str, float]] | None
+    if not chunk_data:
+        dense_raw_base = []
+    else:
+        if dense is not None and not getattr(dense, "is_built", False):
+            raise RuntimeError(
+                f"Dense index not built for {len(chunk_data)} chunks — refusing silent BM25-only search"
+            )
+        dense_raw_base = None
+    if chunk_data and use_pgvector:
         try:
             from kb_manager.web.deps import db as _db2
             from sqlalchemy import text as _text2
@@ -835,11 +846,18 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                     # Use ORDER BY embedding <=> query for nearest
                     rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
                     dense_raw_base = [(r[0], float(r[1])) for r in rows]
+        except RuntimeError:
+            raise
         except Exception as _e:
-            # fallback to file dense
+            logging.getLogger(__name__).warning(
+                "pgvector dense search failed; falling back to file dense: %s", _e
+            )
             dense_raw_base = None
     if dense_raw_base is None:
-        dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
+        try:
+            dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
+        except Exception as e:
+            raise RuntimeError(f"Dense file search failed: {e}") from e
     if _SYNONYM_ENABLED and len(beam_queries) > 1:
         dense_pool: dict[str, float] = dict(dense_raw_base)
         for bq in beam_queries[1:]:
@@ -857,11 +875,18 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                                 if cid not in dense_pool or sc > dense_pool[cid]:
                                     dense_pool[cid] = sc
                             continue
-                except:
-                    pass
-            for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
-                if cid not in dense_pool or sc > dense_pool[cid]:
-                    dense_pool[cid] = sc
+                except RuntimeError:
+                    raise
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "pgvector beam dense failed for %r; using file dense: %s", bq[:80], _e
+                    )
+            try:
+                for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
+                    if cid not in dense_pool or sc > dense_pool[cid]:
+                        dense_pool[cid] = sc
+            except Exception as e:
+                raise RuntimeError(f"Dense file beam search failed for {bq!r}: {e}") from e
         dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     else:
         dense_raw = dense_raw_base
@@ -1082,38 +1107,34 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
 
 
     # --- Step 8: Semantic Intent Entity Injection ---
+    # Fail loud on encode / DB errors — empty EntityList table is fine (no inject).
     injected_entities = []
-    try:
-        from kb_manager.web.deps import db
-        import numpy as np
-        async with db.session() as session:
-            from sqlalchemy import select
-            from kb_manager.models.database import EntityList
-            ents_res = await session.execute(select(EntityList))
-            entity_lists = ents_res.scalars().all()
-            
-            
-            q_emb = _dense_query_vec(dense, query)
-            if q_emb is not None and entity_lists:
+    from kb_manager.web.deps import db
+    import numpy as np
+    async with db.session() as session:
+        from sqlalchemy import select
+        from kb_manager.models.database import EntityList
+        ents_res = await session.execute(select(EntityList))
+        entity_lists = ents_res.scalars().all()
 
-                q_vec = np.array(q_emb)
-                q_norm = np.linalg.norm(q_vec)
-                for ent in entity_lists:
-                    if not ent.description_embedding: continue
-                    ent_vec = np.array(ent.description_embedding)
-                    ent_norm = np.linalg.norm(ent_vec)
-                    if q_norm > 0 and ent_norm > 0:
-                        sim = np.dot(q_vec, ent_vec) / (q_norm * ent_norm)
-                        if sim > 0.6:  # Threshold for triggering the list
-                            injected_entities.append({
-                                "list_name": ent.list_name,
-                                "description": ent.description,
-                                "content": ent.content_json,
-                                "similarity": float(sim)
-                            })
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning("Failed to inject entities: %s", e)
+        q_emb = _dense_query_vec(dense, query)
+        if q_emb is not None and entity_lists:
+            q_vec = np.array(q_emb)
+            q_norm = np.linalg.norm(q_vec)
+            for ent in entity_lists:
+                if not ent.description_embedding:
+                    continue
+                ent_vec = np.array(ent.description_embedding)
+                ent_norm = np.linalg.norm(ent_vec)
+                if q_norm > 0 and ent_norm > 0:
+                    sim = np.dot(q_vec, ent_vec) / (q_norm * ent_norm)
+                    if sim > 0.6:  # Threshold for triggering the list
+                        injected_entities.append({
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": float(sim)
+                        })
 
     return SearchSteps(
         query=query,
@@ -1244,12 +1265,28 @@ async def search_api(request: Request):
         from fastapi.responses import JSONResponse
 
         msg = str(e)
-        status = 503 if "reranker" in msg.lower() or "cross-encoder" in msg.lower() else 500
+        low = msg.lower()
+        status = (
+            503
+            if any(
+                tok in low
+                for tok in (
+                    "reranker",
+                    "cross-encoder",
+                    "dense",
+                    "encode",
+                    "bm25",
+                    "index not built",
+                )
+            )
+            else 500
+        )
         return JSONResponse(
             status_code=status,
             content={
                 "error": msg,
-                "reranker_failed": status == 503,
+                "retrieval_failed": True,
+                "reranker_failed": "reranker" in low or "cross-encoder" in low,
                 "traceback": traceback.format_exc(),
             },
         )
