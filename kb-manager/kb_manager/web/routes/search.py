@@ -177,6 +177,31 @@ if TYPE_CHECKING:
 
 router = APIRouter()
 
+
+def _dense_query_vec(dense: DenseSemanticIndex | None, text: str):
+    """Encode a single query with DenseSemanticIndex public helpers.
+
+    DenseSemanticIndex exposes `_ensure_model()` / `_encode()`, not a public
+    `.model` attribute. Older `hasattr(dense, "model")` guards always failed
+    and silently disabled pgvector query embed + EntityList injection.
+    """
+    if dense is None or not text:
+        return None
+    try:
+        vecs = dense._encode([text])
+        if vecs is None:
+            return None
+        arr = np.asarray(vecs)
+        if arr.ndim == 2:
+            return arr[0]
+        return arr
+    except Exception:
+        logging.getLogger(__name__).debug("dense encode failed for %r", text[:80], exc_info=True)
+        return None
+
+
+_CODE_TOKEN_RE = re.compile(r"(?i)(?<![A-Za-z0-9])([A-Z]{2,5}\d{1,4})(?![A-Za-z0-9])")
+
 _DENSE_CACHE_PATH = PROJECT_ROOT / "data" / "dense_embeddings.npz"
 _DENSE_MODEL = os.getenv("KB_EMBED_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 if _DENSE_MODEL == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2" and os.path.exists("/splunk-data/v1/Work_RAG-Server-Setup/offline-prep/models/huggingface/sentence-transformers_paraphrase-multilingual-MiniLM-L12-v2"):
@@ -765,7 +790,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             from kb_manager.web.deps import db as _db2
             from sqlalchemy import text as _text2
             # embed query via same model as dense
-            q_vec = dense.model.encode([normalized], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+            q_vec = _dense_query_vec(dense, normalized)
             if q_vec is not None:
                 q_str = "[" + ",".join(f"{float(x):.6f}" for x in q_vec) + "]"
                 async with _db2.session() as _s2:
@@ -786,7 +811,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                 try:
                     from kb_manager.web.deps import db as _db3
                     from sqlalchemy import text as _text3
-                    q_vec2 = dense.model.encode([bq], normalize_embeddings=True)[0] if hasattr(dense, 'model') and dense.model is not None else None
+                    q_vec2 = _dense_query_vec(dense, bq)
                     if q_vec2 is not None:
                         q_str2 = "[" + ",".join(f"{float(x):.6f}" for x in q_vec2) + "]"
                         async with _db3.session() as _s3:
@@ -1040,12 +1065,7 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             entity_lists = ents_res.scalars().all()
             
             
-            q_emb = None
-            try:
-                if dense is not None and hasattr(dense, 'model') and dense.model is not None:
-                    q_emb = dense.model.encode([query], normalize_embeddings=True)[0]
-            except Exception:
-                pass
+            q_emb = _dense_query_vec(dense, query)
             if q_emb is not None and entity_lists:
 
                 q_vec = np.array(q_emb)
@@ -1201,3 +1221,143 @@ async def enhance_api(payload: EnhanceRequest):
     q = payload.query or ""
     res = enhance_query(q)
     return {"query": q, "enhanced": res["enhanced"], "beams": res["beams"]}
+
+
+class SupplementRequest(BaseModel):
+    query: str = ""
+    threshold: float = 0.4
+
+
+async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
+    """Direct EntityList tool search (embedding against list_name+description).
+
+    Used by POST /search/supplement and GET /search/supplement.
+    Threshold 0.4 (tool) vs 0.6 (hidden step-8 inject). Code-token fallback
+    guarantees matches for queries like MTX1 / SBD1 when cosine is diluted.
+    """
+    q = (query or "").strip()
+    try:
+        thr = float(threshold)
+    except Exception:
+        thr = 0.4
+    thr = max(0.0, min(1.0, thr))
+    if not q:
+        return {"results": [], "query": q, "threshold": thr, "count": 0}
+    try:
+        _, _, dense, _, _ = await _get_index()
+        q_emb = _dense_query_vec(dense, q)
+
+        from kb_manager.web.deps import db
+        from sqlalchemy import select as _select
+        from kb_manager.models.database import EntityList
+
+        async with db.session() as session:
+            ents_res = await session.execute(_select(EntityList))
+            entity_lists = ents_res.scalars().all()
+            if not entity_lists:
+                return {"results": [], "query": q, "threshold": thr, "count": 0}
+
+            code_tokens = {m.group(1).upper() for m in _CODE_TOKEN_RE.finditer(q)}
+
+            if q_emb is None:
+                q_low = q.lower()
+                results = []
+                for ent in entity_lists:
+                    text = f"{ent.list_name or ''} {ent.description or ''}"
+                    try:
+                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
+                    except Exception:
+                        content_str = str(ent.content_json).lower() if ent.content_json else ""
+                    hit = q_low in text.lower() or q_low in content_str
+                    if not hit and code_tokens:
+                        content_up = content_str.upper()
+                        hit = any(tok in content_up or tok in text.upper() for tok in code_tokens)
+                    if hit:
+                        results.append({
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": 0.5,
+                        })
+                return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+
+            q_vec = np.array(q_emb)
+            q_norm = float(np.linalg.norm(q_vec))
+            if q_norm == 0:
+                return {"results": [], "query": q, "threshold": thr, "count": 0}
+
+            results = []
+            q_low = q.lower()
+            for ent in entity_lists:
+                best_sim = -1.0
+                if ent.description_embedding:
+                    try:
+                        ent_vec = np.array(ent.description_embedding)
+                        ent_norm = float(np.linalg.norm(ent_vec))
+                        if ent_norm > 0:
+                            sim = float(np.dot(q_vec, ent_vec) / (q_norm * ent_norm))
+                            if sim > best_sim:
+                                best_sim = sim
+                    except Exception:
+                        pass
+                try:
+                    combined = f"{ent.list_name or ''} {ent.description or ''}".strip()
+                    if combined:
+                        c_emb = _dense_query_vec(dense, combined)
+                        if c_emb is not None:
+                            c_vec = np.array(c_emb)
+                            c_norm = float(np.linalg.norm(c_vec))
+                            if c_norm > 0:
+                                sim2 = float(np.dot(q_vec, c_vec) / (q_norm * c_norm))
+                                if sim2 > best_sim:
+                                    best_sim = sim2
+                except Exception:
+                    pass
+                try:
+                    text_low = f"{ent.list_name or ''} {ent.description or ''}".lower()
+                    try:
+                        content_str = json.dumps(ent.content_json, ensure_ascii=False).lower()
+                    except Exception:
+                        content_str = str(ent.content_json).lower() if ent.content_json else ""
+                    if q_low in text_low or q_low in content_str:
+                        if best_sim < thr:
+                            best_sim = float(thr)
+                    if code_tokens:
+                        blob = (text_low + " " + content_str).upper()
+                        if any(tok in blob for tok in code_tokens) and best_sim < thr:
+                            best_sim = float(thr)
+                except Exception:
+                    pass
+                try:
+                    if ent.list_name and ent.list_name.strip() in q and best_sim < thr:
+                        best_sim = float(thr)
+                except Exception:
+                    pass
+
+                if best_sim >= thr:
+                    results.append({
+                        "list_name": ent.list_name,
+                        "description": ent.description,
+                        "content": ent.content_json,
+                        "similarity": float(best_sim),
+                    })
+            results.sort(key=lambda x: x["similarity"], reverse=True)
+            return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+    except Exception as e:
+        logging.getLogger(__name__).warning("supplement search failed: %s", e)
+        return {"results": [], "query": q, "threshold": thr, "count": 0, "error": str(e)[:500]}
+
+
+@router.post("/supplement")
+async def supplement_api(payload: SupplementRequest, request: Request):
+    """Tool-callable supplement search over entity_lists (threshold 0.4)."""
+    return await _supplement_search_impl(payload.query, payload.threshold)
+
+
+@router.get("/supplement")
+async def supplement_get(
+    query: str = Query("", description="query text"),
+    threshold: float = Query(0.4, description="cosine threshold 0.0-1.0"),
+):
+    """GET variant of supplement tool for direct tool calling."""
+    return await _supplement_search_impl(query, threshold)
