@@ -107,3 +107,15 @@ def test_get_reranker_openrouter_backend(monkeypatch):
     rr = get_reranker()
     assert isinstance(rr, OpenRouterReranker)
     assert rr._model_name == "cohere/rerank-5-fast"
+
+
+def test_backend_auto_from_llm_upstream_mode(monkeypatch):
+    monkeypatch.delenv("KB_RERANKER_BACKEND", raising=False)
+    monkeypatch.delenv("KB_EMBED_BACKEND", raising=False)
+    monkeypatch.setenv("LLM_UPSTREAM_MODE", "openrouter")
+    from kb_manager.reranker import get_reranker_backend, get_reranker_model_name
+    from kb_manager.retrieval_backends import get_embed_backend
+
+    assert get_reranker_backend() == "openrouter"
+    assert get_embed_backend() == "openrouter"
+    assert get_reranker_model_name() == "cohere/rerank-v3.5"

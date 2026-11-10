@@ -79,14 +79,29 @@ RERANKER_REGISTRY: dict[str, dict[str, Any]] = {
 }
 
 
+def get_reranker_backend() -> str:
+    """Resolve reranker backend: ``local`` or ``openrouter``.
+
+    Precedence:
+    1. Explicit ``KB_RERANKER_BACKEND``
+    2. ``LLM_UPSTREAM_MODE=openrouter`` (laptop / no local Gemma) → openrouter
+    3. Otherwise ``local`` (self-hosted BGE/cross-encoder)
+    """
+    explicit = (os.getenv("KB_RERANKER_BACKEND") or "").strip().lower()
+    if explicit:
+        return explicit
+    if (os.getenv("LLM_UPSTREAM_MODE") or "").strip().lower() == "openrouter":
+        return "openrouter"
+    return "local"
+
+
 def get_reranker_model_name() -> str:
     """Return the configured reranker model id (``KB_RERANKER_MODEL``).
 
-    When ``KB_RERANKER_BACKEND=openrouter``, default to a Cohere rerank id on
-    OpenRouter instead of the local BGE HuggingFace id.
+    When the resolved backend is OpenRouter, default to a Cohere rerank id
+    instead of the local BGE HuggingFace id.
     """
-    backend = (os.getenv("KB_RERANKER_BACKEND") or "local").strip().lower()
-    if backend in {"openrouter", "api", "remote"}:
+    if get_reranker_backend() in {"openrouter", "api", "remote"}:
         return os.getenv("KB_RERANKER_MODEL", "cohere/rerank-v3.5") or "cohere/rerank-v3.5"
     return os.getenv("KB_RERANKER_MODEL", _DEFAULT_MODEL) or _DEFAULT_MODEL
 
@@ -960,11 +975,6 @@ class OpenRouterReranker:
 
     def __repr__(self) -> str:
         return f"OpenRouterReranker(model={self._model_name!r})"
-
-
-def get_reranker_backend() -> str:
-    """``local`` (default) or ``openrouter`` — laptop API path."""
-    return (os.getenv("KB_RERANKER_BACKEND") or "local").strip().lower()
 
 
 def get_reranker(
