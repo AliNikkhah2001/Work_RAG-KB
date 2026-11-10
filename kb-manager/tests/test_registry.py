@@ -89,8 +89,29 @@ def test_canned_and_prompts():
     canned = reg.canned_pack()
     assert "سلام" in canned["greetings"]["greeting"] or "دستیار" in canned["greetings"]["greeting"]
     prompts = reg.prompts_pack("orchestrator")
-    assert "classify" in prompts["prompts"]
-    assert "{text}" in prompts["prompts"]["classify"]
+    keys = prompts["prompts"]
+    for required in (
+        "classify",
+        "hybrid_classify",
+        "clarify",
+        "rewrite_system",
+        "rewrite_user_with_history",
+        "answer_system",
+        "followup_system",
+        "followup_user",
+        "specify_judge",
+        "suggest_subspace",
+        "compact_summary_system",
+        "compact_incremental_user",
+        "greeting_system_hello",
+        "greeting_system_farewell",
+        "greeting_system_thanks",
+        "clarify_fallback",
+        "hybrid_judge_escalation",
+    ):
+        assert required in keys, required
+    assert "{text}" in keys["classify"]
+    assert reg.active_pins()["prompts_orchestrator"] == "1.0.1"
 
 
 def test_active_pins_and_manifest(tmp_path, monkeypatch):
