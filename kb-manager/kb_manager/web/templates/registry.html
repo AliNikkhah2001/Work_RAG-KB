@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Registry & Manifests - KB Manager{% endblock %}
+
+{% block header %}
+<h1>Content Registry & Index Manifests</h1>
+<p class="subtitle">Versioned schemas, taxonomy, prompts, canned replies — and the active IndexManifest pin.</p>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Active pins</h2>
+  <table class="data-table">
+    <thead><tr><th>Pack</th><th>Version</th></tr></thead>
+    <tbody>
+      {% for k, v in pins.items() %}
+      <tr><td><code>{{ k }}</code></td><td><strong>{{ v }}</strong></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="margin-top:1rem;">
+    <button class="btn btn-primary" onclick="buildManifest(false)">Build manifest</button>
+    <button class="btn btn-primary" onclick="buildManifest(true)">Build + activate</button>
+    <span id="manifest-msg" style="margin-left:1rem;"></span>
+  </p>
+</div>
+
+<div class="card">
+  <h2>Available pack versions</h2>
+  <table class="data-table">
+    <thead><tr><th>Kind</th><th>Versions</th></tr></thead>
+    <tbody>
+      {% for k, vers in kinds.items() %}
+      <tr>
+        <td><code>{{ k }}</code></td>
+        <td>{% for v in vers %}<span class="score-badge" style="margin:2px;">v{{ v }}</span>{% else %}<em>none</em>{% endfor %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Taxonomy subspaces</h2>
+  <table class="data-table">
+    <thead><tr><th>Id</th><th>Filter path</th><th>Boost</th><th>Evidence thr</th></tr></thead>
+    <tbody>
+      {% for sid, node in (taxonomy.nodes or {}).items() %}
+      <tr>
+        <td><code>{{ sid }}</code></td>
+        <td dir="rtl">{{ node.filter_path or node.label_fa }}</td>
+        <td>{{ (node.retrieval or {}).keyword_boost }}</td>
+        <td>{{ (node.retrieval or {}).evidence_min_score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Index manifests</h2>
+  {% if active %}
+  <p>Active: <strong><code>{{ active.manifest_id }}</code></strong>
+    (docs={{ active.corpus.doc_count }}, chunks={{ active.corpus.chunk_count }}, corpus={{ active.corpus.dvc_rev }})</p>
+  {% else %}
+  <p><em>No active manifest yet — build one after ingest.</em></p>
+  {% endif %}
+  <table class="data-table">
+    <thead><tr><th>Id</th><th>Created</th><th>Chunks</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for m in manifests %}
+      <tr>
+        <td><code>{{ m.manifest_id }}</code></td>
+        <td>{{ m.created_at }}</td>
+        <td>{{ m.corpus.chunk_count if m.corpus else '-' }}</td>
+        <td>{% if m.is_active %}✅{% else %}—{% endif %}</td>
+        <td>{% if not m.is_active %}<button class="btn" onclick="activateManifest('{{ m.manifest_id }}')">Activate</button>{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5"><em>No manifests</em></td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>API</h2>
+  <ul>
+    <li><code>GET /registry/api/active</code> — bootstrap payload for orchestrator</li>
+    <li><code>GET /registry/api/taxonomy</code></li>
+    <li><code>GET /registry/api/canned</code></li>
+    <li><code>GET /registry/api/prompts/orchestrator</code></li>
+    <li><code>GET /registry/api/packs/{kind}?version=</code></li>
+  </ul>
+</div>
+
+<script>
+async function buildManifest(activate) {
+  const msg = document.getElementById('manifest-msg');
+  msg.textContent = 'Building…';
+  try {
+    const r = await fetch('/registry/api/manifests/build?activate=' + activate, {method:'POST'});
+    const j = await r.json();
+    msg.textContent = j.ok ? ('Saved ' + j.manifest.manifest_id) : (j.detail || 'failed');
+    if (j.ok) location.reload();
+  } catch (e) { msg.textContent = String(e); }
+}
+async function activateManifest(id) {
+  const r = await fetch('/registry/api/manifests/activate', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({manifest_id: id})
+  });
+  const j = await r.json();
+  if (j.ok) location.reload();
+  else alert(j.detail || 'activate failed');
+}
+</script>
+{% endblock %}

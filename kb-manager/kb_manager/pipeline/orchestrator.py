@@ -310,14 +310,29 @@ class PipelineOrchestrator:
         parsed = self._parse_file(file_path)
         
         # --- Extract Folder Hierarchy ---
+        # Prefer path relative to kb-source / snapshot root so subspace filters work
+        # even when ingesting from /tmp copies (no "kb-source" in the path).
         try:
-            parts = Path(file_path).parts
-            idx = parts.index("kb-source")
-            base = Path(*parts[:idx+2])
-            rel_path = Path(file_path).relative_to(base)
-            hierarchy = list(rel_path.parent.parts)
+            p = Path(file_path).resolve()
+            parts = p.parts
+            hierarchy: list[str] = []
+            if "kb-source" in parts:
+                idx = parts.index("kb-source")
+                base = Path(*parts[: idx + 2])
+                hierarchy = list(p.relative_to(base).parent.parts)
+            else:
+                # Snapshot folders like 1405-06-23 / KB_9.7.2026 / archives
+                markers = ("حقوقی", "حقیقی", "سایر", "ضمیمه پایگاه دانش چت بات", "پایگاه دانش")
+                if any(m in parts for m in markers):
+                    for i, part in enumerate(parts):
+                        if part in markers:
+                            hierarchy = list(parts[i:-1])  # from domain folder to parent of file
+                            break
+                if not hierarchy:
+                    # fall back: last 2 parent dirs
+                    hierarchy = list(p.parent.parts[-2:]) if len(p.parent.parts) >= 2 else list(p.parent.parts)
             parsed.metadata["folder_hierarchy"] = hierarchy
-            if len(hierarchy) > 0:
+            if hierarchy:
                 parsed.metadata["domain"] = hierarchy[0]
             if len(hierarchy) > 1:
                 parsed.metadata["category"] = hierarchy[1]
@@ -361,7 +376,7 @@ class PipelineOrchestrator:
             emb = None
             if self._embedder:
                 try:
-                    emb_list = self._embedder.embed([desc])
+                    emb_list = self._embedder.embed_texts([desc])
                     if emb_list:
                         emb = emb_list[0]
                 except Exception as e:

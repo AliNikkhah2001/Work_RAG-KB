@@ -1,0 +1,17 @@
+version: "1.0.0"
+kind: retrieval
+rrf_k: 60
+default_top_k: 20
+default_keyword_boost: 3.0
+dense_model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+dense_dim: 384
+reranker_top_k: 100
+prompt_char_budget: 20000
+faith_guard:
+  min_score: 0.5
+  min_coverage: 0.20
+active_packs:
+  schemas: "1.0.0"
+  taxonomy: "1.0.0"
+  canned: "1.0.0"
+  prompts_orchestrator: "1.0.0"

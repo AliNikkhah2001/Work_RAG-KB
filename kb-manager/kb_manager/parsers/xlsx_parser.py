@@ -49,114 +49,56 @@ def _verify_string_integrity(value: str) -> list[str]:
     return list(dict.fromkeys(problems))
 
 
-# Known schema column patterns
-SCHEMA_A_COLUMNS = {
-    "reason_code",
-    "model_name",
-    "model_id",
-    "brief_explanation",
-    "detailed_explanation",
-    "reason_text",
-    "improvement_suggestions",
-    "bin_score",
-    "bin_impact",
-    "feature_score",
-    "feature_impact",
-    "bin_details",
-    "keywords",
-    "feature_name",
-    "data_source",
-}
-
-SCHEMA_B_COLUMNS = {
-    "question", "model", "briefanswer", "answer", "keyword",
-    # Persian aliases for XLSX files with Persian headers (e.g. پرسش/پاسخ چت بات.xlsx)
-    "پرسش", "پاسخ", "متن سوال", "متن پاسخ", "سوال", "متن_سوال", "متن_پاسخ",
-}
-
-SCHEMA_C_COLUMNS = {
-    "documentname",
-    "title",
-    "sectiontitle",
-    "content",
-    "type",
-    "version",
-    "author(s)",
-    "heading",
-    "keywords",
-    "summary",
-}
-
-# New type-aware schemas for varied tabular KB (glossary, staff, loan, timeline)
-SCHEMA_GLOSSARY_COLUMNS = {
-    "رتبه",
-    "گرید",
-    "واژه",
-    "معادل",
-    "اصطلاح",
-    "واژه های معادل",
-}
-
-SCHEMA_STAFF_COLUMNS = {
-    "نام و نام خانوادگی",
-    "نام",
-    "سمت",
-    "بخش",
-    "سوابق تحصیلی",
-    "سوابق شغلی",
-    "تخصص ها و مهارت های کلیدی",
-    "نکات مهم",
-}
-
-SCHEMA_LOAN_COLUMNS = {
-    "نام وام",
-    "نوع وام",
-    "نرخ سود وام",
-    "سقف وام",
-    "حداکثر زمان بازپرداخت",
-    "مبلغ قسط",
-    "نوع ضمانت",
-    "نیاز به سپرده",
-    "مجموع سود وام",
-    "مجموع وام و سود",
-    "وضعیت",
-    "حمایت‌شده",
-    "لینک",
-}
-
-SCHEMA_TIMELINE_COLUMNS = {
-    "تاریخ",
-    "رویداد",
-    "شرح رویداد",
-    "عنوان",
-    "زمان",
-}
-
-
-# Sheets / columns excluded from the KB (internal review notes, legacy dupes).
-# Compared with _normalize_col() output.
-EXCLUDED_SHEETS = {"نظر"}
-EXCLUDED_COLUMNS = {
-    "answerجدید",  # Answer جدید (legacy dup, empty)
-    "answerقدیم",  # Answer قدیم (legacy dup)
-    "column1",  # junk empty column
-    "پاسخسابق",  # legacy answer
-    "بهبود(توصیهبرایورژنبعد)",  # internal next-version notes
-    "کامنتها",  # reviewer comments
-}
-
-
 def _normalize_col(name: str) -> str:
     """Normalize column name for comparison."""
     return re.sub(r"[\s_\-]+", "", name.strip().lower())
 
 
-def _detect_schema(headers: list[str]) -> str | None:
-    """Detect which KB schema a sheet uses based on column names.
+def _schema_columns(schema_id: str) -> set[str]:
+    """Column set for *schema_id* from the versioned schemas pack."""
+    try:
+        from kb_manager.registry import get_registry
 
-    Uses a threshold-based match: if >= 60% of a schema's expected columns
-    are present, treat it as that schema.  This handles files that are
-    missing one optional column (e.g. ``model`` in CRM Q&A).
+        cols = get_registry().schema_column_sets().get(schema_id) or set()
+        return set(cols)
+    except Exception as exc:  # pragma: no cover - pack must exist in prod
+        logger.warning("schemas pack unavailable for %s: %s", schema_id, exc)
+        return set()
+
+
+def _excluded_sets() -> tuple[set[str], set[str]]:
+    try:
+        from kb_manager.registry import get_registry
+
+        pack = get_registry().schemas_pack()
+        sheets = {_normalize_col(s) for s in (pack.get("excluded_sheets") or [])}
+        cols = {_normalize_col(c) for c in (pack.get("excluded_columns") or [])}
+        raw_cols = set(pack.get("excluded_columns") or [])
+        return sheets or {"نظر"}, cols | raw_cols
+    except Exception:
+        return {"نظر"}, {
+            "answerجدید",
+            "answerقدیم",
+            "column1",
+            "پاسخسابق",
+            "بهبود(توصیهبرایورژنبعد)",
+            "کامنتها",
+        }
+
+
+# Back-compat aliases (tests / older imports) — populated from registry at import.
+SCHEMA_A_COLUMNS = _schema_columns("reason_codes")
+SCHEMA_B_COLUMNS = _schema_columns("crm_qa")
+SCHEMA_C_COLUMNS = _schema_columns("articles")
+SCHEMA_GLOSSARY_COLUMNS = _schema_columns("glossary")
+SCHEMA_STAFF_COLUMNS = _schema_columns("staff_profile")
+SCHEMA_LOAN_COLUMNS = _schema_columns("loan_catalog")
+SCHEMA_TIMELINE_COLUMNS = _schema_columns("timeline")
+EXCLUDED_SHEETS, EXCLUDED_COLUMNS = _excluded_sets()
+
+
+def _detect_schema(headers: list[str]) -> str | None:
+    """Detect which KB schema a sheet uses based on versioned schemas pack.
 
     Args:
         headers: List of column header strings.
@@ -164,52 +106,13 @@ def _detect_schema(headers: list[str]) -> str | None:
     Returns:
         Schema identifier string or None for generic format.
     """
-    normalized = {_normalize_col(h) for h in headers if h}
-    # Persian Q&A files with only پرسش/پاسخ (2 cols) should still be crm_qa
-    persian_qa_markers = {"پرسش", "پاسخ", "سوال", "متنسوال", "متنپاسخ"}
-    if len(normalized & persian_qa_markers) >= 2 or ({"پرسش"} & normalized and {"پاسخ"} & normalized):
-        return "crm_qa"
-    if {"سوال"} & normalized and {"پاسخ"} & normalized:
-        return "crm_qa"
+    try:
+        from kb_manager.registry import get_registry
 
-    # Reason codes: minimal core columns (reason_code + reason_text + one explanation)
-    reason_core = {"reasoncode", "reasontext", "briefexplanation", "detailedexplanation", "improvementsuggestions", "keywords", "modelname", "modelid"}
-    if {"reasoncode", "reasontext"} <= normalized and len(normalized & reason_core) >= 3:
-        return "reason_codes"
-
-    # Type-aware tabular schemas (new) — check before generic fallback
-    # Glossary: 2-col رتبه/گرید exact (e.g. واژگان معادل.xlsx)
-    glossary_norm = {_normalize_col(c) for c in SCHEMA_GLOSSARY_COLUMNS}
-    if len(headers) == 2 and len(normalized & glossary_norm) >= 2:
-        return "glossary"
-    # Staff: 7-col profile (نام و نام خانوادگی present)
-    staff_norm = {_normalize_col(c) for c in SCHEMA_STAFF_COLUMNS}
-    if {"نامونامخانوادگی"} & normalized and len(normalized & staff_norm) >= 3:
-        return "staff_profile"
-    # Loan catalog: 13-col wide table
-    loan_norm = {_normalize_col(c) for c in SCHEMA_LOAN_COLUMNS}
-    if len(normalized & loan_norm) >= 8:  # 60% of 13
-        return "loan_catalog"
-    # Timeline: date-centric
-    timeline_norm = {_normalize_col(c) for c in SCHEMA_TIMELINE_COLUMNS}
-    if {"تاریخ"} & normalized and len(normalized & timeline_norm) >= 2:
-        return "timeline"
-
-    # Generic narrow tables (2-3 columns, no known schema): key/value flow.
-    # Each row becomes one kv_pair chunk (paragraph + keywords).
-    if 2 <= len([h for h in headers if h]) <= 3:
-        return "kv_pair"
-
-    schemas = [
-        ("reason_codes", {_normalize_col(c) for c in SCHEMA_A_COLUMNS}),
-        ("crm_qa", {_normalize_col(c) for c in {"question", "model", "briefanswer", "answer", "keyword"}}),
-        ("articles", {_normalize_col(c) for c in SCHEMA_C_COLUMNS}),
-    ]
-    for name, required in schemas:
-        overlap = len(normalized & required)
-        if overlap >= len(required) * 0.6:
-            return name
-    return None
+        return get_registry().detect_schema(headers)
+    except Exception as exc:
+        logger.warning("registry schema detect failed: %s", exc)
+        return None
 
 
 def _is_temp_file(file_path: str) -> bool:

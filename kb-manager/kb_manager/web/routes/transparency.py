@@ -27,19 +27,17 @@ from kb_manager.web.deps import db, templates
 router = APIRouter()
 
 # Keep in sync with xlsx_parser.py
-SCHEMA_DEFS: dict[str, set[str]] = {
-    "reason_codes": {
-        "reason_code", "model_name", "model_id", "brief_explanation",
-        "detailed_explanation", "reason_text", "improvement_suggestions",
-        "bin_score", "bin_impact", "feature_score", "feature_impact",
-        "bin_details", "keywords", "feature_name", "data_source",
-    },
-    "crm_qa": {"question", "model", "briefanswer", "answer", "keyword"},
-    "articles": {
-        "documentname", "title", "sectiontitle", "content", "type",
-        "version", "author(s)", "heading", "keywords", "summary",
-    },
-}
+def _schema_defs() -> dict[str, set[str]]:
+    """Load schema column sets from the versioned schemas pack."""
+    try:
+        from kb_manager.registry import get_registry
+
+        return get_registry().schema_column_sets()
+    except Exception:
+        return {}
+
+
+SCHEMA_DEFS: dict[str, set[str]] = _schema_defs()
 
 FIELD_FA: dict[str, str] = {
     "question": "سوال",

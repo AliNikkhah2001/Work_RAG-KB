@@ -12,6 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY pyproject.toml README.md ./
 COPY kb_manager ./kb_manager
+COPY packs ./packs
+COPY configs ./configs
 COPY run_server.py ./
 
 RUN pip install --no-cache-dir -e .

@@ -235,15 +235,34 @@ class CrossEncoderReranker:
                 "Install with: pip install transformers torch"
             ) from exc
 
+        from kb_manager.model_cache import resolve_local_model_path
+
+        model_id = resolve_local_model_path(self._model_name)
+        # Only force offline when HF_HUB_OFFLINE=1; otherwise allow download into
+        # HF_HOME/HF_HUB_CACHE so first boot can provision the weights.
+        offline = str(os.getenv("HF_HUB_OFFLINE", "0")).lower() in {"1", "true", "yes"}
+        local_only = offline or os.path.isdir(model_id)
+
         logger.info(
-            "Loading cross-encoder model %s (trust_remote_code=%s) …",
+            "Loading cross-encoder model %s (resolved=%s, trust_remote_code=%s, local_files_only=%s) …",
             self._model_name,
+            model_id,
             trust_remote_code,
+            local_only,
         )
 
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            self._model_name, trust_remote_code=trust_remote_code, local_files_only=True
-        )
+        try:
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                model_id, trust_remote_code=trust_remote_code, local_files_only=local_only
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load reranker tokenizer for {self._model_name!r} "
+                f"(resolved={model_id!r}, local_files_only={local_only}). "
+                "Ensure the model is cached under HF_HOME/HF_HUB_CACHE or set "
+                "HF_HUB_OFFLINE=0 so it can be downloaded. Original error: "
+                f"{exc}"
+            ) from exc
         # Tokenizer-side pad fallback (model-config side is fixed after load
         # below, once self._model exists).
         try:
@@ -265,12 +284,19 @@ class CrossEncoderReranker:
                 actual_device = "cpu"
                 
         dtype = torch.float16 if actual_device != "cpu" else torch.float32
-        self._model = AutoModelForSequenceClassification.from_pretrained(
-            self._model_name,
-            torch_dtype=dtype,
-            trust_remote_code=trust_remote_code,
-            local_files_only=True,
-        )
+        try:
+            self._model = AutoModelForSequenceClassification.from_pretrained(
+                model_id,
+                torch_dtype=dtype,
+                trust_remote_code=trust_remote_code,
+                local_files_only=local_only,
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load reranker weights for {self._model_name!r} "
+                f"(resolved={model_id!r}, device={actual_device}, local_files_only={local_only}). "
+                f"Original error: {exc}"
+            ) from exc
 
         self._model.to(actual_device)
 
@@ -422,6 +448,14 @@ class CrossEncoderReranker:
             all_scores.append(scores.cpu().numpy())
 
         return np.concatenate(all_scores) if all_scores else np.array([])
+
+    def warmup(self) -> None:
+        """Force-load weights and run a tiny forward pass (fail loudly on error)."""
+        self._ensure_model()
+        scores = self._score_pairs([("warmup query", "warmup passage about credit scoring")])
+        if scores is None or len(scores) == 0:
+            raise RuntimeError(f"Reranker warmup produced no scores for {self._model_name!r}")
+        logger.info("Reranker warmup ok model=%s score0=%.4f", self._model_name, float(scores[0]))
 
     def __repr__(self) -> str:
         return f"CrossEncoderReranker(model={self._model_name!r}, batch_size={self._batch_size})"
