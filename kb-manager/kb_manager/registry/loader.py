@@ -27,6 +27,28 @@ class PackNotFoundError(FileNotFoundError):
     """Raised when a requested pack version does not exist on disk."""
 
 
+def _dump_yaml(data: dict[str, Any]) -> str:
+    """Dump pack YAML, keeping multiline prompt strings as ``|`` blocks."""
+
+    class _Dumper(yaml.SafeDumper):
+        pass
+
+    def _str_representer(dumper: yaml.SafeDumper, value: str):
+        if "\n" in value:
+            return dumper.represent_scalar("tag:yaml.org,2002:str", value, style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str", value)
+
+    _Dumper.add_representer(str, _str_representer)
+    return yaml.dump(
+        data,
+        Dumper=_Dumper,
+        allow_unicode=True,
+        default_flow_style=False,
+        sort_keys=False,
+        width=1000,
+    )
+
+
 def _normalize_col(name: str) -> str:
     return re.sub(r"[\s_\-]+", "", (name or "").strip().lower())
 
@@ -82,6 +104,121 @@ class Registry:
     def clear_cache(self) -> None:
         with self._lock:
             self._cache.clear()
+
+    @staticmethod
+    def bump_semver(version: str, level: str = "patch") -> str:
+        """Return the next semver for *version* (``patch`` / ``minor`` / ``major``)."""
+        parts = [int(x) for x in version.lstrip("v").split(".")]
+        while len(parts) < 3:
+            parts.append(0)
+        major, minor, patch = parts[0], parts[1], parts[2]
+        level = (level or "patch").lower()
+        if level == "major":
+            return f"{major + 1}.0.0"
+        if level == "minor":
+            return f"{major}.{minor + 1}.0"
+        return f"{major}.{minor}.{patch + 1}"
+
+    def save(
+        self,
+        kind: str,
+        data: dict[str, Any],
+        *,
+        version: str | None = None,
+        scope: str | None = None,
+        bump: str | None = "patch",
+        update_active_pin: bool = True,
+    ) -> dict[str, Any]:
+        """Write a pack YAML to disk and refresh the in-memory cache.
+
+        *bump*:
+          - ``None`` / ``"overwrite"`` — write *version* (default: active/latest)
+          - ``"patch"`` / ``"minor"`` / ``"major"`` — create a new semver file
+
+        When *update_active_pin* is true and *kind* is pinned in the retrieval
+        pack, bump/overwrite also rewrites ``active_packs`` so the new version
+        becomes live.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("pack data must be a mapping")
+        kind = kind.strip()
+        if kind in {"prompts_orchestrator", "prompts-orchestrator"}:
+            kind = "prompts"
+            scope = scope or "orchestrator"
+        if kind == "prompts" and not scope:
+            scope = "orchestrator"
+
+        base_ver = (version or self.latest_version(kind, scope) or "1.0.0").lstrip("v")
+        mode = (bump or "overwrite").lower()
+        if mode in {"", "overwrite", "none", "false", "0"}:
+            target_ver = base_ver
+        else:
+            target_ver = self.bump_semver(base_ver, mode)
+
+        payload = dict(data)
+        payload["version"] = target_ver
+        payload.setdefault("kind", kind if kind != "prompts" else "prompts")
+        if kind == "prompts":
+            payload.setdefault("scope", scope or "orchestrator")
+
+        path = self._pack_path(kind, target_ver, scope)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        text = _dump_yaml(payload)
+        with self._lock:
+            path.write_text(text, encoding="utf-8")
+            self._cache.clear()
+        logger.info("Saved pack %s", path)
+
+        pin_key = "prompts_orchestrator" if kind == "prompts" else kind
+        pin_updated = False
+        if update_active_pin and pin_key in {
+            "schemas",
+            "taxonomy",
+            "canned",
+            "prompts_orchestrator",
+            "retrieval",
+        }:
+            try:
+                pin_updated = self._set_active_pin(pin_key, target_ver)
+            except Exception as exc:  # pragma: no cover - disk edge
+                logger.warning("active pin update failed for %s: %s", pin_key, exc)
+
+        try:
+            rel_path = str(path.relative_to(self.root))
+        except ValueError:
+            rel_path = str(path)
+        return {
+            "ok": True,
+            "kind": kind,
+            "scope": scope,
+            "version": target_ver,
+            "path": rel_path,
+            "pin_updated": pin_updated,
+            "pins": self.active_pins(),
+        }
+
+    def _set_active_pin(self, pin_key: str, version: str) -> bool:
+        """Update retrieval.active_packs[pin_key] and save (overwrite retrieval pack)."""
+        try:
+            retrieval = dict(self.load("retrieval"))
+        except PackNotFoundError:
+            return False
+        pins = dict(retrieval.get("active_packs") or {})
+        if pins.get(pin_key) == version and pin_key != "retrieval":
+            return False
+        pins[pin_key] = version
+        retrieval["active_packs"] = pins
+        # Avoid recursion: write retrieval file directly when editing another kind.
+        ret_ver = str(retrieval.get("version") or self.latest_version("retrieval") or "1.0.0").lstrip("v")
+        if pin_key == "retrieval":
+            ret_ver = version
+            retrieval["version"] = ret_ver
+        path = self._pack_path("retrieval", ret_ver, None)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(_dump_yaml(retrieval), encoding="utf-8")
+        with self._lock:
+            self._cache.clear()
+        return True
 
     def active_pins(self) -> dict[str, str]:
         """Return active pack pins from retrieval pack (or latest of each kind)."""
