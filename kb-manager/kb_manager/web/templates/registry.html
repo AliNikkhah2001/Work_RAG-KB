@@ -3,7 +3,7 @@
 
 {% block header %}
 <h1>Content Registry & Index Manifests</h1>
-<p class="subtitle">Versioned schemas, taxonomy, prompts, canned replies — and the active IndexManifest pin.</p>
+<p class="subtitle">Observe and edit versioned schemas, taxonomy, prompts, canned replies — then pin via IndexManifest.</p>
 {% endblock %}
 
 {% block content %}
@@ -11,7 +11,7 @@
   <h2>Active pins</h2>
   <table class="data-table">
     <thead><tr><th>Pack</th><th>Version</th></tr></thead>
-    <tbody>
+    <tbody id="pins-tbody">
       {% for k, v in pins.items() %}
       <tr><td><code>{{ k }}</code></td><td><strong>{{ v }}</strong></td></tr>
       {% endfor %}
@@ -20,15 +20,59 @@
   <p style="margin-top:1rem;">
     <button class="btn btn-primary" onclick="buildManifest(false)">Build manifest</button>
     <button class="btn btn-primary" onclick="buildManifest(true)">Build + activate</button>
+    <button class="btn" onclick="reloadRegistry()">Reload cache</button>
     <span id="manifest-msg" style="margin-left:1rem;"></span>
   </p>
+</div>
+
+<div class="card">
+  <h2>Pack editor</h2>
+  <p class="subtitle" style="margin-bottom:0.75rem;">
+    Load a pack, inspect structured fields, edit YAML, then save as a new version (recommended) or overwrite.
+  </p>
+  <div style="display:flex; flex-wrap:wrap; gap:0.75rem; align-items:end; margin-bottom:0.75rem;">
+    <label>Kind
+      <select id="pack-kind" onchange="onKindChange()">
+        <option value="prompts">prompts (orchestrator)</option>
+        <option value="taxonomy">taxonomy</option>
+        <option value="canned">canned</option>
+        <option value="schemas">schemas</option>
+        <option value="retrieval">retrieval</option>
+      </select>
+    </label>
+    <label>Version
+      <select id="pack-version"></select>
+    </label>
+    <button class="btn btn-primary" onclick="loadPack()">Load</button>
+    <label>Save mode
+      <select id="pack-bump">
+        <option value="patch" selected>new patch (1.0.0 → 1.0.1)</option>
+        <option value="minor">new minor</option>
+        <option value="major">new major</option>
+        <option value="overwrite">overwrite this version</option>
+      </select>
+    </label>
+    <button class="btn btn-primary" onclick="savePack()">Save</button>
+    <label style="display:flex; align-items:center; gap:0.35rem;">
+      <input type="checkbox" id="pack-pin" checked> update active pin
+    </label>
+  </div>
+  <p id="pack-meta" style="margin:0.25rem 0 0.75rem; color:var(--muted, #666);"></p>
+
+  <div id="pack-observe" style="margin-bottom:1rem;"></div>
+
+  <label for="pack-yaml" style="display:block; font-weight:600; margin-bottom:0.35rem;">YAML</label>
+  <textarea id="pack-yaml" spellcheck="false"
+    style="width:100%; min-height:28rem; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.85rem; line-height:1.4; direction:ltr; padding:0.75rem; border-radius:6px; border:1px solid #ccc; box-sizing:border-box;"
+    placeholder="Select a pack and click Load…"></textarea>
+  <p id="pack-save-msg" style="margin-top:0.5rem;"></p>
 </div>
 
 <div class="card">
   <h2>Available pack versions</h2>
   <table class="data-table">
     <thead><tr><th>Kind</th><th>Versions</th></tr></thead>
-    <tbody>
+    <tbody id="versions-tbody">
       {% for k, vers in kinds.items() %}
       <tr>
         <td><code>{{ k }}</code></td>
@@ -86,14 +130,239 @@
   <h2>API</h2>
   <ul>
     <li><code>GET /registry/api/active</code> — bootstrap payload for orchestrator</li>
-    <li><code>GET /registry/api/taxonomy</code></li>
-    <li><code>GET /registry/api/canned</code></li>
-    <li><code>GET /registry/api/prompts/orchestrator</code></li>
-    <li><code>GET /registry/api/packs/{kind}?version=</code></li>
+    <li><code>GET /registry/api/packs/{kind}?as_yaml=true</code> — load for editor</li>
+    <li><code>PUT /registry/api/packs/{kind}</code> — save / bump pack</li>
+    <li><code>POST /registry/api/reload</code> — drop in-memory cache</li>
+    <li><code>GET /registry/api/taxonomy</code> · <code>/canned</code> · <code>/prompts/orchestrator</code></li>
   </ul>
 </div>
 
 <script>
+const KIND_META = {
+  prompts: { api: 'prompts', scope: 'orchestrator', pin: 'prompts_orchestrator', label: 'prompts/orchestrator' },
+  taxonomy: { api: 'taxonomy', scope: null, pin: 'taxonomy', label: 'taxonomy' },
+  canned: { api: 'canned', scope: null, pin: 'canned', label: 'canned' },
+  schemas: { api: 'schemas', scope: null, pin: 'schemas', label: 'schemas' },
+  retrieval: { api: 'retrieval', scope: null, pin: 'retrieval', label: 'retrieval' },
+};
+
+let PACKS_INDEX = null;
+let CURRENT = { kind: 'prompts', version: null, yaml: '' };
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function fetchPacksIndex() {
+  const r = await fetch('/registry/api/packs');
+  PACKS_INDEX = await r.json();
+  return PACKS_INDEX;
+}
+
+function versionsFor(kindKey) {
+  if (!PACKS_INDEX) return [];
+  const meta = KIND_META[kindKey];
+  const v = PACKS_INDEX.versions || {};
+  if (kindKey === 'prompts') return v.prompts_orchestrator || [];
+  return v[kindKey] || [];
+}
+
+function fillVersionSelect(prefer) {
+  const sel = document.getElementById('pack-version');
+  const kind = document.getElementById('pack-kind').value;
+  const vers = versionsFor(kind);
+  const pin = (PACKS_INDEX && PACKS_INDEX.pins && PACKS_INDEX.pins[KIND_META[kind].pin]) || null;
+  sel.innerHTML = '';
+  if (!vers.length) {
+    sel.innerHTML = '<option value="">(none)</option>';
+    return;
+  }
+  for (const v of [...vers].reverse()) {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = 'v' + v + (pin === v ? ' (active)' : '');
+    sel.appendChild(opt);
+  }
+  const want = prefer || pin || vers[vers.length - 1];
+  if (want && [...sel.options].some(o => o.value === want)) sel.value = want;
+}
+
+function onKindChange() {
+  fillVersionSelect();
+}
+
+function renderObserve(data, kind) {
+  const box = document.getElementById('pack-observe');
+  if (!data) { box.innerHTML = ''; return; }
+  if (kind === 'prompts') {
+    const prompts = data.prompts || {};
+    const keys = Object.keys(prompts);
+    let html = '<h3 style="margin:0 0 0.5rem;">Prompt keys (' + keys.length + ')</h3>';
+    html += '<div style="display:grid; gap:0.75rem;">';
+    for (const k of keys) {
+      const body = String(prompts[k] || '');
+      const preview = body.length > 420 ? body.slice(0, 420) + '…' : body;
+      html += '<details open style="border:1px solid #ddd; border-radius:6px; padding:0.5rem 0.75rem;">';
+      html += '<summary style="cursor:pointer; font-weight:600;"><code>' + esc(k) + '</code> <span style="font-weight:400;color:#666;">(' + body.length + ' chars)</span></summary>';
+      html += '<pre dir="auto" style="white-space:pre-wrap; margin:0.5rem 0 0; font-size:0.85rem;">' + esc(preview) + '</pre>';
+      html += '</details>';
+    }
+    html += '</div>';
+    box.innerHTML = html;
+    return;
+  }
+  if (kind === 'canned') {
+    const g = data.greetings || {};
+    const r = data.refusals || {};
+    let html = '<h3 style="margin:0 0 0.5rem;">Canned messages</h3><table class="data-table"><thead><tr><th>Key</th><th>Text</th></tr></thead><tbody>';
+    for (const [k, v] of Object.entries(g)) html += '<tr><td><code>greetings.' + esc(k) + '</code></td><td dir="auto">' + esc(v) + '</td></tr>';
+    for (const [k, v] of Object.entries(r)) html += '<tr><td><code>refusals.' + esc(k) + '</code></td><td dir="auto">' + esc(v) + '</td></tr>';
+    html += '</tbody></table>';
+    box.innerHTML = html;
+    return;
+  }
+  if (kind === 'taxonomy') {
+    const nodes = data.nodes || {};
+    let html = '<h3 style="margin:0 0 0.5rem;">Nodes</h3><table class="data-table"><thead><tr><th>Id</th><th>Filter</th><th>Boost</th><th>Thr</th></tr></thead><tbody>';
+    for (const [sid, node] of Object.entries(nodes)) {
+      const ret = node.retrieval || {};
+      html += '<tr><td><code>' + esc(sid) + '</code></td><td dir="rtl">' + esc(node.filter_path || node.label_fa || '') + '</td><td>' + esc(ret.keyword_boost) + '</td><td>' + esc(ret.evidence_min_score) + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    box.innerHTML = html;
+    return;
+  }
+  if (kind === 'retrieval') {
+    const pins = data.active_packs || {};
+    let html = '<h3 style="margin:0 0 0.5rem;">Retrieval knobs + pins</h3><table class="data-table"><tbody>';
+    for (const k of ['rrf_k','default_top_k','default_keyword_boost','dense_model','dense_dim','reranker_top_k','prompt_char_budget']) {
+      if (data[k] !== undefined) html += '<tr><td><code>' + esc(k) + '</code></td><td>' + esc(data[k]) + '</td></tr>';
+    }
+    html += '</tbody></table><h3 style="margin:1rem 0 0.5rem;">active_packs</h3><table class="data-table"><tbody>';
+    for (const [k, v] of Object.entries(pins)) html += '<tr><td><code>' + esc(k) + '</code></td><td><strong>' + esc(v) + '</strong></td></tr>';
+    html += '</tbody></table>';
+    box.innerHTML = html;
+    return;
+  }
+  if (kind === 'schemas') {
+    const schemas = data.schemas || {};
+    let html = '<h3 style="margin:0 0 0.5rem;">Schemas</h3><ul>';
+    for (const [sid, sch] of Object.entries(schemas)) {
+      const cols = (sch && sch.columns) || [];
+      html += '<li><code>' + esc(sid) + '</code> — ' + cols.length + ' columns</li>';
+    }
+    html += '</ul>';
+    box.innerHTML = html;
+    return;
+  }
+  box.innerHTML = '<pre style="white-space:pre-wrap; font-size:0.85rem;">' + esc(JSON.stringify(data, null, 2).slice(0, 2000)) + '</pre>';
+}
+
+async function loadPack() {
+  const kind = document.getElementById('pack-kind').value;
+  const version = document.getElementById('pack-version').value;
+  const meta = KIND_META[kind];
+  const msg = document.getElementById('pack-meta');
+  const saveMsg = document.getElementById('pack-save-msg');
+  saveMsg.textContent = '';
+  msg.textContent = 'Loading…';
+  try {
+    let url = '/registry/api/packs/' + encodeURIComponent(meta.api) + '?as_yaml=true';
+    if (version) url += '&version=' + encodeURIComponent(version);
+    if (meta.scope) url += '&scope=' + encodeURIComponent(meta.scope);
+    const r = await fetch(url);
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.statusText);
+    document.getElementById('pack-yaml').value = j.yaml || '';
+    CURRENT = { kind, version: j.version, yaml: j.yaml || '' };
+    msg.textContent = meta.label + ' v' + j.version + (meta.scope ? ' · scope=' + meta.scope : '');
+    // structured observe from JSON endpoint
+    let jurl = '/registry/api/packs/' + encodeURIComponent(meta.api) + '?version=' + encodeURIComponent(j.version);
+    if (meta.scope) jurl += '&scope=' + encodeURIComponent(meta.scope);
+    const jr = await fetch(jurl);
+    const data = await jr.json();
+    renderObserve(data, kind);
+  } catch (e) {
+    msg.textContent = 'Load failed: ' + e;
+    renderObserve(null);
+  }
+}
+
+async function savePack() {
+  const kind = document.getElementById('pack-kind').value;
+  const version = document.getElementById('pack-version').value || CURRENT.version;
+  const bump = document.getElementById('pack-bump').value;
+  const pin = document.getElementById('pack-pin').checked;
+  const yamlText = document.getElementById('pack-yaml').value;
+  const meta = KIND_META[kind];
+  const saveMsg = document.getElementById('pack-save-msg');
+  saveMsg.textContent = 'Saving…';
+  try {
+    const body = {
+      content: yamlText,
+      version: version || null,
+      scope: meta.scope,
+      bump: bump,
+      update_active_pin: pin,
+    };
+    const r = await fetch('/registry/api/packs/' + encodeURIComponent(meta.api), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail || j));
+    saveMsg.textContent = 'Saved ' + j.kind + ' v' + j.version + (j.pin_updated ? ' (pin updated)' : '');
+    await fetchPacksIndex();
+    refreshPinsTable();
+    refreshVersionsTable();
+    fillVersionSelect(j.version);
+    await loadPack();
+  } catch (e) {
+    saveMsg.textContent = 'Save failed: ' + e;
+  }
+}
+
+function refreshPinsTable() {
+  const tb = document.getElementById('pins-tbody');
+  if (!PACKS_INDEX || !tb) return;
+  const pins = PACKS_INDEX.pins || {};
+  tb.innerHTML = Object.entries(pins).map(([k, v]) =>
+    '<tr><td><code>' + esc(k) + '</code></td><td><strong>' + esc(v) + '</strong></td></tr>'
+  ).join('');
+}
+
+function refreshVersionsTable() {
+  const tb = document.getElementById('versions-tbody');
+  if (!PACKS_INDEX || !tb) return;
+  const v = PACKS_INDEX.versions || {};
+  const rows = [
+    ['schemas', v.schemas],
+    ['taxonomy', v.taxonomy],
+    ['canned', v.canned],
+    ['prompts/orchestrator', v.prompts_orchestrator],
+    ['retrieval', v.retrieval],
+  ];
+  tb.innerHTML = rows.map(([k, vers]) => {
+    const badges = (vers || []).map(x => '<span class="score-badge" style="margin:2px;">v' + esc(x) + '</span>').join('') || '<em>none</em>';
+    return '<tr><td><code>' + esc(k) + '</code></td><td>' + badges + '</td></tr>';
+  }).join('');
+}
+
+async function reloadRegistry() {
+  const msg = document.getElementById('manifest-msg');
+  msg.textContent = 'Reloading…';
+  try {
+    const r = await fetch('/registry/api/reload', { method: 'POST' });
+    const j = await r.json();
+    msg.textContent = j.ok ? 'Cache cleared' : 'reload failed';
+    await fetchPacksIndex();
+    refreshPinsTable();
+    refreshVersionsTable();
+    fillVersionSelect();
+  } catch (e) { msg.textContent = String(e); }
+}
+
 async function buildManifest(activate) {
   const msg = document.getElementById('manifest-msg');
   msg.textContent = 'Building…';
@@ -104,6 +373,7 @@ async function buildManifest(activate) {
     if (j.ok) location.reload();
   } catch (e) { msg.textContent = String(e); }
 }
+
 async function activateManifest(id) {
   const r = await fetch('/registry/api/manifests/activate', {
     method:'POST', headers:{'Content-Type':'application/json'},
@@ -113,5 +383,15 @@ async function activateManifest(id) {
   if (j.ok) location.reload();
   else alert(j.detail || 'activate failed');
 }
+
+(async function init() {
+  try {
+    await fetchPacksIndex();
+    fillVersionSelect();
+    await loadPack();
+  } catch (e) {
+    document.getElementById('pack-meta').textContent = 'Init failed: ' + e;
+  }
+})();
 </script>
 {% endblock %}

@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import yaml
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from kb_manager.registry import (
@@ -25,6 +25,28 @@ router = APIRouter()
 
 class ActivateBody(BaseModel):
     manifest_id: str = Field(..., description="Manifest id to activate")
+
+
+class SavePackBody(BaseModel):
+    """Save / bump a registry pack from the Registry UI."""
+
+    content: Any = Field(
+        ...,
+        description="Pack as a JSON object, or a YAML/JSON string",
+    )
+    version: str | None = Field(
+        None, description="Base version to overwrite or bump from (default: latest)"
+    )
+    scope: str | None = Field(
+        None, description="Required for prompts (default orchestrator)"
+    )
+    bump: str | None = Field(
+        "patch",
+        description="patch|minor|major|overwrite — default patch creates a new version",
+    )
+    update_active_pin: bool = Field(
+        True, description="Also point retrieval.active_packs at the saved version"
+    )
 
 
 @router.get("")
@@ -68,26 +90,92 @@ async def list_packs():
     }
 
 
-@router.get("/api/packs/{kind}")
-async def get_pack(
-    kind: str,
-    version: str | None = Query(None),
-    scope: str | None = Query(None),
-):
-    reg = get_registry()
-    # Map prompts_orchestrator -> prompts + scope
+def _resolve_kind_scope(kind: str, scope: str | None) -> tuple[str, str | None]:
     real_kind = kind
     real_scope = scope
     if kind in ("prompts_orchestrator", "prompts-orchestrator"):
         real_kind = "prompts"
         real_scope = scope or "orchestrator"
+    if real_kind == "prompts" and not real_scope:
+        real_scope = "orchestrator"
+    return real_kind, real_scope
+
+
+def _parse_pack_content(content: Any) -> dict[str, Any]:
+    if isinstance(content, dict):
+        return content
+    if isinstance(content, str):
+        text = content.strip()
+        if not text:
+            raise ValueError("empty pack content")
+        try:
+            data = yaml.safe_load(text)
+        except Exception as exc:
+            raise ValueError(f"invalid YAML: {exc}") from exc
+        if not isinstance(data, dict):
+            raise ValueError("pack YAML/JSON must be a mapping at the top level")
+        return data
+    raise ValueError("content must be an object or YAML/JSON string")
+
+
+@router.get("/api/packs/{kind}")
+async def get_pack(
+    kind: str,
+    version: str | None = Query(None),
+    scope: str | None = Query(None),
+    as_yaml: bool = Query(False, description="Return {yaml, version, kind} instead of JSON object"),
+):
+    reg = get_registry()
+    real_kind, real_scope = _resolve_kind_scope(kind, scope)
     try:
         data = reg.load(real_kind, version=version, scope=real_scope)
     except PackNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if as_yaml:
+        from kb_manager.registry.loader import _dump_yaml
+
+        return {
+            "kind": real_kind,
+            "scope": real_scope,
+            "version": data.get("version"),
+            "yaml": _dump_yaml(data),
+        }
     return data
+
+
+@router.put("/api/packs/{kind}")
+async def save_pack(kind: str, body: SavePackBody):
+    """Create or overwrite a pack version (used by the Registry editor UI)."""
+    reg = get_registry()
+    real_kind, real_scope = _resolve_kind_scope(kind, body.scope)
+    try:
+        data = _parse_pack_content(body.content)
+        result = reg.save(
+            real_kind,
+            data,
+            version=body.version,
+            scope=real_scope,
+            bump=body.bump,
+            update_active_pin=body.update_active_pin,
+        )
+    except PackNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        logger.exception("pack save failed")
+        raise HTTPException(status_code=500, detail=f"failed to write pack: {exc}") from exc
+    return result
+
+
+@router.post("/api/reload")
+async def reload_registry():
+    """Drop in-memory pack cache so the next read hits disk."""
+    reg = get_registry()
+    reg.clear_cache()
+    return {"ok": True, "pins": reg.active_pins()}
 
 
 @router.get("/api/taxonomy")
