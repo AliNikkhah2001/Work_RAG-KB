@@ -145,6 +145,9 @@ class Registry:
         if kind in {"prompts_orchestrator", "prompts-orchestrator"}:
             kind = "prompts"
             scope = scope or "orchestrator"
+        if kind in {"prompts_guardrails", "prompts-guardrails"}:
+            kind = "prompts"
+            scope = scope or "guardrails"
         if kind == "prompts" and not scope:
             scope = "orchestrator"
 
@@ -169,13 +172,21 @@ class Registry:
             self._cache.clear()
         logger.info("Saved pack %s", path)
 
-        pin_key = "prompts_orchestrator" if kind == "prompts" else kind
+        if kind == "prompts":
+            pin_key = (
+                "prompts_guardrails"
+                if (scope or "") == "guardrails"
+                else "prompts_orchestrator"
+            )
+        else:
+            pin_key = kind
         pin_updated = False
         if update_active_pin and pin_key in {
             "schemas",
             "taxonomy",
             "canned",
             "prompts_orchestrator",
+            "prompts_guardrails",
             "retrieval",
         }:
             try:
@@ -232,6 +243,7 @@ class Registry:
             "taxonomy": self.latest_version("taxonomy"),
             "canned": self.latest_version("canned"),
             "prompts_orchestrator": self.latest_version("prompts", scope="orchestrator"),
+            "prompts_guardrails": self.latest_version("prompts", scope="guardrails"),
             "retrieval": self.latest_version("retrieval"),
         }
         for k, v in defaults.items():
