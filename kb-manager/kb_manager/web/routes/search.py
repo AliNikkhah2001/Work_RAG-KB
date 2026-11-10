@@ -1014,7 +1014,6 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         )
         rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception("Reranker failed (no silent bypass): %s", e)
         if not _allow_rerank_fallback:
             raise RuntimeError(
