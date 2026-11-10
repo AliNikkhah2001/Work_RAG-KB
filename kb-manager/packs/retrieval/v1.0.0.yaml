@@ -14,4 +14,4 @@ active_packs:
   schemas: "1.0.0"
   taxonomy: "1.0.0"
   canned: "1.0.0"
-  prompts_orchestrator: "1.0.1"
+  prompts_orchestrator: "1.0.2"
