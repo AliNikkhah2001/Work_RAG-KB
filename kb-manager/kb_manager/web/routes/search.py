@@ -11,6 +11,7 @@ import os
 import re
 import time
 from collections import Counter
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -184,20 +185,22 @@ def _dense_query_vec(dense: DenseSemanticIndex | None, text: str):
     DenseSemanticIndex exposes `_ensure_model()` / `_encode()`, not a public
     `.model` attribute. Older `hasattr(dense, "model")` guards always failed
     and silently disabled pgvector query embed + EntityList injection.
+
+    Encode failures raise — never return None after a broken embed call.
     """
     if dense is None or not text:
         return None
     try:
         vecs = dense._encode([text])
-        if vecs is None:
-            return None
-        arr = np.asarray(vecs)
-        if arr.ndim == 2:
-            return arr[0]
-        return arr
-    except Exception:
-        logging.getLogger(__name__).debug("dense encode failed for %r", text[:80], exc_info=True)
-        return None
+    except Exception as e:
+        logging.getLogger(__name__).exception("dense encode failed for %r", text[:80])
+        raise RuntimeError(f"Dense query encode failed: {e}") from e
+    if vecs is None:
+        raise RuntimeError("Dense query encode returned None")
+    arr = np.asarray(vecs)
+    if arr.ndim == 2:
+        return arr[0]
+    return arr
 
 
 _CODE_TOKEN_RE = re.compile(r"(?i)(?<![A-Za-z0-9])([A-Z]{2,5}\d{1,4})(?![A-Za-z0-9])")
@@ -460,7 +463,22 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int, 
         # F10 fix: separate BM25 indexes for content and keywords (no length-penalized duplication)
         docs_for_bm25_content.append((c.id, c.content))
         docs_for_bm25_kw.append((c.id, keyword_text))
-        hierarchy = doc_map[c.document_id].doc_metadata.get("folder_hierarchy", [])
+        meta = (doc.doc_metadata if doc else None) or {}
+        hierarchy = list(meta.get("folder_hierarchy") or [])
+        if not hierarchy and doc is not None and getattr(doc, "source_path", None):
+            # Derive hierarchy from source_path when ingest omitted folder_hierarchy
+            try:
+                sp = Path(doc.source_path)
+                markers = ("حقوقی", "حقیقی", "سایر", "ضمیمه پایگاه دانش چت بات", "پایگاه دانش", "چک")
+                parts = sp.parts
+                for i, part in enumerate(parts):
+                    if part in markers or "چک" in part:
+                        hierarchy = list(parts[i:-1])
+                        break
+                if not hierarchy:
+                    hierarchy = list(sp.parent.parts[-3:])
+            except Exception:
+                hierarchy = []
         chunk_data.append((c.id, c.document_id, title, c.heading_path, c.content, c.chunk_type, c.ordinal, hierarchy))
         dense_titles.append(title)
         dense_headings.append(c.heading_path)
@@ -657,16 +675,37 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
 
     
     allowed_ids = None
+    subspace = None
+    # Optional subspace id (cheque / facilities_person / ...) can be passed via
+    # search_knowledge_base kwargs through a module-level request context later;
+    # for now filter_path may itself be a subspace id from the taxonomy pack.
     if filter_path:
-        # Check if filter_path is a path (contains '/')
-        if '/' in filter_path:
-            parts = filter_path.split('/')
-            # A chunk matches if its folder hierarchy contains ALL parts of the filter path IN ORDER
-            # But the simplest way is just to join cd[7] back into a path
-            allowed_ids = {cd[0] for cd in chunk_data if filter_path in "/".join(cd[7])}
-        else:
-            allowed_ids = {cd[0] for cd in chunk_data if filter_path in cd[7]}
-        print(f"DEBUG: filter_path='{filter_path}', len(allowed_ids)={len(allowed_ids)}")
+        try:
+            from kb_manager.registry import get_registry
+
+            reg = get_registry()
+            smap = reg.subspace_map()
+            # Allow callers to pass subspace id as filter_path
+            if filter_path in smap:
+                subspace = filter_path
+                filter_path = smap[filter_path]
+            allowed_ids = {
+                cd[0]
+                for cd in chunk_data
+                if reg.match_chunk_to_filter(
+                    folder_hierarchy=cd[7],
+                    domain=None,
+                    filter_path=filter_path,
+                    subspace=subspace,
+                )
+            }
+        except Exception:
+            if "/" in filter_path:
+                allowed_ids = {cd[0] for cd in chunk_data if filter_path in "/".join(cd[7])}
+            else:
+                allowed_ids = {cd[0] for cd in chunk_data if filter_path in cd[7]}
+        logger = __import__("logging").getLogger(__name__)
+        logger.debug("filter_path=%r subspace=%r allowed=%s", filter_path, subspace, len(allowed_ids or []))
 
     # --- Step 2: BM25 (weighted content + keywords, tunable boost) ---
     beam_queries = _expand_query_for_bm25(normalized) if _SYNONYM_BEAM > 1 else [normalized]
@@ -777,15 +816,24 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                     logging.getLogger(__name__).info(
                         "rare-term rescue promoted %d chunks for terms %s", _promoted, _rare_terms
                     )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger(__name__).warning("rare-term rescue skipped: %s", e)
 
     stage_ms["bm25"] = round((time.monotonic() - t_mark) * 1000, 1)
     t_mark = time.monotonic()
     # --- Step 3: Dense semantic (embedding cosine) — with beam max-pool ---
-    # Try pgvector first if available (HNSW), fallback to file dense
-    dense_raw_base = None
-    if use_pgvector:
+    # Try pgvector first if available (HNSW); file dense is the hard fallback.
+    # Encode / file-dense failures raise — never silently drop the dense leg.
+    dense_raw_base: list[tuple[str, float]] | None
+    if not chunk_data:
+        dense_raw_base = []
+    else:
+        if dense is not None and not getattr(dense, "is_built", False):
+            raise RuntimeError(
+                f"Dense index not built for {len(chunk_data)} chunks — refusing silent BM25-only search"
+            )
+        dense_raw_base = None
+    if chunk_data and use_pgvector:
         try:
             from kb_manager.web.deps import db as _db2
             from sqlalchemy import text as _text2
@@ -798,11 +846,18 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                     # Use ORDER BY embedding <=> query for nearest
                     rows = (await _s2.execute(_text2("SELECT id, 1 - (embedding <=> CAST(:q AS vector)) as score FROM chunks WHERE embedding IS NOT NULL ORDER BY embedding <=> CAST(:q AS vector) LIMIT :k"), {"q": q_str, "k": top_k * 3})).fetchall()
                     dense_raw_base = [(r[0], float(r[1])) for r in rows]
+        except RuntimeError:
+            raise
         except Exception as _e:
-            # fallback to file dense
+            logging.getLogger(__name__).warning(
+                "pgvector dense search failed; falling back to file dense: %s", _e
+            )
             dense_raw_base = None
     if dense_raw_base is None:
-        dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
+        try:
+            dense_raw_base = dense.search(normalized, top_k=top_k * 3, allowed_ids=allowed_ids)
+        except Exception as e:
+            raise RuntimeError(f"Dense file search failed: {e}") from e
     if _SYNONYM_ENABLED and len(beam_queries) > 1:
         dense_pool: dict[str, float] = dict(dense_raw_base)
         for bq in beam_queries[1:]:
@@ -820,11 +875,18 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                                 if cid not in dense_pool or sc > dense_pool[cid]:
                                     dense_pool[cid] = sc
                             continue
-                except:
-                    pass
-            for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
-                if cid not in dense_pool or sc > dense_pool[cid]:
-                    dense_pool[cid] = sc
+                except RuntimeError:
+                    raise
+                except Exception as _e:
+                    logging.getLogger(__name__).warning(
+                        "pgvector beam dense failed for %r; using file dense: %s", bq[:80], _e
+                    )
+            try:
+                for cid, sc in dense.search(bq, top_k=top_k * 3, allowed_ids=allowed_ids):
+                    if cid not in dense_pool or sc > dense_pool[cid]:
+                        dense_pool[cid] = sc
+            except Exception as e:
+                raise RuntimeError(f"Dense file beam search failed for {bq!r}: {e}") from e
         dense_raw = sorted(dense_pool.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     else:
         dense_raw = dense_raw_base
@@ -915,6 +977,11 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     rerank_cap = rerank_pool_cap if rerank_pool_cap > 0 else _RERANKER_TOP_K
     rerank_input = candidates[:rerank_cap]
     rerank_pool_size = max(len(rerank_input), 1)
+    # Fail loudly: never silently copy RRF scores as "rerank" results.
+    # Opt-in escape hatch only: KB_RERANK_ALLOW_FALLBACK=1 (ops debugging).
+    _allow_rerank_fallback = str(os.getenv("KB_RERANK_ALLOW_FALLBACK", "0")).lower() in {
+        "1", "true", "yes",
+    }
     try:
         reranked = reranker.rerank(
             normalized,
@@ -925,10 +992,20 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         rerank_ms = round(float(getattr(reranker, "last_rerank_ms", 0.0) or 0.0), 1)
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("reranker offline fallback: %s", e)
+        logging.getLogger(__name__).exception("Reranker failed (no silent bypass): %s", e)
+        if not _allow_rerank_fallback:
+            raise RuntimeError(
+                f"Cross-encoder reranker failed for model={_get_reranker_model()!r}: {e}. "
+                "Fix model cache / HF_HOME / network, or set KB_RERANK_ALLOW_FALLBACK=1 "
+                "only for emergency RRF-only debugging."
+            ) from e
+        logging.getLogger(__name__).error(
+            "KB_RERANK_ALLOW_FALLBACK=1 — returning RRF-only results after reranker error"
+        )
         reranked = [c.model_dump() for c in rerank_input[:top_k]]
         for r in reranked:
             r["rerank_score"] = r.get("hybrid_score", 0)
+            r["rerank_fallback"] = True
         rerank_ms = 0.0
 
     # Re-attach RRF hybrid_score by chunk_id (rerank preserves it, but guard anyway).
@@ -939,33 +1016,9 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
 
     # Convert reranked dicts back to SearchResult objects
     reranked_results = [SearchResult(**r) for r in reranked]
-    # Fallback: if reranker gives uniformly low scores (offline cross-encoder copies RRF ~0.03),
-    # fall back to BM25 magnitude ordering for ALL query lengths.
+    # NOTE: previously a "max_rerank < 0.2 → fake BM25 confidence" path silently
+    # replaced cross-encoder output. That masked dead/offline rerankers. Removed.
     _fallback_used = False
-    try:
-        max_rerank = max((r.rerank_score for r in reranked_results), default=0)
-        if max_rerank < 0.2 and len(bm25_results) > 0:
-            # Use BM25 top as final, but pull from merged to preserve all stage scores
-            fallback = []
-            _doc_counts: dict = {}
-            idx = 0
-            for r in bm25_results:
-                if len(fallback) >= top_k:
-                    break
-                if r.chunk_id in merged:
-                    if _doc_counts.get(r.doc_id, 0) >= 3:
-                        continue
-                    _doc_counts[r.doc_id] = _doc_counts.get(r.doc_id, 0) + 1
-                    nr = merged[r.chunk_id].model_copy()
-                    # Assign a synthetic confidence score that passes threshold (e.g. 0.50 descending)
-                    # so the UI shows ~50% confidence instead of 2300% (BM25 score)
-                    nr.rerank_score = max(0.05, 0.5 - (idx * 0.05))
-                    fallback.append(nr)
-                    idx += 1
-            reranked_results = fallback
-            _fallback_used = True
-    except Exception:
-        pass
 
     if not _fallback_used and len(reranked_results) > 1:
         # --- Step 6b: RRF↔cross-encoder score fusion ---
@@ -1054,38 +1107,34 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
 
 
     # --- Step 8: Semantic Intent Entity Injection ---
+    # Fail loud on encode / DB errors — empty EntityList table is fine (no inject).
     injected_entities = []
-    try:
-        from kb_manager.web.deps import db
-        import numpy as np
-        async with db.session() as session:
-            from sqlalchemy import select
-            from kb_manager.models.database import EntityList
-            ents_res = await session.execute(select(EntityList))
-            entity_lists = ents_res.scalars().all()
-            
-            
-            q_emb = _dense_query_vec(dense, query)
-            if q_emb is not None and entity_lists:
+    from kb_manager.web.deps import db
+    import numpy as np
+    async with db.session() as session:
+        from sqlalchemy import select
+        from kb_manager.models.database import EntityList
+        ents_res = await session.execute(select(EntityList))
+        entity_lists = ents_res.scalars().all()
 
-                q_vec = np.array(q_emb)
-                q_norm = np.linalg.norm(q_vec)
-                for ent in entity_lists:
-                    if not ent.description_embedding: continue
-                    ent_vec = np.array(ent.description_embedding)
-                    ent_norm = np.linalg.norm(ent_vec)
-                    if q_norm > 0 and ent_norm > 0:
-                        sim = np.dot(q_vec, ent_vec) / (q_norm * ent_norm)
-                        if sim > 0.6:  # Threshold for triggering the list
-                            injected_entities.append({
-                                "list_name": ent.list_name,
-                                "description": ent.description,
-                                "content": ent.content_json,
-                                "similarity": float(sim)
-                            })
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).warning("Failed to inject entities: %s", e)
+        q_emb = _dense_query_vec(dense, query)
+        if q_emb is not None and entity_lists:
+            q_vec = np.array(q_emb)
+            q_norm = np.linalg.norm(q_vec)
+            for ent in entity_lists:
+                if not ent.description_embedding:
+                    continue
+                ent_vec = np.array(ent.description_embedding)
+                ent_norm = np.linalg.norm(ent_vec)
+                if q_norm > 0 and ent_norm > 0:
+                    sim = np.dot(q_vec, ent_vec) / (q_norm * ent_norm)
+                    if sim > 0.6:  # Threshold for triggering the list
+                        injected_entities.append({
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": float(sim)
+                        })
 
     return SearchSteps(
         query=query,
@@ -1128,10 +1177,25 @@ def search_knowledge_base_sync(query: str, top_k: int = 10, keyword_boost: float
 
 @router.get("")
 async def search_page(request: Request):
-    """Search/test query page."""
+    """Search/test query page — filter groups come from taxonomy pack."""
     from kb_manager.web.deps import templates
 
-    return templates.TemplateResponse(request, "search.html", {})
+    ui_groups = []
+    subspace_map = {}
+    try:
+        from kb_manager.registry import get_registry
+
+        reg = get_registry()
+        tax = reg.taxonomy_pack()
+        ui_groups = tax.get("ui_filter_groups") or []
+        subspace_map = reg.subspace_map()
+    except Exception:
+        pass
+    return templates.TemplateResponse(
+        request,
+        "search.html",
+        {"ui_filter_groups": ui_groups, "subspace_map": subspace_map},
+    )
 
 
 @router.post("/api")
@@ -1161,6 +1225,14 @@ async def search_api(request: Request):
             keyword_boost = None
 
     filter_path = body.get("filter_path") if isinstance(body, dict) else None
+    subspace = body.get("subspace") if isinstance(body, dict) else None
+    if subspace and not filter_path:
+        try:
+            from kb_manager.registry import get_registry
+
+            filter_path = get_registry().subspace_map().get(subspace) or subspace
+        except Exception:
+            filter_path = subspace
     if not query:
         return {"error": "Empty query"}
 
@@ -1190,7 +1262,34 @@ async def search_api(request: Request):
                 pass
         return out
     except Exception as e:
-        return {"error": str(e), "traceback": traceback.format_exc()}
+        from fastapi.responses import JSONResponse
+
+        msg = str(e)
+        low = msg.lower()
+        status = (
+            503
+            if any(
+                tok in low
+                for tok in (
+                    "reranker",
+                    "cross-encoder",
+                    "dense",
+                    "encode",
+                    "bm25",
+                    "index not built",
+                )
+            )
+            else 500
+        )
+        return JSONResponse(
+            status_code=status,
+            content={
+                "error": msg,
+                "retrieval_failed": True,
+                "reranker_failed": "reranker" in low or "cross-encoder" in low,
+                "traceback": traceback.format_exc(),
+            },
+        )
 
 
 @router.get("/config")

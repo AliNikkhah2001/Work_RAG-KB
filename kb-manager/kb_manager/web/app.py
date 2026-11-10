@@ -46,23 +46,33 @@ async def lifespan(app: FastAPI):
 
     # Pre-warm search index synchronously so the server is ready immediately.
     # This loads BM25 index + MiniLM embeddings + cross-encoder reranker (~30s first time).
+    app.state.reranker_ok = False
+    app.state.reranker_error = None
+    app.state.dense_ok = False
     log.info("Pre-warming search index (this may take a moment)...")
     try:
-        await _prewarm_search_index()
-        log.info("Search index ready.")
+        await _prewarm_search_index(app)
+        log.info("Search index ready (reranker_ok=%s).", app.state.reranker_ok)
     except Exception as exc:
-        log.warning("Search index pre-warm failed (search will be slow on first query): %s", exc)
+        app.state.reranker_ok = False
+        app.state.reranker_error = str(exc)[:500]
+        log.exception(
+            "Search index pre-warm FAILED — retrieval will error until fixed: %s", exc
+        )
 
     yield
     await db.close()
 
 
-async def _prewarm_search_index():
+async def _prewarm_search_index(app: FastAPI | None = None):
     """Load BM25 index + dense embeddings + cross-encoder reranker.
 
     Also runs the dense/reranker warmup encodes so the GPU kernels and CUDA
     context are live before the first user query (otherwise the first search
     pays the lazy model load, ~7-9 s one-time).
+
+    Reranker warmup failures are NOT swallowed — they set ``app.state.reranker_ok``
+    False and re-raise so /ready reports not_ready.
     """
     import logging
 
@@ -75,14 +85,36 @@ async def _prewarm_search_index():
             "Check KB_DB_URL / KB_DB_MODE (sqlite fallback is likely pointing at an empty DB)."
         )
         return
-    for warmer, label in ((getattr(dense, "warmup", None), "dense"),
-                          (getattr(reranker, "warmup", None), "reranker")):
-        if callable(warmer):
-            try:
-                warmer()
-                logging.getLogger(__name__).info("%s model warmed up", label)
-            except Exception as exc:  # warmup is best-effort
-                logging.getLogger(__name__).warning("%s warmup failed: %s", label, exc)
+    dense_warmer = getattr(dense, "warmup", None)
+    if callable(dense_warmer):
+        dense_warmer()
+        if app is not None:
+            app.state.dense_ok = True
+        logging.getLogger(__name__).info("dense model warmed up")
+    rerank_warmer = getattr(reranker, "warmup", None)
+    if not callable(rerank_warmer):
+        # Force load even if older reranker lacked warmup()
+        ensure = getattr(reranker, "_ensure_model", None)
+        if callable(ensure):
+            ensure()
+            if app is not None:
+                app.state.reranker_ok = True
+            logging.getLogger(__name__).info("reranker model loaded via _ensure_model")
+            return
+        raise RuntimeError(
+            f"Reranker {type(reranker).__name__} has neither warmup() nor _ensure_model()"
+        )
+    try:
+        rerank_warmer()
+        if app is not None:
+            app.state.reranker_ok = True
+            app.state.reranker_error = None
+        logging.getLogger(__name__).info("reranker model warmed up")
+    except Exception as exc:
+        if app is not None:
+            app.state.reranker_ok = False
+            app.state.reranker_error = str(exc)[:500]
+        raise
 
 
 app = FastAPI(
@@ -104,6 +136,7 @@ from kb_manager.web.routes import (
     metrics,
     monitoring,
     pipeline,
+    registry,
     search,
     transparency,
     versions,
@@ -130,12 +163,14 @@ app.include_router(transparency.router, prefix="/transparency", tags=["transpare
 app.include_router(zip_browser.router, prefix="/transparency", tags=["transparency-zip"])
 app.include_router(ingestion_suite.router, prefix="/ingestion", tags=["ingestion"])
 app.include_router(kb_history.router, prefix="/ingestion", tags=["ingestion-kbs"])
+app.include_router(registry.router, prefix="/registry", tags=["registry"])
 
 
 @app.get("/health")
-async def health():
-    """Health check — reports DB mode and connectivity."""
+async def health(request: Request):
+    """Health check — reports DB mode, connectivity, and reranker status."""
     from kb_manager.config import load_config
+    from kb_manager.reranker import get_reranker_model_name
 
     cfg = load_config()
     db_ok = False
@@ -155,14 +190,27 @@ async def health():
     except Exception as exc:
         error = str(exc)[:500]
 
+    reranker_ok = bool(getattr(request.app.state, "reranker_ok", False))
+    reranker_error = getattr(request.app.state, "reranker_error", None)
+    status = "ok" if db_ok and (chunk_count or 0) == 0 else (
+        "ok" if db_ok and reranker_ok else ("degraded" if db_ok else "error")
+    )
+    # Empty DB is ok for bootstrapping; once chunks exist, reranker must work.
+    if db_ok and (chunk_count or 0) > 0 and not reranker_ok:
+        status = "degraded"
+
     return {
-        "status": "ok" if db_ok else "degraded",
+        "status": status,
         "db_mode": cfg.db.mode,
         "db_driver": cfg.db.driver,
         "db_url": cfg.db.async_url.split("@")[-1] if "@" in cfg.db.async_url else cfg.db.async_url,
         "db_ok": db_ok,
         "doc_count": doc_count,
         "chunk_count": chunk_count,
+        "reranker_ok": reranker_ok,
+        "reranker_model": get_reranker_model_name(),
+        "reranker_error": reranker_error,
+        "dense_ok": bool(getattr(request.app.state, "dense_ok", False)),
         "error": error,
     }
 
@@ -173,15 +221,30 @@ async def api_health():
     return await health()
 
 @app.get("/ready")
-async def ready():
-    """Ready if DB has chunks and index could be built."""
+async def ready(request: Request):
+    """Ready if DB has chunks, index built, and reranker loaded."""
     try:
         from sqlalchemy import func, select
         from kb_manager.models.database import Chunk
         from kb_manager.web.deps import db
         async with db.session() as session:
             cnt = (await session.execute(select(func.count(Chunk.id)))).scalar() or 0
-        return {"status": "ready" if cnt > 0 else "not_ready", "chunks": cnt}
+        reranker_ok = bool(getattr(request.app.state, "reranker_ok", False))
+        reranker_error = getattr(request.app.state, "reranker_error", None)
+        ready_ok = cnt > 0 and reranker_ok
+        out = {
+            "status": "ready" if ready_ok else "not_ready",
+            "chunks": cnt,
+            "reranker_ok": reranker_ok,
+        }
+        if reranker_error:
+            out["reranker_error"] = reranker_error
+        if cnt > 0 and not reranker_ok:
+            out["error"] = (
+                "reranker not loaded — search will fail until the cross-encoder "
+                "model is available in HF cache (see reranker_error)"
+            )
+        return out
     except Exception as e:
         return {"status": "not_ready", "error": str(e)}
 

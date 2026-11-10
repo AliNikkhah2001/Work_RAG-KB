@@ -329,13 +329,19 @@ class DenseSemanticIndex:
         return self._matrix is not None and len(self._ids) > 0
 
     def search(self, query: str, top_k: int = 30, allowed_ids: set[str] | None = None) -> list[tuple[str, float]]:
-        """Return ``[(chunk_id, cosine_sim)]`` sorted best-first."""
+        """Return ``[(chunk_id, cosine_sim)]`` sorted best-first.
+
+        Raises if the index was never built — empty results must mean "no
+        hits", not "dense silently skipped".
+        """
         if not self.is_built:
-            return []
+            raise RuntimeError(
+                "DenseSemanticIndex.search called before build/load — refusing empty bypass"
+            )
         qv = self._encode([query])[0].astype(np.float32)
         qn = np.linalg.norm(qv)
         if qn == 0:
-            return []
+            raise RuntimeError("Dense query embedding has zero norm")
         qv = qv / qn
         sims = self._matrix @ qv  # rows already normalised -> cosine
 
@@ -364,7 +370,9 @@ class DenseSemanticIndex:
         if not queries:
             return []
         if not self.is_built:
-            return [[] for _ in queries]
+            raise RuntimeError(
+                "DenseSemanticIndex.search_batch called before build/load — refusing empty bypass"
+            )
         qv = self._encode(list(queries)).astype(np.float32)  # (n_q, dim)
         norms = np.linalg.norm(qv, axis=1, keepdims=True)
         norms[norms == 0] = 1.0

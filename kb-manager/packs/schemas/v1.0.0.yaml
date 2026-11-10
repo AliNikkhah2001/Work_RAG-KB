@@ -1,0 +1,133 @@
+# Ingest sheet/column schemas — source of truth for XLSX detection (no hardcode in parsers).
+version: "1.0.0"
+kind: schemas
+match_threshold: 0.6
+excluded_sheets:
+  - "نظر"
+excluded_columns:
+  - "answerجدید"
+  - "answerقدیم"
+  - "column1"
+  - "پاسخسابق"
+  - "بهبود(توصیهبرایورژنبعد)"
+  - "کامنتها"
+schemas:
+  reason_codes:
+    id: reason_codes
+    columns:
+      - reason_code
+      - model_name
+      - model_id
+      - brief_explanation
+      - detailed_explanation
+      - reason_text
+      - improvement_suggestions
+      - bin_score
+      - bin_impact
+      - feature_score
+      - feature_impact
+      - bin_details
+      - keywords
+      - feature_name
+      - data_source
+    core_normalized:
+      - reasoncode
+      - reasontext
+      - briefexplanation
+      - detailedexplanation
+      - improvementsuggestions
+      - keywords
+      - modelname
+      - modelid
+    require_core: [reasoncode, reasontext]
+    min_core_overlap: 3
+  crm_qa:
+    id: crm_qa
+    columns:
+      - question
+      - model
+      - briefanswer
+      - answer
+      - keyword
+      - پرسش
+      - پاسخ
+      - متن سوال
+      - متن پاسخ
+      - سوال
+      - متن_سوال
+      - متن_پاسخ
+    persian_qa_markers:
+      - پرسش
+      - پاسخ
+      - سوال
+      - متنسوال
+      - متنپاسخ
+  articles:
+    id: articles
+    columns:
+      - documentname
+      - title
+      - sectiontitle
+      - content
+      - type
+      - version
+      - "author(s)"
+      - heading
+      - keywords
+      - summary
+  glossary:
+    id: glossary
+    columns:
+      - رتبه
+      - گرید
+      - واژه
+      - معادل
+      - اصطلاح
+      - واژه های معادل
+    exact_header_count: 2
+    min_overlap: 2
+  staff_profile:
+    id: staff_profile
+    columns:
+      - نام و نام خانوادگی
+      - نام
+      - سمت
+      - بخش
+      - سوابق تحصیلی
+      - سوابق شغلی
+      - تخصص ها و مهارت های کلیدی
+      - نکات مهم
+    require_normalized_any: [نامونامخانوادگی]
+    min_overlap: 3
+  loan_catalog:
+    id: loan_catalog
+    columns:
+      - نام وام
+      - نوع وام
+      - نرخ سود وام
+      - سقف وام
+      - حداکثر زمان بازپرداخت
+      - مبلغ قسط
+      - نوع ضمانت
+      - نیاز به سپرده
+      - مجموع سود وام
+      - مجموع وام و سود
+      - وضعیت
+      - حمایت‌شده
+      - لینک
+    min_overlap: 8
+  timeline:
+    id: timeline
+    columns:
+      - تاریخ
+      - رویداد
+      - شرح رویداد
+      - عنوان
+      - زمان
+    require_normalized_any: [تاریخ]
+    min_overlap: 2
+  kv_pair:
+    id: kv_pair
+    min_headers: 2
+    max_headers: 3
+    fallback: true

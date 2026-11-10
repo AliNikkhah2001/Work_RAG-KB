@@ -29,23 +29,22 @@
 <div class="card">
     <form id="search-form" onsubmit="return performSearch(event)">
         <div class="form-group" style="display:flex; gap:0.5rem;">
-            <select id="filter-input" class="form-control" style="max-width: 250px; font-size: 1.1rem; padding: 10px;">
+            <select id="filter-input" class="form-control" style="max-width: 280px; font-size: 1.1rem; padding: 10px;">
                 <option value="">All Knowledge (Global)</option>
-                <optgroup label="اشخاص حقوقی (Legal Entities)">
-                    <option value="اشخاص حقوقی">All Legal Entities</option>
-                    <option value="اشخاص حقوقی/اعتبارسنجی تسهیلات"> - اعتبارسنجی تسهیلات</option>
-                    <option value="اشخاص حقوقی/عضویت در پایگاه داده اعتباری به عنوان تامین کننده اطلاعات"> - تامین کننده اطلاعات</option>
-                    <option value="اشخاص حقوقی/گزارش اعتبارسنجی مشتریان من"> - مشتریان من</option>
+                {% if subspace_map %}
+                <optgroup label="Subspaces (taxonomy)">
+                  {% for sid, fpath in subspace_map.items() %}
+                  <option value="{{ sid }}">{{ sid }} — {{ fpath }}</option>
+                  {% endfor %}
                 </optgroup>
-                <optgroup label="اشخاص حقیقی (Individuals)">
-                    <option value="اشخاص حقیقی">All Individuals</option>
-                    <option value="اشخاص حقیقی/گزارش اعتبارسنجی چک"> - اعتبارسنجی چک</option>
-                    <option value="اشخاص حقیقی/گزارش اعتبارسنجی مشتریان من (مرتبط با کسب‌وکارها)"> - مشتریان من (کسب‌وکارها)</option>
-                    <option value="اشخاص حقیقی/اعتبارسنجی تسهیلات"> - اعتبارسنجی تسهیلات</option>
+                {% endif %}
+                {% for group in ui_filter_groups or [] %}
+                <optgroup label="{{ group.label }}">
+                  {% for opt in group.options or [] %}
+                  <option value="{{ opt.value }}">{{ opt.label }}</option>
+                  {% endfor %}
                 </optgroup>
-                <optgroup label="عمومی (General)">
-                    <option value="پایگاه دانش عمومی">پایگاه دانش عمومی</option>
-                </optgroup>
+                {% endfor %}
             </select>
             <input type="text" id="search-input" class="form-control" placeholder="Enter test query to observe..." required style="flex:1; font-size: 1.1rem; padding: 10px;">
             <button type="submit" class="btn btn-primary" id="search-btn" style="padding: 10px 20px;">Run Retrieval Pipeline</button>
