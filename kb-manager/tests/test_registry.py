@@ -111,12 +111,21 @@ def test_canned_and_prompts():
     ):
         assert required in keys, required
     assert "{text}" in keys["classify"]
-    assert reg.active_pins()["prompts_orchestrator"] == "1.0.2"
+    assert reg.active_pins()["prompts_orchestrator"] == "1.0.3"
+    assert reg.active_pins()["canned"] == "1.0.1"
+    assert reg.active_pins().get("prompts_guardrails") == "1.0.0"
     # Size budgets (chars): answer_system structured but not wall-of-text;
     # classifiers stay mid-range so they do not crowd Gemma context.
     assert 1200 <= len(keys["answer_system"]) <= 2000
     assert 200 <= len(keys["classify"]) <= 1200
     assert 200 <= len(keys["specify_judge"]) <= 1200
+    assert "faq_verify_system" in keys
+    canned = reg.canned_pack()
+    assert "guardrails_refusals" in canned
+    assert "out_of_scope" in canned["guardrails_refusals"]
+    assert isinstance(canned.get("faq_shortlist"), list) and len(canned["faq_shortlist"]) >= 10
+    gprompts = reg.prompts_pack("guardrails")
+    assert "judge_escalation" in (gprompts.get("prompts") or {})
 
 
 def test_active_pins_and_manifest(tmp_path, monkeypatch):

@@ -85,6 +85,7 @@ async def list_packs():
             "taxonomy": reg.list_versions("taxonomy"),
             "canned": reg.list_versions("canned"),
             "prompts_orchestrator": reg.list_versions("prompts", scope="orchestrator"),
+            "prompts_guardrails": reg.list_versions("prompts", scope="guardrails"),
             "retrieval": reg.list_versions("retrieval"),
         },
     }
@@ -96,6 +97,9 @@ def _resolve_kind_scope(kind: str, scope: str | None) -> tuple[str, str | None]:
     if kind in ("prompts_orchestrator", "prompts-orchestrator"):
         real_kind = "prompts"
         real_scope = scope or "orchestrator"
+    if kind in ("prompts_guardrails", "prompts-guardrails"):
+        real_kind = "prompts"
+        real_scope = scope or "guardrails"
     if real_kind == "prompts" and not real_scope:
         real_scope = "orchestrator"
     return real_kind, real_scope
@@ -263,6 +267,7 @@ async def api_active():
     tax_ver = pins.get("taxonomy")
     canned_ver = pins.get("canned")
     prompt_ver = pins.get("prompts_orchestrator")
+    guard_prompt_ver = pins.get("prompts_guardrails")
     return {
         "pins": pins,
         "manifest": active.to_dict() if active else None,
@@ -275,4 +280,7 @@ async def api_active():
         },
         "canned": reg.canned_pack(canned_ver) if canned_ver else {},
         "prompts": reg.prompts_pack("orchestrator", prompt_ver) if prompt_ver else {},
+        "prompts_guardrails": (
+            reg.prompts_pack("guardrails", guard_prompt_ver) if guard_prompt_ver else {}
+        ),
     }
