@@ -31,10 +31,12 @@ except ImportError:
     except ImportError:
         HyDEGenerator = None  # type: ignore[assignment]
 
+from kb_manager.retrieval_backends import get_embed_backend
 from kb_manager.reranker import (
     CrossEncoderReranker,
     get_rerank_pool,
     get_reranker,
+    get_reranker_backend,
     get_reranker_model_name,
 )
 
@@ -506,9 +508,10 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int, 
     dense_texts = [cd[4] for cd in chunk_data]
     dense_ids = [cd[0] for cd in chunk_data]
     _embed_device, _rerank_device = _get_device_config()
-    # Laptop / no-local-GPU: KB_EMBED_BACKEND=openrouter uses OpenRouter /embeddings
+    # Laptop / no-local-GPU: openrouter backend uses OpenRouter /embeddings
     # instead of loading sentence-transformers / MiniLM locally.
-    _embed_backend = (os.getenv("KB_EMBED_BACKEND") or "local").strip().lower()
+    # Backend resolves from KB_EMBED_BACKEND or LLM_UPSTREAM_MODE=openrouter.
+    _embed_backend = get_embed_backend()
     _embed_fn = None
     _dense_model_name = _DENSE_MODEL
     if _embed_backend in {"openrouter", "api", "remote"}:
@@ -1107,16 +1110,25 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     elapsed = (time.monotonic() - start) * 1000
     stage_ms["build_context"] = round((time.monotonic() - t_mark) * 1000, 1)
     stage_ms["total"] = round(elapsed, 1)
-    # config echo for transparency diagram
+    # config echo for transparency diagram / test UI
+    _rr_backend = get_reranker_backend()
+    _em_backend = get_embed_backend()
+    _active_dense = getattr(dense, "_model_name", None) or _DENSE_MODEL
     config = {
         "keyword_boost": keyword_boost,
         "bm25_k1": 1.5,
         "bm25_b": 0.75,
-        "dense_model": _DENSE_MODEL,
-        "dense_dim": 384,  # paraphrase-multilingual-MiniLM-L12-v2
+        "embed_backend": _em_backend,
+        "dense_model": _active_dense,
+        "dense_dim": int(
+            os.getenv("KB_EMBED_DIM")
+            or (1536 if _em_backend in {"openrouter", "api", "remote"} else 384)
+        ),
         "hyde_enabled": bool(hyde is not None and getattr(hyde, "is_available", False)),
         "rrf_k": 60,
+        "reranker_backend": _rr_backend,
         "reranker_model": _get_reranker_model(),
+        "reranker_class": type(reranker).__name__,
         "fusion_alpha": float(os.getenv("KB_RERANK_FUSION_ALPHA", str(_RERANK_FUSION_ALPHA))),
         "max_chunks": top_k,
         "rerank_pool": _get_rerank_pool(),
@@ -1315,16 +1327,29 @@ async def search_api(request: Request):
 @router.get("/config")
 async def search_config():
     """Current search config (keyword boost, synonym, etc.) for tuning UI."""
+    embed_backend = get_embed_backend()
+    rerank_backend = get_reranker_backend()
+    dense_model = (
+        os.getenv("KB_EMBED_MODEL")
+        or (
+            "openai/text-embedding-3-small"
+            if embed_backend in {"openrouter", "api", "remote"}
+            else _DENSE_MODEL
+        )
+    )
     return {
         "keyword_boost": _KEYWORD_BOOST_DEFAULT,
         "keyword_boost_env": os.getenv("KB_KEYWORD_BOOST", "3.0 (default)"),
         "synonym_enabled": _SYNONYM_ENABLED,
         "synonym_beam": _SYNONYM_BEAM,
-        "dense_model": _DENSE_MODEL,
-        "reranker_model": _RERANKER_MODEL,
+        "embed_backend": embed_backend,
+        "dense_model": dense_model,
+        "reranker_backend": rerank_backend,
+        "reranker_model": get_reranker_model_name(),
         "bm25_backend": "tantivy" if _USE_TANTIVY else "python",
         "tantivy_available": _HAS_TANTIVY,
         "tantivy_error": _TANTIVY_IMPORT_ERROR if not _HAS_TANTIVY else "",
+        "llm_upstream_mode": os.getenv("LLM_UPSTREAM_MODE") or "",
     }
 
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -170,7 +171,8 @@ app.include_router(registry.router, prefix="/registry", tags=["registry"])
 async def health(request: Request):
     """Health check — reports DB mode, connectivity, and reranker status."""
     from kb_manager.config import load_config
-    from kb_manager.reranker import get_reranker_model_name
+    from kb_manager.retrieval_backends import get_embed_backend
+    from kb_manager.reranker import get_reranker_backend, get_reranker_model_name
 
     cfg = load_config()
     db_ok = False
@@ -208,9 +210,12 @@ async def health(request: Request):
         "doc_count": doc_count,
         "chunk_count": chunk_count,
         "reranker_ok": reranker_ok,
+        "embed_backend": get_embed_backend(),
+        "reranker_backend": get_reranker_backend(),
         "reranker_model": get_reranker_model_name(),
         "reranker_error": reranker_error,
         "dense_ok": bool(getattr(request.app.state, "dense_ok", False)),
+        "llm_upstream_mode": os.getenv("LLM_UPSTREAM_MODE") or "",
         "error": error,
     }
 
