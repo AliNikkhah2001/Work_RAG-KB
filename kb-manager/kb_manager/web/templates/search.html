@@ -137,28 +137,43 @@ async function performSearch(e) {
             body: JSON.stringify({ query: query, filter_path: filter_path || null })
         });
         var data = await resp.json();
+        if (!resp.ok || data.error) {
+            var detail = data.error || ('HTTP ' + resp.status);
+            if (data.traceback) {
+                console.error(data.traceback);
+            }
+            throw new Error(detail);
+        }
 
         document.getElementById('results-area').style.display = 'block';
+
+        function num(v, fallback) {
+            var n = Number(v);
+            return Number.isFinite(n) ? n : fallback;
+        }
+        function fmt(v, digits, fallback) {
+            return num(v, fallback).toFixed(digits);
+        }
 
         // 1. Parsing
         document.getElementById('normalized-query').textContent = data.normalized_query || query;
         document.getElementById('bm25-tokens').textContent = (data.tokens || []).join(', ');
 
         // 2. Latency Bar
-        const t_bm25 = (data.stage_ms && data.stage_ms.bm25) || 0;
-        const t_sem = (data.stage_ms && data.stage_ms.dense) || 0;
-        const t_rrf = (data.stage_ms && data.stage_ms.rrf) || 0;
-        const t_rerank = (data.stage_ms && data.stage_ms.rerank) || 0;
+        const t_bm25 = num(data.stage_ms && data.stage_ms.bm25, 0);
+        const t_sem = num(data.stage_ms && data.stage_ms.dense, 0);
+        const t_rrf = num(data.stage_ms && data.stage_ms.rrf, 0);
+        const t_rerank = num(data.stage_ms && data.stage_ms.rerank, 0);
         const total = t_bm25 + t_sem + t_rrf + t_rerank + 0.1; // avoid zero div
         
-        document.getElementById('total-time').textContent = data.elapsed_ms.toFixed(1);
+        document.getElementById('total-time').textContent = fmt(data.elapsed_ms, 1, 0);
         
         const bar = document.getElementById('latency-bar');
         bar.innerHTML = `
-            <div class="latency-segment bg-bm25" style="width: ${(t_bm25/total)*100}%">${t_bm25.toFixed(1)}ms</div>
-            <div class="latency-segment bg-semantic" style="width: ${(t_sem/total)*100}%">${t_sem.toFixed(1)}ms</div>
-            <div class="latency-segment bg-hybrid" style="width: ${(t_rrf/total)*100}%">${t_rrf.toFixed(1)}ms</div>
-            <div class="latency-segment bg-rerank" style="width: ${(t_rerank/total)*100}%">${t_rerank.toFixed(1)}ms</div>
+            <div class="latency-segment bg-bm25" style="width: ${(t_bm25/total)*100}%">${fmt(t_bm25, 1, 0)}ms</div>
+            <div class="latency-segment bg-semantic" style="width: ${(t_sem/total)*100}%">${fmt(t_sem, 1, 0)}ms</div>
+            <div class="latency-segment bg-hybrid" style="width: ${(t_rrf/total)*100}%">${fmt(t_rrf, 1, 0)}ms</div>
+            <div class="latency-segment bg-rerank" style="width: ${(t_rerank/total)*100}%">${fmt(t_rerank, 1, 0)}ms</div>
         `;
 
         // 3. Final Table
@@ -166,17 +181,18 @@ async function performSearch(e) {
         finalBody.innerHTML = '';
         (data.final_results || []).forEach(function(r, i) {
             let srcClass = 'source-both';
-            if (r.bm25_score > 0 && r.semantic_score === 0) srcClass = 'source-bm25';
-            if (r.semantic_score > 0 && r.bm25_score === 0) srcClass = 'source-semantic';
+            if (num(r.bm25_score, 0) > 0 && num(r.semantic_score, 0) === 0) srcClass = 'source-bm25';
+            if (num(r.semantic_score, 0) > 0 && num(r.bm25_score, 0) === 0) srcClass = 'source-semantic';
             
             let badges = `
-                <div class="score-badge bm25">BM25: ${(r.bm25_score||0).toFixed(2)}</div>
-                <div class="score-badge sem">Dense: ${(r.semantic_score||0).toFixed(2)}</div>
-                <div class="score-badge rrf">RRF: ${(r.hybrid_score||0).toFixed(3)}</div>
+                <div class="score-badge bm25">BM25: ${fmt(r.bm25_score, 2, 0)}</div>
+                <div class="score-badge sem">Dense: ${fmt(r.semantic_score, 2, 0)}</div>
+                <div class="score-badge rrf">RRF: ${fmt(r.hybrid_score, 3, 0)}</div>
             `;
             
-            let confidence = r.rerank_score !== undefined ? (r.rerank_score * 100).toFixed(1) : (r.hybrid_score * 100).toFixed(1);
-            let rawScore = r.rerank_score !== undefined ? r.rerank_score.toFixed(4) : r.hybrid_score.toFixed(4);
+            var rankScore = (r.rerank_score != null) ? num(r.rerank_score, 0) : num(r.hybrid_score, 0);
+            let confidence = (rankScore * 100).toFixed(1);
+            let rawScore = rankScore.toFixed(4);
             
             finalBody.innerHTML += `<tr class="${srcClass}">
                 <td><strong>${i+1}</strong></td>
@@ -199,13 +215,13 @@ async function performSearch(e) {
         var bm25Body = document.querySelector('#bm25-table tbody');
         bm25Body.innerHTML = '';
         (data.bm25_results || []).forEach(function(r, i) {
-            bm25Body.innerHTML += `<tr><td>${i+1}</td><td><small>${esc(r.content_preview.substring(0, 80))}...</small></td><td>${r.bm25_score.toFixed(2)}</td></tr>`;
+            bm25Body.innerHTML += `<tr><td>${i+1}</td><td><small>${esc((r.content_preview || '').substring(0, 80))}...</small></td><td>${fmt(r.bm25_score, 2, 0)}</td></tr>`;
         });
 
         var semBody = document.querySelector('#semantic-table tbody');
         semBody.innerHTML = '';
         (data.semantic_results || []).forEach(function(r, i) {
-            semBody.innerHTML += `<tr><td>${i+1}</td><td><small>${esc(r.content_preview.substring(0, 80))}...</small></td><td>${r.semantic_score.toFixed(2)}</td></tr>`;
+            semBody.innerHTML += `<tr><td>${i+1}</td><td><small>${esc((r.content_preview || '').substring(0, 80))}...</small></td><td>${fmt(r.semantic_score, 2, 0)}</td></tr>`;
         });
 
     } catch (err) {
