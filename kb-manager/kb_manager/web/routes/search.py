@@ -506,6 +506,25 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int, 
     dense_texts = [cd[4] for cd in chunk_data]
     dense_ids = [cd[0] for cd in chunk_data]
     _embed_device, _rerank_device = _get_device_config()
+    # Laptop / no-local-GPU: KB_EMBED_BACKEND=openrouter uses OpenRouter /embeddings
+    # instead of loading sentence-transformers / MiniLM locally.
+    _embed_backend = (os.getenv("KB_EMBED_BACKEND") or "local").strip().lower()
+    _embed_fn = None
+    _dense_model_name = _DENSE_MODEL
+    if _embed_backend in {"openrouter", "api", "remote"}:
+        from kb_manager.embedder.openrouter import OpenRouterEmbedder
+
+        _or_embed = OpenRouterEmbedder(
+            model_name=os.getenv("KB_EMBED_MODEL") or "openai/text-embedding-3-small",
+            dimensions=int(os.getenv("KB_EMBED_DIM") or "1536"),
+        )
+        _embed_fn = _or_embed.as_numpy_fn()
+        _dense_model_name = f"openrouter:{_or_embed.model_name}"
+        _log.warning(
+            "Dense backend: OpenRouter model=%s dim=%s (no local embed weights)",
+            _or_embed.model_name,
+            _or_embed.dimensions,
+        )
     dense = load_or_build(
         _DENSE_CACHE_PATH,
         dense_ids,
@@ -513,9 +532,10 @@ async def _build_index() -> tuple[list[tuple[str, str, str, str, str, str, int, 
         titles=dense_titles,
         headings=dense_headings,
         chunk_types=dense_chunk_types,
-        model_name=_DENSE_MODEL,
+        model_name=_dense_model_name,
         device=_embed_device,
         use_context=False,
+        embed_fn=_embed_fn,
     )
 
     reranker = get_reranker(model_name=_get_reranker_model(), device=_rerank_device)

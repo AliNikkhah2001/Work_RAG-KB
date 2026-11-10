@@ -415,11 +415,11 @@ def load_or_build(
     index = DenseSemanticIndex(
         model_name=model_name, batch_size=batch_size, embed_fn=embed_fn, use_context=use_context, device=device
     )
-    if embed_fn is not None:
-        index.build(ids, texts, titles, headings, chunk_types)
-        return index
+    # Cache corpus vectors even when embed_fn is an API (OpenRouter) — fingerprint
+    # includes model_name so backend/model switches invalidate the npz.
     if cache_path and ids and index.cached_valid(cache_path, fp):
         if index.load(cache_path) and len(index._ids) == len(ids):
+            index._embed_fn = embed_fn
             return index
     index.build(ids, texts, titles, headings, chunk_types)
     if cache_path and index._ids:
