@@ -36,8 +36,16 @@ try:
         create_snapshot,
         list_snapshots,
     )
+    _BENCH_IMPORT_ERROR: str | None = None
 except Exception as exc:  # pragma: no cover - import-time safety
-    raise RuntimeError(f"benchmark imports failed: {exc}") from exc
+    # Soft-fail so core search/API still boots without matplotlib/plot extras.
+    summarize_ir_metrics = None  # type: ignore[assignment]
+    plot_duplicate_stats = None  # type: ignore[assignment]
+    render_benchmark_plots = None  # type: ignore[assignment]
+    format_list = None  # type: ignore[assignment]
+    create_snapshot = None  # type: ignore[assignment]
+    list_snapshots = None  # type: ignore[assignment]
+    _BENCH_IMPORT_ERROR = str(exc)
 
 logger = logging.getLogger(__name__)
 

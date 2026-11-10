@@ -2,10 +2,12 @@
 
 import os
 
-# Only set defaults if not already provided via env / .env
-# Light DB (sqlite) is the default for local/test; set KB_DB_MODE=pgvector for production
-os.environ.setdefault("KB_DB_MODE", "sqlite")
-os.environ.setdefault("KB_SQLITE_PATH", "./data/kb_test.db")
+# Only set defaults if not already provided via env / .env.
+# When KB_DB_URL is set (compose/prod), do NOT force KB_DB_MODE=sqlite — that
+# previously shadowed postgres URLs in _resolve_db_mode_and_url.
+if not os.getenv("KB_DB_URL"):
+    os.environ.setdefault("KB_DB_MODE", "sqlite")
+    os.environ.setdefault("KB_SQLITE_PATH", "./data/kb_test.db")
 os.environ.setdefault("KB_WEB_HOST", "0.0.0.0")
 os.environ.setdefault("KB_WEB_PORT", "8000")
 
