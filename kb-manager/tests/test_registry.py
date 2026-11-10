@@ -112,3 +112,30 @@ def test_missing_pack_raises():
     reg = Registry()
     with pytest.raises(PackNotFoundError):
         reg.load("schemas", version="9.9.9")
+
+
+def test_save_prompts_bump_updates_pin(tmp_path):
+    """Editor save path: bump prompt pack + flip retrieval.active_packs pin."""
+    import shutil
+
+    src = PACKS_ROOT
+    dst = tmp_path / "packs"
+    shutil.copytree(src, dst)
+    reg = Registry(root=dst)
+    before = reg.prompts_pack("orchestrator")
+    before["prompts"] = dict(before.get("prompts") or {})
+    before["prompts"]["classify"] = 'ONLY_TEST "{text}"'
+    result = reg.save(
+        "prompts",
+        before,
+        scope="orchestrator",
+        bump="patch",
+        update_active_pin=True,
+    )
+    assert result["ok"] is True
+    assert result["version"] == "1.0.1"
+    assert result["pins"]["prompts_orchestrator"] == "1.0.1"
+    loaded = reg.prompts_pack("orchestrator", "1.0.1")
+    assert loaded["prompts"]["classify"].startswith("ONLY_TEST")
+    retrieval = reg.retrieval_pack()
+    assert retrieval["active_packs"]["prompts_orchestrator"] == "1.0.1"
