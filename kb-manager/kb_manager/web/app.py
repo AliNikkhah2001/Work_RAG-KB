@@ -79,6 +79,7 @@ async def _prewarm_search_index(app: FastAPI | None = None):
 
     from kb_manager.web.routes.search import _get_index
 
+    log = logging.getLogger(__name__)
     chunk_data, bm25_pair, dense, reranker, hyde = await _get_index()
     if not chunk_data:
         log.error(
@@ -91,7 +92,7 @@ async def _prewarm_search_index(app: FastAPI | None = None):
         dense_warmer()
         if app is not None:
             app.state.dense_ok = True
-        logging.getLogger(__name__).info("dense model warmed up")
+        log.info("dense model warmed up")
     rerank_warmer = getattr(reranker, "warmup", None)
     if not callable(rerank_warmer):
         # Force load even if older reranker lacked warmup()
@@ -100,7 +101,7 @@ async def _prewarm_search_index(app: FastAPI | None = None):
             ensure()
             if app is not None:
                 app.state.reranker_ok = True
-            logging.getLogger(__name__).info("reranker model loaded via _ensure_model")
+            log.info("reranker model loaded via _ensure_model")
             return
         raise RuntimeError(
             f"Reranker {type(reranker).__name__} has neither warmup() nor _ensure_model()"
@@ -110,7 +111,7 @@ async def _prewarm_search_index(app: FastAPI | None = None):
         if app is not None:
             app.state.reranker_ok = True
             app.state.reranker_error = None
-        logging.getLogger(__name__).info("reranker model warmed up")
+        log.info("reranker model warmed up")
     except Exception as exc:
         if app is not None:
             app.state.reranker_ok = False
