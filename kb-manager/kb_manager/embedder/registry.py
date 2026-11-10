@@ -18,9 +18,14 @@ def _register_defaults() -> None:
         from kb_manager.embedder.sentence_transformer import (
             SentenceTransformerEmbedder,
         )
+        from kb_manager.embedder.openrouter import OpenRouterEmbedder
 
         _REGISTRY["sentence-transformer"] = SentenceTransformerEmbedder
         _REGISTRY["st"] = SentenceTransformerEmbedder  # short alias
+        _REGISTRY["local"] = SentenceTransformerEmbedder
+        _REGISTRY["openrouter"] = OpenRouterEmbedder
+        _REGISTRY["api"] = OpenRouterEmbedder
+        _REGISTRY["remote"] = OpenRouterEmbedder
 
 
 def register_embedder(name: str, cls: type[BaseEmbedder]) -> None:

@@ -80,7 +80,14 @@ RERANKER_REGISTRY: dict[str, dict[str, Any]] = {
 
 
 def get_reranker_model_name() -> str:
-    """Return the configured reranker model id (``KB_RERANKER_MODEL``)."""
+    """Return the configured reranker model id (``KB_RERANKER_MODEL``).
+
+    When ``KB_RERANKER_BACKEND=openrouter``, default to a Cohere rerank id on
+    OpenRouter instead of the local BGE HuggingFace id.
+    """
+    backend = (os.getenv("KB_RERANKER_BACKEND") or "local").strip().lower()
+    if backend in {"openrouter", "api", "remote"}:
+        return os.getenv("KB_RERANKER_MODEL", "cohere/rerank-v3.5") or "cohere/rerank-v3.5"
     return os.getenv("KB_RERANKER_MODEL", _DEFAULT_MODEL) or _DEFAULT_MODEL
 
 
@@ -806,24 +813,183 @@ class Qwen3Reranker:
         return f"Qwen3Reranker(model={self._model_name!r}, batch_size={self._batch_size})"
 
 
+class OpenRouterReranker:
+    """Rerank via OpenRouter ``POST /rerank`` (no local BGE / cross-encoder).
+
+    Laptop mode: set ``KB_RERANKER_BACKEND=openrouter`` and
+    ``KB_RERANKER_MODEL`` to an OpenRouter rerank id (e.g.
+    ``cohere/rerank-v3.5`` or ``cohere/rerank-5-fast``).
+    """
+
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        batch_size: int = 32,
+        device: Optional[str] = None,  # unused; kept for factory parity
+        timeout: float = 60.0,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ) -> None:
+        self._model_name = model_name or os.getenv(
+            "KB_RERANKER_MODEL", "cohere/rerank-v3.5"
+        )
+        self._batch_size = batch_size
+        self._timeout = timeout
+        self._api_key = api_key
+        self._base_url = (
+            base_url
+            or os.getenv("KB_OPENROUTER_BASE_URL")
+            or os.getenv("OPENROUTER_BASE_URL")
+            or "https://openrouter.ai/api/v1"
+        ).rstrip("/")
+        self.last_rerank_ms: float = 0.0
+
+    def _key(self) -> str:
+        key = (
+            self._api_key
+            or os.getenv("KB_OPENROUTER_API_KEY")
+            or os.getenv("OPENROUTER_API_KEY")
+            or ""
+        ).strip()
+        if not key:
+            raise RuntimeError(
+                "OpenRouter reranker requires KB_OPENROUTER_API_KEY or OPENROUTER_API_KEY"
+            )
+        return key
+
+    def warmup(self) -> None:
+        """Cheap auth/model check — fail loud if the API key/model is broken."""
+        import httpx
+
+        try:
+            with httpx.Client(timeout=min(20.0, self._timeout), trust_env=False) as client:
+                resp = client.post(
+                    f"{self._base_url}/rerank",
+                    headers={
+                        "Authorization": f"Bearer {self._key()}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self._model_name,
+                        "query": "warmup",
+                        "documents": ["warmup document"],
+                        "top_n": 1,
+                    },
+                )
+                resp.raise_for_status()
+        except Exception as e:
+            raise RuntimeError(
+                f"OpenRouter reranker warmup failed model={self._model_name!r}: {e}"
+            ) from e
+        logger.info("OpenRouter reranker warmup ok model=%s", self._model_name)
+
+    def rerank(
+        self,
+        query: str,
+        candidates: List[dict],
+        top_k: int = 10,
+        score_key: str = "hybrid_score",
+        pool: Optional[int] = None,
+    ) -> List[dict]:
+        import httpx
+
+        t0 = time.perf_counter()
+        if not candidates:
+            self.last_rerank_ms = 0.0
+            return []
+
+        if pool is None:
+            pool = get_rerank_pool()
+        ordered = sorted(
+            candidates,
+            key=lambda x: x.get(score_key, 0),
+            reverse=True,
+        )
+        if pool and pool > 0:
+            cap = min(pool, len(ordered))
+        else:
+            cap = min(top_k * 3, len(ordered))
+        rerank_pool = ordered[:cap]
+        documents = [
+            (c.get("content") or c.get("content_preview") or "") for c in rerank_pool
+        ]
+
+        try:
+            with httpx.Client(timeout=self._timeout, trust_env=False) as client:
+                resp = client.post(
+                    f"{self._base_url}/rerank",
+                    headers={
+                        "Authorization": f"Bearer {self._key()}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self._model_name,
+                        "query": query,
+                        "documents": documents,
+                        "top_n": min(top_k, len(documents)) or 1,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except Exception as e:
+            raise RuntimeError(
+                f"OpenRouter rerank failed model={self._model_name!r}: {e}"
+            ) from e
+
+        results = data.get("results") or []
+        scored: List[dict] = []
+        for item in results:
+            idx = int(item.get("index", -1))
+            if idx < 0 or idx >= len(rerank_pool):
+                continue
+            cand = dict(rerank_pool[idx])
+            cand["rerank_score"] = float(item.get("relevance_score", 0.0))
+            scored.append(cand)
+
+        # If API returned a partial set, keep score order as returned.
+        scored.sort(key=lambda x: x.get("rerank_score", 0.0), reverse=True)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+        self.last_rerank_ms = elapsed_ms
+        logger.info(
+            "rerank model=%s backend=openrouter n=%d ms=%.1f",
+            self._model_name,
+            len(rerank_pool),
+            elapsed_ms,
+        )
+        return scored[:top_k]
+
+    def __repr__(self) -> str:
+        return f"OpenRouterReranker(model={self._model_name!r})"
+
+
+def get_reranker_backend() -> str:
+    """``local`` (default) or ``openrouter`` — laptop API path."""
+    return (os.getenv("KB_RERANKER_BACKEND") or "local").strip().lower()
+
+
 def get_reranker(
     model_name: Optional[str] = None,
     batch_size: int = 32,
     device: Optional[str] = None,
     prompt: Optional[str] = None,
-) -> "CrossEncoderReranker | FlagEmbeddingReranker":
+) -> "CrossEncoderReranker | FlagEmbeddingReranker | Qwen3Reranker | OpenRouterReranker":
     """Factory function to create a reranker instance.
 
     ``model_name`` defaults to the ``KB_RERANKER_MODEL`` env var (falling
     back to the built-in default), so an explicit argument always wins.
     ``prompt`` defaults to ``KB_RERANKER_PROMPT`` (``'detailed'`` selects the
     built-in precise prompt); only flag-llm loaders use it.
-    Dispatches on the registry loader: ``'crossencoder'`` (and unknown ids,
-    which fall back to that path) → :class:`CrossEncoderReranker`;
+    When ``KB_RERANKER_BACKEND=openrouter``, returns :class:`OpenRouterReranker`
+    (no local BGE weights). Otherwise dispatches on the registry loader:
+    ``'crossencoder'`` → :class:`CrossEncoderReranker`;
     ``'flag'`` / ``'flag-llm'`` → :class:`FlagEmbeddingReranker`;
-    ``'qwen3'`` → :class:`Qwen3Reranker` (thinking disabled). Any other
-    loader raises the registry's NotImplementedError.
+    ``'qwen3'`` → :class:`Qwen3Reranker`.
     """
+    backend = get_reranker_backend()
+    if backend in {"openrouter", "api", "remote"}:
+        name = model_name or get_reranker_model_name()
+        return OpenRouterReranker(model_name=name, batch_size=batch_size, device=device)
+
     name = model_name or get_reranker_model_name()
     loader = resolve_reranker_spec(name).get("loader", "crossencoder")
     if loader in ("flag", "flag-llm"):
