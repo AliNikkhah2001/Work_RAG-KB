@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 # KB Manager — production image (CPU or CUDA via KB_*_DEVICE env at runtime)
 #
-# TORCH_CHANNEL=cpu  → install CPU torch first (laptop / OpenRouter CI; avoids NVIDIA cudnn wheels)
-# TORCH_CHANNEL=cuda → let pip resolve default torch (GPU server builds)
+# TORCH_CHANNEL=cpu  → resolve torch from PyTorch CPU index (laptop / OpenRouter CI)
+# TORCH_CHANNEL=cuda → default PyPI torch resolver (GPU server builds)
 ARG TORCH_CHANNEL=cpu
 
 FROM python:3.11-slim
@@ -26,20 +26,23 @@ COPY configs ./configs
 COPY run_server.py ./
 
 # BuildKit cache mount: wheels survive rebuilds on this host.
-# Laptop CI MUST use TORCH_CHANNEL=cpu — default manylinux torch pulls nvidia_* CUDA wheels
-# and stalls for 10–60+ minutes on flaky files.pythonhosted.org (see Jenkins develop #41/#42).
+# Laptop CI MUST use TORCH_CHANNEL=cpu. A two-step "CPU then pip -e ." still lets
+# the second resolve overwrite torch with +cu* from PyPI (Jenkins #43 saw 2.15.0+cu132).
+# Primary index = CPU wheelhouse so torch stays +cpu and nvidia_* never enter the graph.
 RUN --mount=type=cache,target=/root/.cache/pip \
     set -e; \
     if [ "${TORCH_CHANNEL}" = "cpu" ]; then \
-      echo "KB image: installing CPU torch (TORCH_CHANNEL=cpu)"; \
+      echo "KB image: pip -e . with CPU torch index (TORCH_CHANNEL=cpu)"; \
       pip install --default-timeout=120 \
         --index-url https://download.pytorch.org/whl/cpu \
         --extra-index-url https://pypi.org/simple \
-        'torch>=2.0.0'; \
+        -e .; \
+      python -c "import torch,sys; v=torch.__version__; print('torch=%s cuda_available=%s'%(v,torch.cuda.is_available()));\
+ sys.exit('ERROR: expected CPU torch, got '+v) if ('+cu' in v) else None"; \
     else \
       echo "KB image: TORCH_CHANNEL=${TORCH_CHANNEL} (default torch resolver)"; \
-    fi; \
-    pip install --default-timeout=120 -e .
+      pip install --default-timeout=120 -e .; \
+    fi
 
 EXPOSE 8000
 CMD ["python", "run_server.py"]
