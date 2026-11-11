@@ -1,0 +1,16 @@
+{
+  "total_qa": 1078,
+  "skipped_incomplete": 24,
+  "per_subspace": {
+    "cheque": 160,
+    "credit_ladder": 22,
+    "customers_legal": 3,
+    "customers_person": 3,
+    "facilities_legal": 330,
+    "facilities_person": 451,
+    "general": 83,
+    "guarantor": 13,
+    "supplier_legal": 13
+  },
+  "n_subspaces": 9
+}

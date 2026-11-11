@@ -11,8 +11,8 @@ faith_guard:
   min_score: 0.5
   min_coverage: 0.20
 active_packs:
-  schemas: "1.0.0"
-  taxonomy: "1.0.0"
-  canned: "1.0.1"
-  prompts_orchestrator: "1.0.3"
-  prompts_guardrails: "1.0.0"
+  schemas: "1.0.1"
+  taxonomy: "1.0.2"
+  canned: "1.0.2"
+  prompts_orchestrator: "1.0.4"
+  prompts_guardrails: "1.0.1"

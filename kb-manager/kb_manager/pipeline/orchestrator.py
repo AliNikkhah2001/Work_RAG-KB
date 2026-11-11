@@ -331,6 +331,16 @@ class PipelineOrchestrator:
                 if not hierarchy:
                     # fall back: last 2 parent dirs
                     hierarchy = list(p.parent.parts[-2:]) if len(p.parent.parts) >= 2 else list(p.parent.parts)
+            # Files sitting directly under a domain folder (نردبان، کفیل، …)
+            # have no product subfolder — append the stem so taxonomy tokens match.
+            _domain_leaves = {
+                "اشخاص حقیقی",
+                "اشخاص حقوقی",
+                "پایگاه دانش عمومی",
+                "سایر",
+            }
+            if hierarchy and hierarchy[-1] in _domain_leaves:
+                hierarchy = list(hierarchy) + [p.stem]
             parsed.metadata["folder_hierarchy"] = hierarchy
             if hierarchy:
                 parsed.metadata["domain"] = hierarchy[0]
@@ -346,8 +356,13 @@ class PipelineOrchestrator:
         is_entity_list = "ضمیمه پایگاه دانش" in file_path or "لیست" in file_path
         if is_entity_list:
             logger.info("Processing Supplementary Entity List: %s", file_path)
+            # Welcome copy belongs in canned greetings (packs/canned), not the vector DB.
+            if "خوش آمد" in file_path or "خوش‌آمد" in file_path:
+                logger.info("Skipping welcome docx (use canned greetings pack): %s", file_path)
+                result["skipped"] = 1
+                return result
             if "نامربوط" in file_path:
-                logger.info("Ignoring guardrail file: %s", file_path)
+                logger.info("Ignoring guardrail file (off-topic prompts, not vectorized): %s", file_path)
                 result["skipped"] = 1
                 return result
                 
@@ -356,7 +371,13 @@ class PipelineOrchestrator:
                 
             if "واژگان" in file_path:
                 logger.info("Synonym mapping file processed for BM25: %s", file_path)
-                # Later: update synonyms.json
+                try:
+                    from kb_manager.glossary_synonyms import apply_glossary_sheets_to_map
+
+                    n = apply_glossary_sheets_to_map(parsed.sheets or [])
+                    logger.info("Updated glossary synonym map with %d keys from %s", n, file_path)
+                except Exception as exc:
+                    logger.warning("Failed to apply glossary synonyms from %s: %s", file_path, exc)
                 result["skipped"] = 1
                 return result
             
@@ -465,6 +486,8 @@ class PipelineOrchestrator:
                 "document_id": doc.id,
                 "doc_type": doc_type,
                 "sheets": parsed.sheets,
+                "domain": parsed.metadata.get("domain"),
+                "folder_hierarchy": parsed.metadata.get("folder_hierarchy") or [],
                 "parent_scope": getattr(self._chunker, "parent_scope", "sheet"),
                 "parent_max_tokens": getattr(self._chunker, "parent_max_tokens", 1536),
             },
