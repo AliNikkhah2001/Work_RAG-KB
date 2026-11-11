@@ -31,7 +31,7 @@ class TestSemanticChunker:
 
 
 class TestIncompleteQaFiltering:
-    """Only fully-empty rows are skipped; partial rows are always kept."""
+    """QA rows missing question or answer are skipped; only complete pairs are kept."""
 
     @staticmethod
     def _sheets(headers: list[str], rows: list[list[str]]) -> list[dict]:
@@ -44,7 +44,7 @@ class TestIncompleteQaFiltering:
             }
         ]
 
-    def test_partial_rows_are_kept_only_fully_empty_skipped(self, chunker: SemanticChunker):
+    def test_incomplete_qa_rows_are_skipped(self, chunker: SemanticChunker):
         sheets = self._sheets(
             ["question", "answer", "keyword"],
             [
@@ -60,11 +60,10 @@ class TestIncompleteQaFiltering:
         )
         contents = [c.content for c in chunks if not c.metadata.get("is_parent", False)]
 
-        # Complete + partial rows retained; only the fully-empty row skipped.
-        assert len(contents) == 3
+        # Only the complete Q+A row is indexed.
+        assert len(contents) == 1
         assert "سوال کامل" in contents[0]
-        assert "سوال بدون پاسخ" in contents[1]
-        assert "پاسخ بدون سوال" in contents[2]
+        assert chunker.get_skipped_incomplete() == 3
 
     def test_all_empty_rows_yield_no_child_chunks(self, chunker: SemanticChunker):
         sheets = self._sheets(

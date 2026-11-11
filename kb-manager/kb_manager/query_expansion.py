@@ -136,33 +136,53 @@ _TYPO_CORRECTIONS: dict[str, list[str]] = {
 # Exclusive domain terms that must never be dropped from keyword beams
 _EXCLUSIVE_TERMS = frozenset({"جنگ", "زلزله", "کرونا", "ورشکستگی", "پیرامون", "مالیاتی", "مجازی", "حقوقی"})
 
+def _merge_synonym_dicts(base: dict[str, list[str]], overlay: dict[str, list[str]]) -> dict[str, list[str]]:
+    merged = {**base}
+    for k, vs in (overlay or {}).items():
+        prev = merged.get(k, [])
+        merged[k] = list(dict.fromkeys([*(prev or []), *(vs or [])]))
+    for k, vs in list(merged.items()):
+        merged[k] = list(dict.fromkeys(v for v in vs if v and v != k))
+    return merged
+
+
 def _load_generated_map() -> dict[str, list[str]]:
     """Overlay corpus-grounded / LLM-generated synonym map if present.
 
     The generated map (data/synonym_map_generated.json, from synonym_generator.py)
     extends the curated SYNONYM_MAP with domain terms grounded in the actual KB.
     Set KB_SYNONYM_USE_GENERATED=false to disable.
+    Glossary pairs from واژگان معادل (data/synonym_map_glossary.json) always merge in
+    and are never vectorized.
     If the file is missing or stale the curated map is used as-is.
     """
-    if os.getenv("KB_SYNONYM_USE_GENERATED", "true").lower() not in ("1", "true", "yes", "on"):
-        return dict(SYNONYM_MAP)
+    import json
+
+    merged = dict(SYNONYM_MAP)
+    use_generated = os.getenv("KB_SYNONYM_USE_GENERATED", "true").lower() in ("1", "true", "yes", "on")
+    if use_generated:
+        try:
+            from kb_manager.config import PROJECT_ROOT
+
+            path = PROJECT_ROOT / "data" / "synonym_map_generated.json"
+            if path.exists():
+                data = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    merged = _merge_synonym_dicts(merged, data)
+                    logger.info("synonym map loaded %d entries from %s", len(merged), path)
+        except Exception as exc:  # never break search on map load failure
+            logger.warning("failed to load generated synonym map: %s", exc)
+            merged = dict(SYNONYM_MAP)
     try:
-        from kb_manager.config import PROJECT_ROOT
+        from kb_manager.glossary_synonyms import load_glossary_map
 
-        path = PROJECT_ROOT / "data" / "synonym_map_generated.json"
-        if not path.exists():
-            return dict(SYNONYM_MAP)
-        import json
-
-        data = json.loads(path.read_text(encoding="utf-8"))
-        merged = {**SYNONYM_MAP, **data}
-        for k, vs in merged.items():
-            merged[k] = list(dict.fromkeys(v for v in vs if v and v != k))
-        logger.info("synonym map loaded %d entries from %s", len(merged), path)
-        return merged
-    except Exception as exc:  # never break search on map load failure
-        logger.warning("failed to load generated synonym map: %s", exc)
-        return dict(SYNONYM_MAP)
+        glossary = load_glossary_map()
+        if glossary:
+            merged = _merge_synonym_dicts(merged, glossary)
+            logger.info("glossary synonym overlay applied (%d keys total)", len(merged))
+    except Exception as gloss_exc:
+        logger.warning("failed to merge glossary synonym map: %s", gloss_exc)
+    return merged
 
 
 SYNONYM_MAP_FINAL = _load_generated_map()

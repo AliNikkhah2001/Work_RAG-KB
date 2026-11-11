@@ -299,7 +299,7 @@ def test_chunking_view_keeps_partial_rows():
         sheet = body["sheets"][0]
         assert "field_mappings" in sheet and sheet["field_mappings"]
         assert all("header" in m and "label" in m for m in sheet["field_mappings"])
-        # partial rows must be kept: only fully-empty rows skipped
+        # sample workbook has only complete QA rows → nothing skipped
         assert all(not c["skipped"] for c in sheet["chunks"])
         assert sheet["skipped_rows"] == 0
     finally:

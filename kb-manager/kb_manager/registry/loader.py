@@ -343,7 +343,9 @@ class Registry:
             fp = str(node.get("filter_path") or "")
             if fp and (fp in joined or fp in hierarchy or any(fp in h for h in hierarchy)):
                 return True
-            if tokens and any(tok in h for tok in tokens for h in hierarchy):
+            # Every folder_token must appear in at least one hierarchy segment (AND).
+            # Previous OR matching made facilities_person match any path containing «تسهیلات».
+            if tokens and all(any(tok in h for h in hierarchy) for tok in tokens):
                 return True
             if domain and domains and domain in domains:
                 return True
@@ -367,6 +369,10 @@ class Registry:
         markers = {_normalize_col(m) for m in (crm.get("persian_qa_markers") or [])}
         if len(normalized & markers) >= 2 or ({"پرسش"} & normalized and {"پاسخ"} & normalized):
             return "crm_qa"
+        # سوال + any پاسخ* variant (پاسخ / پاسخ کوتاه / پاسخ مختصر / پاسخ طولانی / …)
+        answer_like = {m for m in (normalized & markers) if m.startswith("پاسخ") or m == "متنپاسخ"}
+        if {"سوال", "متنسوال"} & normalized and (answer_like or ({"پاسخ"} & normalized)):
+            return "crm_qa"
         if {"سوال"} & normalized and {"پاسخ"} & normalized:
             return "crm_qa"
 
@@ -376,7 +382,7 @@ class Registry:
         if require and require <= normalized and len(normalized & core) >= int(reason.get("min_core_overlap") or 3):
             return "reason_codes"
 
-        for sid in ("glossary", "staff_profile", "loan_catalog", "timeline"):
+        for sid in ("articles", "glossary", "staff_profile", "loan_catalog", "timeline"):
             sch = schemas.get(sid) or {}
             cols = {_normalize_col(c) for c in (sch.get("columns") or [])}
             min_overlap = int(sch.get("min_overlap") or max(1, int(len(cols) * float(pack.get("match_threshold") or 0.6))))

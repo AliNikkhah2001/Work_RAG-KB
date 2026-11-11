@@ -216,9 +216,9 @@ class SemanticChunker(BaseChunker):
         """Create one chunk per data row from raw XLSX sheet data.
 
         Each row becomes a single chunk.  For ``qa_pair`` rows, the content
-        is formatted with Persian field names and newlines.  A row is
-        skipped only when ALL of its (selected) columns are empty --
-        partial rows are always kept.
+        is formatted with Persian field names and newlines.  QA rows missing
+        a question or any answer field are skipped entirely (not indexed).
+        Non-QA tabular rows are skipped only when all selected columns are empty.
 
         Parent chunks aggregate child chunks.  The ``parent_scope`` metadata
         key (falling back to the constructor default) selects:
@@ -249,31 +249,38 @@ class SemanticChunker(BaseChunker):
             sheet_children: list[Chunk] = []
 
             for row in rows:
-                # Build field map
+                # Build field map (strip header keys so trailing spaces in Excel
+                # do not break سوال / پاسخ lookups or cross-file dedup).
                 fields: dict[str, str] = {}
                 for header, value in zip(headers, row):
                     if value and str(value).strip():
                         collapsed = str(value).strip().replace("\n", " ")
-                        fields[header.lower()] = collapsed
+                        fields[str(header).strip().lower()] = collapsed
 
-                # --- Phase 1: Skip only fully-empty rows ---
-                # A row is skipped only when ALL selected columns are empty.
-                # Partial rows (e.g. answer without question) are always kept.
+                # --- Phase 1: Skip empty / incomplete rows ---
                 if not fields:
+                    skipped_incomplete += 1
+                    continue
+                if doc_type == "qa_pair" and not self._qa_fields_complete(fields):
+                    # Missing question or answer → never index this row.
                     skipped_incomplete += 1
                     continue
 
                 # --- Phase 1b: Deduplicate QA rows by normalized question text ---
+                # Dedup key is scoped by folder_hierarchy so the same question text
+                # under اشخاص حقیقی vs اشخاص حقوقی can both be kept; duplicates inside
+                # the same folder path (e.g. اصلی then جایگزین) still drop.
                 if doc_type == "qa_pair" and self.dedup_questions:
-                    # Try English then Persian question fields
-                    q_raw = fields.get("question", "") or fields.get("پرسش", "") or fields.get("سوال", "") or fields.get("متن سوال", "") or fields.get("متن_سوال", "")
+                    q_raw = self._qa_question_text(fields)
                     norm_q = self._normalize_question(q_raw)
                     if norm_q:
-                        if norm_q in self._seen_questions:
+                        hier = metadata.get("folder_hierarchy") or []
+                        scope = "/".join(str(h) for h in hier) if hier else str(metadata.get("domain") or "_")
+                        dedup_key = f"{scope}::{norm_q}"
+                        if dedup_key in self._seen_questions:
                             self._dedup_skipped += 1
                             continue
-                        self._seen_questions.add(norm_q)
-                    # Rows without any question text are kept (partial data).
+                        self._seen_questions.add(dedup_key)
 
                 # --- Phase 2: Structured format with Persian field names ---
                 if doc_type == "kv_pair":
@@ -457,6 +464,35 @@ class SemanticChunker(BaseChunker):
             )
         return enriched
 
+    @staticmethod
+    def _qa_question_text(fields: dict[str, str]) -> str:
+        return (
+            fields.get("question", "")
+            or fields.get("پرسش", "")
+            or fields.get("سوال", "")
+            or fields.get("متن سوال", "")
+            or fields.get("متن_سوال", "")
+        )
+
+    @staticmethod
+    def _qa_answer_text(fields: dict[str, str]) -> str:
+        return (
+            fields.get("answer", "")
+            or fields.get("briefanswer", "")
+            or fields.get("brief_answer", "")
+            or fields.get("پاسخ", "")
+            or fields.get("پاسخ کوتاه", "")
+            or fields.get("پاسخ مختصر", "")
+            or fields.get("پاسخ طولانی", "")
+            or fields.get("متن پاسخ", "")
+            or fields.get("متن_پاسخ", "")
+        )
+
+    @classmethod
+    def _qa_fields_complete(cls, fields: dict[str, str]) -> bool:
+        """True only when both a question and at least one answer field are non-empty."""
+        return bool(cls._qa_question_text(fields).strip()) and bool(cls._qa_answer_text(fields).strip())
+
     def _format_qa_content(self, fields: dict[str, str], schema: str) -> str:
         """Format a QA/reason-code row with Persian field names and newlines."""
         lines: list[str] = []
@@ -478,8 +514,11 @@ class SemanticChunker(BaseChunker):
                 ("متن_سوال", "\u0633\u0648\u0627\u0644"),
                 ("briefanswer", "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647"),
                 ("brief_answer", "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647"),
+                ("پاسخ کوتاه", "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647"),
+                ("پاسخ مختصر", "\u067e\u0627\u0633\u062e \u06a9\u0648\u062a\u0627\u0647"),
                 ("answer", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
+                ("پاسخ طولانی", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("متن پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 ("متن_پاسخ", "\u067e\u0627\u0633\u062e \u06a9\u0627\u0645\u0644"),
                 # keywords excluded from content — they live in Chunk.keywords field

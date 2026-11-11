@@ -1,0 +1,129 @@
+# Knowledge subspace taxonomy — L2 product folders aligned with KB ingest graph.
+version: "1.0.2"
+kind: taxonomy
+# folder_tokens are AND-matched (every token must appear in some hierarchy segment).
+defaults:
+  ambiguous_policy: clarify
+  whole_kb_fallback: true
+  evidence_min_score: 0.15
+  keyword_boost: 3.0
+nodes:
+  cheque:
+    label_fa: گزارش اعتبارسنجی چک
+    filter_path: گزارش اعتبارسنجی چک
+    aliases: [چک, صیاد, برگشتی, پیچک]
+    keywords: [چک, صیاد, برگشتی, پیچک, نقد]
+    folder_tokens: [چک]
+    domains: [cheque]
+    retrieval:
+      keyword_boost: 3.5
+      evidence_min_score: 0.05
+  facilities_person:
+    label_fa: اشخاص حقیقی/اعتبارسنجی تسهیلات
+    filter_path: اشخاص حقیقی/اعتبارسنجی تسهیلات
+    aliases: [حقیقی, تسهیلات حقیقی, وام حقیقی]
+    keywords: [تسهیلات, وام, قسط, حقیقی]
+    folder_tokens: [حقیقی, تسهیلات]
+    domains: [individual]
+    retrieval:
+      keyword_boost: 3.0
+      evidence_min_score: 0.10
+  facilities_legal:
+    label_fa: اشخاص حقوقی/اعتبارسنجی تسهیلات
+    filter_path: اشخاص حقوقی/اعتبارسنجی تسهیلات
+    aliases: [حقوقی, تسهیلات حقوقی, شرکت]
+    keywords: [حقوقی, شرکت, سهامدار, تسهیلات]
+    folder_tokens: [حقوقی, تسهیلات]
+    domains: [corporate]
+    retrieval:
+      keyword_boost: 3.0
+      evidence_min_score: 0.15
+  credit_ladder:
+    label_fa: اشخاص حقیقی/نردبان اعتباری
+    filter_path: اشخاص حقیقی/نردبان اعتباری
+    aliases: [نردبان, نردبان اعتباری]
+    keywords: [نردبان, طرح]
+    folder_tokens: [نردبان]
+    domains: [individual]
+    retrieval:
+      keyword_boost: 3.0
+      evidence_min_score: 0.10
+  guarantor:
+    label_fa: اشخاص حقیقی/کفیل
+    filter_path: اشخاص حقیقی/کفیل
+    aliases: [کفیل, ضامن]
+    keywords: [کفیل, ضامن, ضمانت, کفالت]
+    folder_tokens: [کفیل]
+    domains: [individual]
+    retrieval:
+      keyword_boost: 3.0
+      evidence_min_score: 0.10
+  supplier_legal:
+    label_fa: اشخاص حقوقی/عضویت در پایگاه داده اعتباری به عنوان تامین کننده اطلاعات
+    filter_path: اشخاص حقوقی/عضویت در پایگاه داده اعتباری به عنوان تامین کننده اطلاعات
+    aliases: [تامین کننده, تامین‌کننده, تامین کننده اطلاعات]
+    keywords: [تامین, تامین‌کننده, پایگاه داده]
+    folder_tokens: [تامین]
+    domains: [corporate]
+    retrieval:
+      keyword_boost: 3.0
+      evidence_min_score: 0.10
+  customers_person:
+    label_fa: اشخاص حقیقی/گزارش اعتبارسنجی مشتریان من (مرتبط با کسب‌وکارها)
+    filter_path: اشخاص حقیقی/گزارش اعتبارسنجی مشتریان من (مرتبط با کسب‌وکارها)
+    aliases: [مشتریان من, پنل کسب و کار, پنل کسب‌وکار]
+    keywords: [مشتریان, پنل]
+    folder_tokens: [حقیقی, مشتریان]
+    domains: [individual]
+    retrieval:
+      keyword_boost: 3.0
+      evidence_min_score: 0.10
+  customers_legal:
+    label_fa: اشخاص حقوقی/گزارش اعتبارسنجی مشتریان من
+    filter_path: اشخاص حقوقی/گزارش اعتبارسنجی مشتریان من
+    aliases: [مشتریان من حقوقی, پنل حقوقی]
+    keywords: [مشتریان, پنل, حقوقی]
+    folder_tokens: [حقوقی, مشتریان]
+    domains: [corporate]
+    retrieval:
+      keyword_boost: 3.0
+      evidence_min_score: 0.10
+  general:
+    label_fa: پایگاه دانش عمومی
+    filter_path: پایگاه دانش عمومی
+    aliases: [عمومی, معرفی, هیات مدیره]
+    keywords: [معرفی, مدیر, شرکت, عمومی, عام]
+    folder_tokens: [عمومی, سایر]
+    domains: [general]
+    retrieval:
+      keyword_boost: 2.5
+      evidence_min_score: 0.15
+edges:
+  - { parent: credit_reports, child: cheque }
+  - { parent: credit_reports, child: facilities_person }
+  - { parent: credit_reports, child: facilities_legal }
+  - { parent: credit_reports, child: credit_ladder }
+  - { parent: credit_reports, child: guarantor }
+  - { parent: credit_reports, child: supplier_legal }
+  - { parent: credit_reports, child: customers_person }
+  - { parent: credit_reports, child: customers_legal }
+  - { parent: knowledge_root, child: general }
+  - { parent: knowledge_root, child: credit_reports }
+ui_filter_groups:
+  - label: اشخاص حقوقی (Legal Entities)
+    options:
+      - { value: اشخاص حقوقی, label: All Legal Entities }
+      - { value: اشخاص حقوقی/اعتبارسنجی تسهیلات, label: اعتبارسنجی تسهیلات }
+      - { value: اشخاص حقوقی/عضویت در پایگاه داده اعتباری به عنوان تامین کننده اطلاعات, label: تامین کننده اطلاعات }
+      - { value: اشخاص حقوقی/گزارش اعتبارسنجی مشتریان من, label: مشتریان من }
+  - label: اشخاص حقیقی (Individuals)
+    options:
+      - { value: اشخاص حقیقی, label: All Individuals }
+      - { value: اشخاص حقیقی/گزارش اعتبارسنجی چک, label: اعتبارسنجی چک }
+      - { value: اشخاص حقیقی/گزارش اعتبارسنجی مشتریان من (مرتبط با کسب‌وکارها), label: مشتریان من (کسب‌وکارها) }
+      - { value: اشخاص حقیقی/اعتبارسنجی تسهیلات, label: اعتبارسنجی تسهیلات }
+      - { value: اشخاص حقیقی/نردبان اعتباری, label: نردبان اعتباری }
+      - { value: اشخاص حقیقی/کفیل, label: کفیل }
+  - label: عمومی (General)
+    options:
+      - { value: پایگاه دانش عمومی, label: پایگاه دانش عمومی }
