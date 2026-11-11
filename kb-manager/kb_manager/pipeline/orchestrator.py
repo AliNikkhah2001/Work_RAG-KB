@@ -353,7 +353,16 @@ class PipelineOrchestrator:
             self.artifact_mgr.save("raw", file_path, {"title": parsed.title, "metadata": parsed.metadata, "content": parsed.content, "sheets": parsed.sheets})
 
         # --- Check for Entity Bypass ---
-        is_entity_list = "ضمیمه پایگاه دانش" in file_path or "لیست" in file_path
+        # Match folder markers OR known score/catalog filenames (temp ingest
+        # paths may not contain «ضمیمه پایگاه دانش»).
+        from kb_manager.entity_lists import build_catalog_entity, build_score_entity, match_list_spec, match_score_spec
+
+        is_entity_list = (
+            "ضمیمه پایگاه دانش" in file_path
+            or "/لیست/" in file_path.replace("\\", "/")
+            or match_score_spec(file_path) is not None
+            or match_list_spec(file_path) is not None
+        )
         if is_entity_list:
             logger.info("Processing Supplementary Entity List: %s", file_path)
             # Welcome copy belongs in canned greetings (packs/canned), not the vector DB.
@@ -365,10 +374,14 @@ class PipelineOrchestrator:
                 logger.info("Ignoring guardrail file (off-topic prompts, not vectorized): %s", file_path)
                 result["skipped"] = 1
                 return result
-                
+            if "محدودیت" in file_path and "چالش" in file_path:
+                logger.info("Skipping limitations docx (not EntityList): %s", file_path)
+                result["skipped"] = 1
+                return result
+
             if hasattr(self, "artifact_mgr"):
                 self.artifact_mgr.save("entity_lists", file_path, {"title": parsed.title, "sheets": parsed.sheets})
-                
+
             if "واژگان" in file_path:
                 logger.info("Synonym mapping file processed for BM25: %s", file_path)
                 try:
@@ -380,20 +393,27 @@ class PipelineOrchestrator:
                     logger.warning("Failed to apply glossary synonyms from %s: %s", file_path, exc)
                 result["skipped"] = 1
                 return result
-            
-            # Save standard Entity List to SQLite
+
             import uuid
-            import json
-            
-            # Combine all sheets into a single JSON object for content
-            content_json = {}
-            if parsed.sheets:
-                for sheet in parsed.sheets:
-                    content_json[sheet["name"]] = sheet["rows"]
-                    
-            desc = f"این لیست حاوی اطلاعات {parsed.title} است. "
-            
-            # Calculate dense embedding of the description for the Semantic Router
+
+            payload = build_score_entity(file_path, parsed.sheets, title=parsed.title)
+            if payload is None:
+                payload = build_catalog_entity(file_path, parsed.sheets, title=parsed.title)
+            if payload is None:
+                content_json = {}
+                if parsed.sheets:
+                    for sheet in parsed.sheets:
+                        content_json[sheet["name"]] = sheet["rows"]
+                payload = {
+                    "list_name": parsed.title,
+                    "description": f"این لیست حاوی اطلاعات {parsed.title} است. ",
+                    "content_json": content_json,
+                }
+
+            list_name = str(payload["list_name"])
+            desc = str(payload["description"])
+            content_json = payload["content_json"]
+
             emb = None
             if self._embedder:
                 try:
@@ -401,23 +421,29 @@ class PipelineOrchestrator:
                     if emb_list:
                         emb = emb_list[0]
                 except Exception as e:
-                    logger.warning("Failed to embed entity list %s: %s", parsed.title, e)
+                    logger.warning("Failed to embed entity list %s: %s", list_name, e)
 
-            # Store in DB
             db_ent = EntityList(
                 id=str(uuid.uuid4()),
-                list_name=parsed.title,
+                list_name=list_name,
                 description=desc,
                 description_embedding=emb,
-                content_json=content_json
+                content_json=content_json,
             )
-            
-            # Delete old lists with the same name to prevent duplicates
+
             from sqlalchemy import delete
-            await session.execute(delete(EntityList).where(EntityList.list_name == parsed.title))
+
+            await session.execute(delete(EntityList).where(EntityList.list_name == list_name))
+            if parsed.title and parsed.title != list_name:
+                await session.execute(delete(EntityList).where(EntityList.list_name == parsed.title))
             session.add(db_ent)
             await session.flush()
-            
+            logger.info(
+                "Stored EntityList %r kind=%s",
+                list_name,
+                (content_json.get("_meta") or {}).get("kind"),
+            )
+
             result["skipped"] = 1
             return result
 

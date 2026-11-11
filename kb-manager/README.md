@@ -19,6 +19,7 @@
 - [Version history](#version-history)
 - [Architecture evolution](#architecture-evolution)
 - [Benchmarks & metrics](#benchmarks--metrics)
+- [Evaluation quality improvement plan](#evaluation-quality-improvement-plan)
 - [Latency](#latency)
 - [LLM-as-judge feedback & root causes](#llm-as-judge-feedback--root-causes)
 - [Evaluation reports](#evaluation-reports)
@@ -33,7 +34,7 @@
 - **RAM-first** — Postgres vectors + HNSW fully in `shared_buffers` (16 GB) + `effective_cache_size` (800 GB) + `pg_prewarm`; tantivy in RAMDirectory; dense + reranker on H200 GPU (`KB_EMBED_DEVICE=cuda` `KB_RERANKER_DEVICE=cuda`, `nvidia-smi` 3 GB); host 1.0 TiB RAM, 2×143 GB HBM.
 - **Persian query path** — normalization (`preprocessor/persian.py`, `regex_persian.py`), synonym/beam expansion (`query_expansion.py`, 93-entry map incl. colloquial→formal + v12 typo/exclusive-term gates), reform/enhance stages, optional HyDE (`hyde.py`, off by default).
 - **Operations UI** — dashboard, transparency views (RTL Persian), 5-step ingestion wizard, benchmarks, chunk/document browsers, zip browser, monitoring (`kb_manager/web/routes/`, 12 routers).
-- **Stage-level evaluation** — every gold row classified A / A′ / B / D with per-stage top-k lists dumped to JSONL, plus a live TUI dashboard and LLM-judge corpus tooling (`artifacts/retrieval_training/`).
+- **Evaluation (suite-backed)** — Hit@k + multiturn live in `Work_RAG-Evaluation_Suite` (`EVAL_SUITE_URL`); KB `/benchmarks` UI proxies only. Legacy stage funnel artifacts remain under `artifacts/retrieval_training/` for historical A/A′/B/D analysis.
 
 ## Architecture
 
@@ -477,6 +478,10 @@ v11 manifest: `versions/v11_1405-06-23/manifest.json`. v10 export: `versions/v10
 
 ## Benchmarks & metrics
 
+> **Sole live backend (2026-11-11+):** Hit@k and multiturn run in **Work_RAG-Evaluation_Suite** (`http://evaluation:8300` / `EVAL_SUITE_URL`). KB does **not** own an eval metrics package anymore — `/benchmarks` proxies the suite. Historical v11 numbers below are frozen snapshots; current quality targets and task breakdown live in the [improvement plan](#evaluation-quality-improvement-plan).
+
+**Live baseline (suite diagnose, remapped `eval_clean`, 2026-11-11):** Hit@1 **57.6%** · Hit@5 **69.7%** · MRR **0.622** (n=165) · multiturn **7/12**. Near-perfect Hit@k is **not** met on the current corpus.
+
 v11 final run (**663 gold rows, 0 errors**; reranker `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`):
 
 | Label | Count | Meaning |
@@ -525,6 +530,49 @@ v11 final run (**663 gold rows, 0 errors**; reranker `cross-encoder/mmarco-mMini
 | Chunk pollution | overlap + keyword label + dense prefix present | fixed in code, DB rebuilding | 0 label leaks / 0 overlap prefixes (verified) |
 
 The intermediate run (`resume_run.log` DONE line; backup `.pre_cheque_rebuild.jsonl`) counted 55 Cheque infra OOMs as misses (Cheque 61/117 = 0.5214). On re-run all 55 cleared — the gold set shrank by 51 Cheque rows while D grew by 4 (613→617) — leaving Cheque at 65/66 = 0.9848.
+
+## Evaluation quality improvement plan
+
+Full task/subtask breakdown (owners, gates, order of work):  
+**[`docs/EVAL_QUALITY_IMPROVEMENT_PLAN.md`](docs/EVAL_QUALITY_IMPROVEMENT_PLAN.md)**
+
+### Why answers go wrong (baseline)
+
+| Layer | Failure | Root cause (summary) |
+|---|---|---|
+| Single-turn | Hard miss ~30% Hit@k | Corpus gaps (API/ops, fusion, niche tables, edge policy) + hybrid under-rank |
+| Single-turn | Soft miss (in top-5 ≠ #1) | RRF/rerank prefers lexical neighbor over paraphrase |
+| Multi-turn | `clarify_miss` | Bare «وضعیت اعتباری…» answers instead of clarifying report type |
+| Multi-turn | `over_clarify` | «اعتبارسنجی چیست» wrongly enters nardban/kafil disambiguation |
+| Multi-turn | Sticky / re-spec | Facilities sticky leaks into board/CEO; often no `rag.applied_subspace` in API |
+
+### Phases (checklist)
+
+| Phase | Focus | Owner | Near-term exit |
+|---|---|---|---|
+| **P0** | Observability + gates (`applied_subspace`, suite metadata, UI proxy) | Orch + Eval + KB | Honest multiturn scores |
+| **P1** | Corpus fill + EntityList + ranking soft-miss | **KB** | Hit@5 ≥ 85% on remapped set |
+| **P2** | Clarify / FAQ / sticky re-spec | **Orch** | Multiturn ≥ 10/12; 0 clarify_miss/over_clarify |
+| **P3** | Full remap + diagnose acceptance | Eval | Updated RESULTS/DIAGNOSIS vs §0 targets |
+| **P4** | CI smoke + README sync | Parent + KB | Suite health in CI; docs match |
+
+### Suggested fix order
+
+1. P0.1–P0.2 — emit + consume `applied_subspace`  
+2. P2.1–P2.2 — clarify_miss + FAQ over_clarify (fast UX)  
+3. P2.3–P2.5 — sticky / legal open / CEO+supplement  
+4. P1.1–P1.3 — miss catalog → corpus / EntityList  
+5. P1.4–P1.5 — soft-miss ranking + stage funnel  
+6. P3 → P4 — full diagnose, raise targets, CI  
+
+### Gate
+
+```bash
+# suite + KB + orch up
+PYTHONPATH=components/evaluation/src \
+  python components/evaluation/scripts/diagnose.py --hitk-limit 200
+# KB UI: /benchmarks → Evaluation Suite online
+```
 
 Title-removal ablation (measured, `title_removal_experiment.json`):
 

@@ -15,15 +15,23 @@
 </div>
 
 <div class="card">
-
-    <h3>Run a Retrieval Benchmark</h3>
-    <p style="opacity:0.85;">Each dataset query is searched against the live KB (BM25 + Dense + RRF fusion, top-k returned). Hit@K and MRR are computed against expected chunk ids, then broken down by query format and difficulty.</p>
+    <h3>Evaluation Suite (sole backend)</h3>
+    <p style="opacity:0.85;">
+      All Hit@k / multi-turn jobs run in <code>Work_RAG-Evaluation_Suite</code>
+      (<code>{{ eval_suite_url }}</code>).
+      Status:
+      {% if eval_suite_ok %}<strong style="color:green;">online</strong>
+      {% else %}<strong style="color:#b00020;">offline</strong> — {{ eval_suite_msg }}
+      {% endif %}
+    </p>
     <form method="post" action="/benchmarks/run" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
         <div class="form-group">
-            <label>Test Dataset</label>
+            <label>Suite Dataset</label>
             <select name="dataset" class="form-control">
                 {% for ds in datasets %}
-                <option value="{{ ds }}" {% if ds == 'test_questions.json' %}selected{% endif %}>{{ ds }}</option>
+                <option value="{{ ds }}" {% if 'eval_clean_remapped' in ds %}selected{% endif %}>{{ ds }}</option>
+                {% else %}
+                <option value="retrieval/eval_clean_remapped.json">retrieval/eval_clean_remapped.json</option>
                 {% endfor %}
             </select>
         </div>
@@ -35,8 +43,14 @@
             <label>Sample Size (0 = all)</label>
             <input type="number" name="sample_size" value="0" min="0" class="form-control" style="width:90px;">
         </div>
-        <button type="submit" class="btn btn-primary" id="run-btn">Run Benchmark</button>
+        <button type="submit" class="btn btn-primary" id="run-btn" {% if not eval_suite_ok %}disabled{% endif %}>Run Hit@k</button>
     </form>
+    <form method="post" action="/benchmarks/multiturn/run" style="margin-top:1rem;">
+        <button type="submit" class="btn btn-primary" {% if not eval_suite_ok %}disabled{% endif %}>Run Multi-turn (subspace / sticky / clarify)</button>
+    </form>
+    {% if multiturn_summary %}
+    <p style="margin-top:0.75rem;">Last multiturn: {{ multiturn_summary.passed }}/{{ multiturn_summary.total }} passed</p>
+    {% endif %}
     <div id="job-area" style="display:none; margin-top: 1rem;"></div>
 </div>
 
@@ -63,11 +77,11 @@
                 <tr>
                     <td>{{ fmt }}</td>
                     <td>{{ agg.queries }}</td>
-                    <td>{{ "%.1f"|format(agg.hit_rate * 100) }}%</td>
-                    <td>{{ "%.1f"|format(agg.top1_hit_rate * 100) }}%</td>
-                    <td>{{ "%.3f"|format(agg.mrr) }}</td>
-                    <td>{{ agg.avg_rank }}</td>
-                    <td>{{ "%.1f"|format(agg.avg_latency_ms) }}</td>
+                    <td>{% if agg.hit_rate is not none %}{{ "%.1f"|format(agg.hit_rate * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if agg.top1_hit_rate is not none %}{{ "%.1f"|format(agg.top1_hit_rate * 100) }}%{% else %}—{% endif %}</td>
+                    <td>{% if agg.mrr is not none %}{{ "%.3f"|format(agg.mrr) }}{% else %}—{% endif %}</td>
+                    <td>{{ agg.avg_rank if agg.avg_rank is not none else '—' }}</td>
+                    <td>{% if agg.avg_latency_ms is not none %}{{ "%.1f"|format(agg.avg_latency_ms) }}{% else %}—{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -78,13 +92,17 @@
 
 {% if ir_metrics and ir_metrics.metrics %}
 <div class="card">
-    <h3>IR Metrics (ranx / pure-Python)</h3>
+    <h3>IR Metrics (Evaluation Suite)</h3>
     <div class="table-container">
         <table class="data-table">
             <thead><tr><th>Metric</th><th>Value</th></tr></thead>
             <tbody>
                 {% for metric, value in (ir_metrics.metrics or {}).items() %}
+                {% if value is number %}
                 <tr><td>{{ metric }}</td><td>{{ "%.4f"|format(value) }}</td></tr>
+                {% elif value is string or value is sameas true or value is sameas false %}
+                <tr><td>{{ metric }}</td><td>{{ value }}</td></tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>
