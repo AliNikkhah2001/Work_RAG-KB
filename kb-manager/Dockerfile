@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # KB Manager — production image (CPU or CUDA via KB_*_DEVICE env)
 FROM python:3.11-slim
 
@@ -17,7 +18,9 @@ COPY packs ./packs
 COPY configs ./configs
 COPY run_server.py ./
 
-RUN pip install --no-cache-dir --default-timeout=120 -e .
+# BuildKit cache mount: torch/sentence-transformers wheels survive rebuilds on this host.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --default-timeout=120 -e .
 
 EXPOSE 8000
 CMD ["python", "run_server.py"]
