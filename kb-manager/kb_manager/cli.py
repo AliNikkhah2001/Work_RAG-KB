@@ -245,12 +245,14 @@ def inspect(file: str) -> None:
 @click.option("--output", "-o", default="kb_manager/evaluation/datasets/eval.json", help="Output dataset path")
 @click.option("--max-queries", "-n", default=100, help="Max queries to generate")
 def eval_generate(db_path: str, output: str, max_queries: int) -> None:
-    """Retired — evaluation datasets live in Work_RAG-Evaluation_Suite."""
-    raise click.ClickException(
-        "kb_manager eval-generate removed. "
-        "Manage datasets under components/evaluation/datasets/ "
-        "and run Hit@k via EVAL_SUITE_URL / scripts/run_hitk.py."
-    )
+    """Generate synthetic evaluation dataset from ingested chunks."""
+    from kb_manager.evaluation.generator import SyntheticDataGenerator
+
+    console.print("[bold blue]Generating synthetic evaluation dataset...[/]")
+    gen = SyntheticDataGenerator(db_path)
+    queries = gen.generate_full_dataset(output, max_queries=max_queries)
+    console.print(f"[bold green]Generated {len(queries)} evaluation queries[/]")
+    console.print(f"  Saved to: {output}")
 
 
 @main.command("eval-run")
@@ -258,12 +260,49 @@ def eval_generate(db_path: str, output: str, max_queries: int) -> None:
 @click.option("--dataset", "-i", default="kb_manager/evaluation/datasets/eval.json", help="Evaluation dataset path")
 @click.option("--top-k", "-k", default=10, help="Number of results to evaluate")
 def eval_run(db_path: str, dataset: str, top_k: int) -> None:
-    """Retired — use Work_RAG-Evaluation_Suite Hit@k."""
-    raise click.ClickException(
-        "kb_manager eval-run removed. "
-        "Run: python components/evaluation/scripts/run_hitk.py "
-        f"(top_k={top_k}) against EVAL_SUITE_URL / live KB :8000."
-    )
+    """Run retrieval evaluation metrics on the KB."""
+    from kb_manager.evaluation.metrics import EvaluationRunner
+    from kb_manager.evaluation.metrics import RetrievalMetrics
+
+    console.print("[bold blue]Running retrieval evaluation...[/]")
+
+    # Simple BM25-like search using SQLite FTS or content matching
+    import json
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+
+    def simple_search(query: str, k: int) -> list[tuple[str, float]]:
+        """Simple keyword search for evaluation."""
+        cur = conn.cursor()
+        terms = query.split()
+        # Build a simple LIKE-based search
+        conditions = " OR ".join(["content LIKE ?" for _ in terms])
+        params = [f"%{t}%" for t in terms]
+        cur.execute(
+            f"SELECT id, content FROM chunks WHERE {conditions} LIMIT ?",
+            params + [k * 2],
+        )
+        rows = cur.fetchall()
+
+        # Score by term overlap
+        scored = []
+        for cid, content in rows:
+            content_lower = content.lower()
+            score = sum(1 for t in terms if t.lower() in content_lower)
+            scored.append((cid, score / len(terms) if terms else 0.0))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored[:k]
+
+    runner = EvaluationRunner(db_path)
+    results = runner.run_retrieval_evaluation(dataset, simple_search, k=top_k)
+
+    console.print(f"\n[bold green]Evaluation Results (K={top_k}):[/]")
+    for metric, value in results.items():
+        console.print(f"  {metric}: {value:.4f}")
+
+    conn.close()
 
 
 @main.command("status-chunks")

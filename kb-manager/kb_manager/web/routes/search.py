@@ -712,6 +712,12 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             if filter_path in smap:
                 subspace = filter_path
                 filter_path = smap[filter_path]
+            else:
+                # Reverse-map Persian filter_path → subspace id (cheque / …)
+                for sid, path in (smap or {}).items():
+                    if path and (path == filter_path or path in filter_path or filter_path in path):
+                        subspace = sid
+                        break
             allowed_ids = {
                 cd[0]
                 for cd in chunk_data
@@ -1142,6 +1148,8 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     injected_entities = []
     from kb_manager.web.deps import db
     import numpy as np
+    from kb_manager.entity_lists import filter_entities_for_context, is_score_query
+
     async with db.session() as session:
         from sqlalchemy import select
         from kb_manager.models.database import EntityList
@@ -1149,23 +1157,50 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
         entity_lists = ents_res.scalars().all()
 
         q_emb = _dense_query_vec(dense, query)
+        scored_ents: list[dict] = []
         if q_emb is not None and entity_lists:
             q_vec = np.array(q_emb)
             q_norm = np.linalg.norm(q_vec)
+            thr = 0.45 if is_score_query(query) else 0.6
             for ent in entity_lists:
                 if not ent.description_embedding:
                     continue
                 ent_vec = np.array(ent.description_embedding)
                 ent_norm = np.linalg.norm(ent_vec)
                 if q_norm > 0 and ent_norm > 0:
-                    sim = np.dot(q_vec, ent_vec) / (q_norm * ent_norm)
-                    if sim > 0.6:  # Threshold for triggering the list
-                        injected_entities.append({
+                    sim = float(np.dot(q_vec, ent_vec) / (q_norm * ent_norm))
+                    if sim > thr:
+                        scored_ents.append({
                             "list_name": ent.list_name,
                             "description": ent.description,
                             "content": ent.content_json,
-                            "similarity": float(sim)
+                            "similarity": sim,
                         })
+        if is_score_query(query) and subspace and entity_lists:
+            have = {e.get("list_name") for e in scored_ents}
+            for ent in entity_lists:
+                meta = (ent.content_json or {}).get("_meta") or {}
+                if meta.get("kind") != "score_table":
+                    continue
+                ids = meta.get("subspace_ids") or []
+                if subspace not in ids or ent.list_name in have:
+                    continue
+                scored_ents.insert(
+                    0,
+                    {
+                        "list_name": ent.list_name,
+                        "description": ent.description,
+                        "content": ent.content_json,
+                        "similarity": 1.0,
+                    },
+                )
+                have.add(ent.list_name)
+        injected_entities = filter_entities_for_context(
+            scored_ents,
+            query=query,
+            subspace=subspace,
+            prefer_score=is_score_query(query),
+        )
 
     return SearchSteps(
         query=query,
@@ -1369,23 +1404,48 @@ async def enhance_api(payload: EnhanceRequest):
 class SupplementRequest(BaseModel):
     query: str = ""
     threshold: float = 0.4
+    subspace: str | None = None
+    filter_path: str | None = None
 
 
-async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
+async def _supplement_search_impl(
+    query: str,
+    threshold: float = 0.4,
+    *,
+    subspace: str | None = None,
+    filter_path: str | None = None,
+) -> dict:
     """Direct EntityList tool search (embedding against list_name+description).
 
     Used by POST /search/supplement and GET /search/supplement.
-    Threshold 0.4 (tool) vs 0.6 (hidden step-8 inject). Code-token fallback
-    guarantees matches for queries like MTX1 / SBD1 when cosine is diluted.
+    Threshold 0.4 (tool) vs 0.6 (hidden step-8 inject). Pass subspace /
+    filter_path so score tables stay on the matching model.
     """
+    from kb_manager.entity_lists import filter_entities_for_context, is_score_query
+
     q = (query or "").strip()
     try:
         thr = float(threshold)
     except Exception:
         thr = 0.4
     thr = max(0.0, min(1.0, thr))
+    sub = (subspace or "").strip() or None
+    if not sub and filter_path:
+        try:
+            from kb_manager.registry import get_registry
+
+            smap = get_registry().subspace_map() or {}
+            if filter_path in smap:
+                sub = filter_path
+            else:
+                for sid, path in smap.items():
+                    if path and (path == filter_path or path in filter_path or filter_path in path):
+                        sub = sid
+                        break
+        except Exception:
+            pass
     if not q:
-        return {"results": [], "query": q, "threshold": thr, "count": 0}
+        return {"results": [], "query": q, "threshold": thr, "count": 0, "subspace": sub}
     try:
         _, _, dense, _, _ = await _get_index()
         q_emb = _dense_query_vec(dense, q)
@@ -1398,7 +1458,7 @@ async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
             ents_res = await session.execute(_select(EntityList))
             entity_lists = ents_res.scalars().all()
             if not entity_lists:
-                return {"results": [], "query": q, "threshold": thr, "count": 0}
+                return {"results": [], "query": q, "threshold": thr, "count": 0, "subspace": sub}
 
             code_tokens = {m.group(1).upper() for m in _CODE_TOKEN_RE.finditer(q)}
 
@@ -1422,7 +1482,16 @@ async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
                             "content": ent.content_json,
                             "similarity": 0.5,
                         })
-                return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+                results = filter_entities_for_context(
+                    results, query=q, subspace=sub, prefer_score=is_score_query(q)
+                )
+                return {
+                    "results": results,
+                    "query": q,
+                    "threshold": thr,
+                    "count": len(results),
+                    "subspace": sub,
+                }
 
             q_vec = np.array(q_emb)
             q_norm = float(np.linalg.norm(q_vec))
@@ -1485,7 +1554,35 @@ async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
                         "similarity": float(best_sim),
                     })
             results.sort(key=lambda x: x["similarity"], reverse=True)
-            return {"results": results, "query": q, "threshold": thr, "count": len(results)}
+            if is_score_query(q) and sub:
+                have = {r.get("list_name") for r in results}
+                for ent in entity_lists:
+                    meta = (ent.content_json or {}).get("_meta") or {}
+                    if meta.get("kind") != "score_table":
+                        continue
+                    ids = meta.get("subspace_ids") or []
+                    if sub not in ids or ent.list_name in have:
+                        continue
+                    results.insert(
+                        0,
+                        {
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": 1.0,
+                        },
+                    )
+                    have.add(ent.list_name)
+            results = filter_entities_for_context(
+                results, query=q, subspace=sub, prefer_score=is_score_query(q)
+            )
+            return {
+                "results": results,
+                "query": q,
+                "threshold": thr,
+                "count": len(results),
+                "subspace": sub,
+            }
     except Exception as e:
         logging.getLogger(__name__).warning("supplement search failed: %s", e)
         return {"results": [], "query": q, "threshold": thr, "count": 0, "error": str(e)[:500]}
@@ -1494,13 +1591,22 @@ async def _supplement_search_impl(query: str, threshold: float = 0.4) -> dict:
 @router.post("/supplement")
 async def supplement_api(payload: SupplementRequest, request: Request):
     """Tool-callable supplement search over entity_lists (threshold 0.4)."""
-    return await _supplement_search_impl(payload.query, payload.threshold)
+    return await _supplement_search_impl(
+        payload.query,
+        payload.threshold,
+        subspace=payload.subspace,
+        filter_path=payload.filter_path,
+    )
 
 
 @router.get("/supplement")
 async def supplement_get(
     query: str = Query("", description="query text"),
     threshold: float = Query(0.4, description="cosine threshold 0.0-1.0"),
+    subspace: str | None = Query(None),
+    filter_path: str | None = Query(None),
 ):
     """GET variant of supplement tool for direct tool calling."""
-    return await _supplement_search_impl(query, threshold)
+    return await _supplement_search_impl(
+        query, threshold, subspace=subspace, filter_path=filter_path
+    )
