@@ -136,16 +136,21 @@ Source ZIP hierarchy → `Document.doc_metadata.folder_hierarchy: list[str]` (`d
     ├── سوالات عمومی  (81, q/a + body)
     └── لینک‌ها  (16, article/kv_pair)
 
-ضمیمه / Supplements — `EntityList` supplementary tables (`database.py:249`, NOT `Chunk`s)
-  (on-disk XLSX list sheets → entity_lists · search-time injected at `search.py:960` step 8:
-   query→MiniLM-L12 cosine vs EntityList.description_embedding, threshold 0.6
-   → SearchSteps.injected_entities[{list_name, description, content: content_json, similarity}]
-   POST /search/api returns them; orchestrator wires this next as rag.supplemental)
-  ├── استفاده کنندگان گزارش  — {"Sheet1": [[شرکت راهکارهای مالی هوشم...
-  ├── تامین‌کنندگان دیتا  — {"Sheet1": [[صندوق کارآفرینی امید, صندو...
-  ├── سهامداران  — {"Sheet1 (2)": [[بانک رفاه کارگران, بانک‌…
-  ├── لیست و عناوین وام ها  — {"وام‌ها": [[اسنپ پی, خرید اقساطی], …
-  └── Word Document  — {} (empty placeholder)
+ضمیمه / Supplements — `EntityList` rows via `kb_manager/entity_lists.py` (NOT `Chunk`s)
+  Ingest builds structured `content_json` (`kind` + `subspace_ids` in `_meta`).
+  Search step 8: cosine ≥ 0.6 vs `description_embedding` + subspace score-table force-inject.
+  Tool path: `POST /search/supplement` (threshold 0.4, same subspace filter).
+  Orchestrator surfaces trimmed lists as `rag.supplemental`.
+  ├── جدول امتیاز اعتباری اشخاص حقیقی  — kind=score_table (15 bands, subspace facilities_person)
+  ├── جدول امتیاز اعتباری اشخاص حقوقی  — kind=score_table (15 bands, subspace facilities_legal / supplier)
+  ├── جدول امتیاز اعتبارسنجی چک         — kind=score_table (15 bands, scale 1–100, subspace cheque)
+  ├── لیست و عناوین وام ها              — kind=loan_catalog (~598 / 12 types)
+  ├── سهامداران                         — kind=shareholders (~27)
+  ├── تامین‌کنندگان دیتا                 — kind=data_providers (~68)
+  ├── استفاده کنندگان گزارش             — kind=report_consumers (~114)
+  └── Non-EntityList annexes (by design):
+        واژگان معادل → synonym map · متن خوش‌آمدگویی → canned greetings ·
+        سوالات نامربوط → offtopic rail · محدودیت‌ها و چالش‌ها → skipped (not a lookup table)
 ```
 
 *How to use a branch:* KB tester `filter_path: "شاخه/چک"` (last version, `search.html:127`) now yields only that subtree (`search.py:634` `allowed_ids` = `{chunk_id | filter_path in "/".join(hierarchy)}`). The Open WebUI scope picker + clarifying question in the next milestone will reuse the same `filter_path` key on `POST /v1/chat/completions` (`schemas.py` → `knowledgebase.py` → `retrieve.py:141`), with each chunk rendered as `from which part (which tree leaf) + which content` plus a `rag.supplemental: EntityList[]` envelope for the list rows.
@@ -199,15 +204,17 @@ flowchart TB
 </details>
 
 <details>
-<summary>2) Supplements — 5 EntityList (ضمیمه، NOT chunks)</summary>
+<summary>2) Supplements — 7 EntityList (ضمیمه، NOT chunks)</summary>
 
 ```mermaid
 flowchart LR
-    XLSX["XLSX sheet لیست بانک‌ها / عناوین وام"] --> PARSER["Importer: EntityList database.py:249"]
-    PARSER --> TBL["entity_lists list_name + description + description_embedding content_json"]
-    TBL --> STEP8["Search step 8 search.py:960 query×MiniLM-L12 cosine vs description_embedding threshold 0.6"]
-    STEP8 --> INJ["SearchSteps.injected_entities search.py:989 [{list_name, description, content: content_json, similarity}]"]
-    INJ --> API["POST /search/api returned with final_results orchestrator next: rag.supplemental: EntityList[]"]
+    XLSX["XLSX: score tables + catalogs under ضمیمه"] --> BUILD["entity_lists.py builders\nscore_table / loan_catalog / shareholders /\ndata_providers / report_consumers"]
+    BUILD --> TBL["entity_lists: list_name + description +\ndescription_embedding + content_json(_meta.kind, subspace_ids)"]
+    TBL --> STEP8["Search step 8: cosine ≥ 0.6\n+ force matching score_table by subspace"]
+    TBL --> SUP["POST /search/supplement threshold 0.4\nsubspace / filter_path aware"]
+    STEP8 --> INJ["injected_entities on /search/api"]
+    SUP --> TOOL["orchestrator supplementary_search → rag.supplemental"]
+    INJ --> TOOL
 ```
 
 </details>
@@ -666,7 +673,7 @@ This section documents the corpus, retrieval pipeline, model architecture, evalu
     └── لینک‌ها — 16
 ```
 
-**Supplements (EntityList tables, not chunks):** 5 lists (report users, data providers, shareholders, loan titles, Word docs) — injected at search step 8 via cosine similarity vs `description_embedding` (threshold 0.6).
+**Supplements (EntityList tables, not chunks):** 7 lists on corpus `1405-08-20` — 3 subspace-tagged score tables + 4 catalogs (loans, shareholders, providers, consumers). Built by `entity_lists.py`, injected at search step 8 (cosine ≥ 0.6 + score-table force-inject) and via `POST /search/supplement` (0.4). Glossary/welcome/offtopic/limitations are not EntityLists.
 
 ### Retrieval Pipeline Architecture
 
