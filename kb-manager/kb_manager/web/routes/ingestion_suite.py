@@ -773,9 +773,17 @@ async def chunking_visualization(sid: str, path: str = Query(...)):
                     if value and str(value).strip():
                         fields[header] = str(value).strip()
 
-                # Skip only when ALL selected columns are empty (partial rows kept)
+                # Empty rows, or QA rows missing question/answer, are skipped.
                 skipped = not fields
                 skip_reason = "All selected columns empty" if skipped else ""
+                if not skipped and doc_type == "qa_pair":
+                    from kb_manager.chunker.semantic import SemanticChunker
+
+                    # Preview field keys may be original-cased; normalize like the chunker.
+                    norm_fields = {str(k).strip().lower(): v for k, v in fields.items()}
+                    if not SemanticChunker._qa_fields_complete(norm_fields):
+                        skipped = True
+                        skip_reason = "Incomplete QA (missing question or answer)"
 
                 # Format content as chunker would
                 if is_tabular and not skipped:

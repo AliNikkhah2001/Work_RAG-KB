@@ -31,6 +31,7 @@ class IndexManifest:
     embedding_model: str = ""
     embedding_dim: int = 0
     active: bool = False
+    artifacts: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -47,6 +48,7 @@ class IndexManifest:
             embedding_model=str(data.get("embedding_model") or ""),
             embedding_dim=int(data.get("embedding_dim") or 0),
             active=bool(data.get("active")),
+            artifacts=dict(data.get("artifacts") or {}),
         )
 
 
@@ -108,6 +110,7 @@ def build_manifest(
     embedding_model: str | None = None,
     embedding_dim: int | None = None,
     activate: bool = False,
+    artifacts: dict[str, Any] | None = None,
 ) -> IndexManifest:
     """Build a new IndexManifest from current registry pins + corpus stats."""
     reg = get_registry()
@@ -133,6 +136,7 @@ def build_manifest(
         embedding_model=embedding_model or str(retrieval.get("dense_model") or ""),
         embedding_dim=int(embedding_dim or retrieval.get("dense_dim") or 0),
         active=activate,
+        artifacts=dict(artifacts or {}),
     )
     return manifest
 

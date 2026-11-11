@@ -101,7 +101,7 @@ async def _prewarm_search_index(app: FastAPI | None = None):
             ensure()
             if app is not None:
                 app.state.reranker_ok = True
-            logging.getLogger(__name__).info("reranker model loaded via _ensure_model")
+            log.info("reranker model loaded via _ensure_model")
             return
         raise RuntimeError(
             f"Reranker {type(reranker).__name__} has neither warmup() nor _ensure_model()"
@@ -111,7 +111,7 @@ async def _prewarm_search_index(app: FastAPI | None = None):
         if app is not None:
             app.state.reranker_ok = True
             app.state.reranker_error = None
-        logging.getLogger(__name__).info("reranker model warmed up")
+        log.info("reranker model warmed up")
     except Exception as exc:
         if app is not None:
             app.state.reranker_ok = False

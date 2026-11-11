@@ -9,6 +9,7 @@ import yaml
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from kb_manager.dvc_snapshot import load_server_pin
 from kb_manager.registry import (
     PackNotFoundError,
     build_manifest,
@@ -283,4 +284,14 @@ async def api_active():
         "prompts_guardrails": (
             reg.prompts_pack("guardrails", guard_prompt_ver) if guard_prompt_ver else {}
         ),
+        "dvc": load_server_pin(),
     }
+
+
+@router.get("/api/dvc")
+async def api_dvc():
+    """Active processed snapshot tracked in the kb-source DVC repo."""
+    pin = load_server_pin()
+    if not pin:
+        raise HTTPException(status_code=404, detail="no DVC processed snapshot pin")
+    return pin
