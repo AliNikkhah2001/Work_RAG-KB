@@ -1,0 +1,20 @@
+{
+  "corpus_date": "1405-06-23",
+  "manifest_id": "kb-20261111T101500Z",
+  "documents": 28,
+  "chunks": 1471,
+  "entity_lists": 6,
+  "vectors": {
+    "sentence-transformers__paraphrase-multilingual-MiniLM-L12-v2-384": 1471
+  },
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "embedding_dim": 384,
+  "packs": {
+    "schemas": "1.0.0",
+    "taxonomy": "1.0.0",
+    "canned": "1.0.1",
+    "prompts_orchestrator": "1.0.3",
+    "prompts_guardrails": "1.0.0",
+    "retrieval": "1.0.0"
+  }
+}
