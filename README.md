@@ -17,7 +17,7 @@ Core capabilities (RAM-first, v13):
 - Embed with `paraphrase-multilingual-MiniLM-L12-v2` (384-dim, **GPU** `KB_EMBED_DEVICE=cuda`, H200 3 GB HBM) and cache to `.npz`.
 - **Hybrid retrieval**: **Rust tantivy BM25** (RAM, 50 MB heap, whitespace over Persian 3-gram stream) + dense (GPU pgvector HNSW) → RRF fusion k=60 → cross-encoder rerank (`BAAI/bge-reranker-v2-m3`, **GPU**) — **55 ms warm** (see [Latency](#latency) with plots).
 - Web UI (dashboard, documents, chunks, pipeline, search, benchmarks, versions, cleanup, monitoring) on port `8000`.
-- Benchmark + evaluation harness (120 frozen queries, 6 formats; v11 Hit@5 0.9306, v13 pending re-benchmark on 1405-07-06).
+- Benchmarks UI proxies **Work_RAG-Evaluation_Suite** (`EVAL_SUITE_URL`) for live Hit@k + multiturn; quality roadmap in [`kb-manager/docs/EVAL_QUALITY_IMPROVEMENT_PLAN.md`](kb-manager/docs/EVAL_QUALITY_IMPROVEMENT_PLAN.md) (baseline 2026-11-11: Hit@5 69.7%, multiturn 7/12). Historical v11 Hit@5 0.9306 remains in `kb-manager/README.md`.
 
 The full architecture & processing plan (data taxonomy, pgvector schema, preprocessing, chunking, embedding, hybrid retrieval, monitoring, versioning, CI/CD, roadmap) is in [`KB_ARCHITECTURE.md`](KB_ARCHITECTURE.md). IR metrics, frameworks, and evaluation theory are in [`retrieval-evaluation-research.md`](retrieval-evaluation-research.md).
 
@@ -68,7 +68,7 @@ components/knowledgebase/
     │   ├── pipeline/             # orchestrator / quality / versioning / artifact_mgr
     │   ├── models/               # database / schemas / queries
     │   ├── web/                  # app.py + routes/ (12 routers) + templates/ + static/
-    │   ├── evaluation/           # benchmark, generator, metrics, datasets, plots
+    │   ├── evaluation/           # deprecated stub → Evaluation Suite HTTP
     │   ├── retrieval_training/   # mining / stage analysis packages
     │   ├── versioning/           # KB snapshot helpers
     │   └── tests/                # 17 tests

@@ -1206,20 +1206,8 @@ async def _run_ingest_job(
         except Exception:
             pass
 
-        # Best-effort benchmark on data/test_questions.json
-        bench: dict[str, Any] = {"attempted": False}
-        try:
-            tq = PROJECT_ROOT / "data" / "test_questions.json"
-            if tq.exists():
-                from kb_manager.evaluation.benchmark import BenchmarkRunner
-
-                dataset = json.loads(tq.read_text(encoding="utf-8"))
-                runner = BenchmarkRunner(lambda q, k: [], top_k=5, version=f"ingestion-{sid}")
-                result = runner.run(dataset if isinstance(dataset, list) else [])
-                bench = {"attempted": True, "total": result.total_queries, "status": "done"}
-        except Exception as e:
-            bench = {"attempted": True, "status": "skipped", "error": str(e)[:300]}
-        job["benchmark"] = bench
+                # Evaluation is owned by Work_RAG-Evaluation_Suite (EVAL_SUITE_URL).
+        job["benchmark"] = {"skipped": True, "reason": "use Evaluation Suite Hit@k"}
         job["status"] = "completed"
         job["completed_at"] = datetime.now(UTC).isoformat()
     except Exception as e:
