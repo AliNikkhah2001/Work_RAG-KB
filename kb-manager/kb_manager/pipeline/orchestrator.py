@@ -566,6 +566,16 @@ class PipelineOrchestrator:
         children = [c for c in chunks if not c.metadata.get("is_parent")]
         parent_id_map: dict[str, str] = {}
 
+        def _slim_chunk_metadata(meta: dict | None) -> dict:
+            """Drop bulky parser dumps so multi-hundred QA inserts stay under
+            asyncpg / statement size limits (sheets arrays were ~1.4MB/chunk)."""
+            if not isinstance(meta, dict):
+                return {}
+            out = dict(meta)
+            for bulky in ("sheets", "raw_sheets", "rows", "full_table", "full_list_text", "full_table_text"):
+                out.pop(bulky, None)
+            return out
+
         # Build embedding map for pgvector (chunk object id -> vector)
         embedding_map: dict[int, list[float]] = {}
         if embeddings is not None:
@@ -587,7 +597,7 @@ class PipelineOrchestrator:
                 token_count=pc.token_count,
                 embedding=emb,  # pgvector HNSW
                 embedding_model=self._embedder.model_name if self._embedder else None,
-                doc_metadata=pc.metadata,
+                doc_metadata=_slim_chunk_metadata(pc.metadata),
             )
             parent_db_chunks.append(db_chunk)
             session.add(db_chunk)
@@ -597,7 +607,10 @@ class PipelineOrchestrator:
                 key = pc.metadata.get("parent_key", pc.metadata.get("sheet_name", ""))
                 parent_id_map[key] = dbc.id
 
-        # Store children with correct parent_id in one pass
+        # Store children in batches — a single flush of 400+ qa_pair rows with
+        # vectors blew up asyncpg ("connection was closed in the middle of operation").
+        _FLUSH_EVERY = 40
+        pending = 0
         for cc in children:
             key = cc.metadata.get("parent_key", cc.metadata.get("sheet_name", ""))
             parent_id = parent_id_map.get(key)
@@ -613,13 +626,15 @@ class PipelineOrchestrator:
                 token_count=cc.token_count,
                 embedding=emb,  # pgvector HNSW
                 embedding_model=self._embedder.model_name if self._embedder else None,
-                doc_metadata=cc.metadata,
+                doc_metadata=_slim_chunk_metadata(cc.metadata),
             )
             session.add(db_chunk)
-        if children or parents:
+            pending += 1
+            if pending >= _FLUSH_EVERY:
+                await session.flush()
+                pending = 0
+        if pending or parents:
             await session.flush()
-        # Also store parent chunks that were already flushed are in DB; no second O(n²) scan needed
-        # For completeness, ensure parents that are also in children list? No, already handled.
 
         doc.chunk_count = len(chunks)
         result["chunks"] = len(chunks)
