@@ -100,10 +100,12 @@ flowchart TB
     STORE["store chunks + DocumentVersion (SQLite aiosqlite or pgvector HNSW 384-d)"]
     QUAL["quality gate — QualityGate.validate_document"]
     VER["version snapshot per document — pipeline/versioning.py"]
-    ENT["EntityList supplement tables — 'ضمیمه پایگاه دانش' sheets, stored separately, not chunks"]
+    ENT["EntityList builders — entity_lists.py: score tables + catalogs (structured JSON, not chunks)"]
+    SKIP["Non-list ضمیمه: glossary→synonym map; welcome/offtopic/limitations skipped"]
 
     SRC --> SCAN --> PARSE --> PREP --> CHUNK --> EMBED --> STORE --> QUAL --> VER
     PARSE -.-> ENT
+    PARSE -.-> SKIP
 ```
 
 ### Caption: Ingest pipeline — high-level black box
@@ -113,13 +115,13 @@ flowchart TB
     SRC["source files: XLSX / PDF / DOCX"]
     PIPE["Knowledgebase Ingest Pipeline"]
     STORE["KB store: SQLite / pgvector HNSW 384-d + versions"]
-    ENT["EntityList supplement tables"]
+    ENT["EntityList supplement tables (score + catalogs)"]
 
     SRC --> PIPE --> STORE
     PIPE -.-> ENT
 ```
 
-Pipeline: `kb_manager/pipeline/orchestrator.py` coordinates scan → parse → preprocess → chunk → embed → store → quality gate → version, with full/incremental rebuilds and versioning (`pipeline/versioning.py`). `EntityList` supplementary sheets (`ضمیمه پایگاه دانش` list sheets) are stored separately (`database.py:249`) and injected at search step 8, not embedded as chunks.
+Pipeline: `kb_manager/pipeline/orchestrator.py` coordinates scan → parse → preprocess → chunk → embed → store → quality gate → version, with full/incremental rebuilds and versioning (`pipeline/versioning.py`). `EntityList` supplementary sheets under `ضمیمه پایگاه دانش` are built by `kb_manager/entity_lists.py` into structured `content_json` (`bands`/`color_groups` for score tables; `records`/`groups` for catalogs) and stored separately (`database.py`), not embedded as chunks. Glossary (`واژگان معادل`) updates the synonym map; welcome / offtopic / limitations docs are intentionally not EntityLists.
 
 </details>
 
@@ -141,7 +143,8 @@ flowchart LR
     RERANK["cross-encoder BGE-v2-m3 — GPU pool min(50, top_k×3) / KB_RERANK_POOL"]
     FUSE["RRF↔cross-encoder fusion α=0.7 + pin protection top-3 ≥ rank 10"]
     TOP["final top-k — min_relevance_score threshold"]
-    ENT["step 8 EntityList injection — cosine ≥ 0.6"]
+    ENT["step 8 EntityList inject — cosine ≥ 0.6 + subspace score-table force-inject"]
+    SUP["POST /search/supplement — threshold 0.4, subspace-filtered"]
     CACHE["Redis TTL 600s + in-memory — sha256 key"]
 
     Q --> NORM --> TOKEN --> BEAM --> BM25
@@ -152,6 +155,7 @@ flowchart LR
     RRF --> RERANK --> FUSE --> TOP --> ENT
     Q -.->|"cache hit 2–7 ms"| CACHE
     CACHE -.-> TOP
+    Q -.-> SUP
 ```
 
 ### Caption: Retrieval pipeline — high-level black box
@@ -161,13 +165,25 @@ flowchart LR
     Q["Persian query"]
     CACHE["Query cache — Redis + in-memory"]
     RETRIEVE["Hybrid retrieval — BM25 + dense + RRF + cross-encoder rerank"]
-    RESULTS["Final top-k results + injected entities"]
+    RESULTS["Final top-k + injected entities"]
+    SUP["/search/supplement EntityLists"]
 
     Q -.->|"cache hit"| CACHE -.-> RESULTS
     Q --> RETRIEVE --> RESULTS
+    Q --> SUP
 ```
 
-Flow: `POST /search/api` (`kb_manager/web/routes/search.py`). Query is normalized and tokenized (word tokens + Persian char 3-grams, stopword removal), expanded via synonym/multi-query beam (default 5), optional HyDE off. Two BM25 legs (content + keywords, `keyword_boost×3`) run on tantivy RAM index or Python fallback; dense leg uses the MiniLM-L12 384-d matrix from `data/dense_embeddings.npz` (or pgvector HNSW when `KB_DB_MODE=pgvector`). Results fuse via RRF k=60, cross-encoder rerank (`BAAI/bge-reranker-v2-m3`, GPU), then RRF↔cross-encoder score fusion α=0.7 with pin protection (BM25/merged top-3 cannot drop below rank 10), then final top-k gated by `min_relevance_threshold`. Step 8 injects `EntityList` rows whose `description_embedding` cosine ≥ 0.6. Redis (`KB_REDIS_URL`, TTL 600 s) + in-memory fallback cache keyed by `sha256(normalized_query|top_k|boost|filter_path)`; errors never cached. `KB_FAST_CACHE=true` skips the 2.7 s per-search fingerprint scan.
+Flow: `POST /search/api` (`kb_manager/web/routes/search.py`). Query is normalized and tokenized (word tokens + Persian char 3-grams, stopword removal), expanded via synonym/multi-query beam (default 5), optional HyDE off. Two BM25 legs (content + keywords, `keyword_boost×3`) run on tantivy RAM index or Python fallback; dense leg uses the MiniLM-L12 384-d matrix from `data/dense_embeddings.npz` (or pgvector HNSW when `KB_DB_MODE=pgvector`). Results fuse via RRF k=60, cross-encoder rerank (`BAAI/bge-reranker-v2-m3`, GPU), then RRF↔cross-encoder score fusion α=0.7 with pin protection (BM25/merged top-3 cannot drop below rank 10), then final top-k gated by `min_relevance_threshold`. Step 8 injects `EntityList` rows whose `description_embedding` cosine ≥ 0.6 and, when a subspace/filter_path is active, force-injects the matching `score_table` so person/legal/cheque bands do not cross-bleed. `POST /search/supplement` (threshold 0.4) is the orchestrator tool path over the same EntityLists with the same subspace filter. Redis (`KB_REDIS_URL`, TTL 600 s) + in-memory fallback cache keyed by `sha256(normalized_query|top_k|boost|filter_path)`; errors never cached. `KB_FAST_CACHE=true` skips the 2.7 s per-search fingerprint scan.
+
+### EntityList kinds (`entity_lists.py`, corpus `1405-08-20`)
+
+| Kind | Source sheets | Structured fields | Notes |
+|---|---|---|---|
+| `score_table` | جداول امتیاز حقیقی / حقوقی / چک | `bands`, `color_groups`, `full_table_text` | 15 grades A1–E3; `subspace_ids` bind model to cheque vs person vs legal |
+| `loan_catalog` | لیست و عناوین وام ها | `records`, `groups`, `full_list_text` | ~598 titles / 12 types |
+| `shareholders` | سهامداران | `records`, `groups` | ~27 rows |
+| `data_providers` | تامین‌کنندگان دیتا | `records`, `groups` | ~68 rows; neo/mobile columns preserved |
+| `report_consumers` | استفاده کنندگان گزارش | `records`, `groups` | ~114 rows; openpyxl path keeps «لندتک/ریسلر» columns |
 
 </details>
 
@@ -402,3 +418,70 @@ Both diagrams validated against `kb_manager/kb_manager/`: `pipeline/orchestrator
 
 See parent repository `LICENSE` and the submodule's own obligations (`kb-manager` is private — ICS Credit Scoring).
 
+<!-- docs-toc:start -->
+## Documentation Index
+
+> Auto-generated from this repository's tracked Markdown notes (**49** files). Refresh with `python scripts/gen_readme_toc.py` — the `docs-toc` workflow does this automatically on push.
+
+### Repository root
+
+- [ICS Knowledge Base Architecture & Processing Plan](KB_ARCHITECTURE.md) — 1. Current KB Analysis
+- [Claude Code Configuration - OpenCode Orchestrator](SKILL.md) — coder, reviewer, tester, planner, researcher
+- [Retrieval Evaluation Methods, Frameworks & Metrics](retrieval-evaluation-research.md) — where rel(k) is 1 if document at rank k is relevant, 0 otherwise
+
+### `.agent/`
+
+- [Plan: Fix All Weak Spots (W1-W5) — One-by-One with Benchmark Regeneration](.agent/plans/abstract-dreaming-ostrovsky.md) — User requested comprehensive fix for all retrieval weak spots across v2→v4, with per-fix benchmark regeneration, across all complexities (Low/Med/Hig…
+
+### `archive/`
+
+- [KB Manager Retrieval Benchmark Comparison: v2 → v3 → v4](archive/BENCHMARK_COMPARISON.md) — 1. Cross-encoder reranker significantly improves ranking quality
+- [KB Manager - Retrieval System v4 Implementation Plan](archive/IMPLEMENTATION_PLAN.md) — Complete overhaul of the retrieval system with 7 improvement methods, synthetic data generation pipeline, and comprehensive documentation.
+- [Persian NLP Resources for KB Manager](archive/PERSIAN_RESOURCES.md) — Comprehensive catalog of Persian (Farsi) datasets, models, and tools relevant to the KB Manager retrieval system.
+- [KB Manager — Implementation Plan v3](archive/PLAN.md)
+
+### `kb-manager/`
+
+- [KB Manager — Persian RAG Knowledge Base](kb-manager/README.md) — The pipeline now includes a 3-way LLM classifier (nodes/classify.py) that routes every query into one of three categories before retrieval, plus an M…
+- [v10 failure group: A_company (24 samples)](kb-manager/artifacts/retrieval_training/rca/group_A_company.md) — 1. [Company_CRM_Questions] score=447.2601 :: ...‌از زمان دقیق بروزرسانی، میتوانید به لینک زیر مراجعه کنید: https://ics24.ir/about/updatecreditor کلید…
+- [v10 failure group: A_individual (12 samples)](kb-manager/artifacts/retrieval_training/rca/group_A_individual.md) — 1. [Cheque_ReasonCode_for_Chatbot] score=525.2788 :: ...‌کلیدواژه‌ها: تاخیر,چک برگشتی,رفع سوءاثر کد دلیل: -‌... | کلیدواژه‌ها: تاخیر,چک برگشتی,رفع سو…
+- [v10 failure group: A_public (10 samples)](kb-manager/artifacts/retrieval_training/rca/group_A_public.md) — 1. [ChequeQuestions] score=472.1116 :: ...‌که در نهایت باعث کسب رتبه A برایش شده است. کلیدواژه‌ها: تعداد زیاد چک، مبلغ زیاد چک، تعهدات بالا، ریسک بال…
+- [v10 failure group: BC (8 samples)](kb-manager/artifacts/retrieval_training/rca/group_BC.md) — 1. [Company_CRM_Questions] score=901.47 :: ...‌همان شناسه ملی ارسال شود، گزارش اعتباری شرکت به‌صورت خودکار به‌روزرسانی خواهد شد. کلیدواژه‌ها: شناسه م…
+- [LLM-judge corpus — A_company (24 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_company.md)
+- [LLM-judge corpus — A_individual (12 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_individual.md)
+- [LLM-judge corpus — A_public (10 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_public.md)
+- [LLM-judge corpus — BC (8 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_BC.md)
+- [KV / Tree / Variable Chunking Plan — KB 1405-06-23 (41 files)](kb-manager/docs/KV_CHUNKING_PLAN.md) — Audit tool: kb_manager/parsers/{xlsx_parser,docx_parser,pdf_parser}.py (existing code).
+- [KB Manager — Evidence-Based Remediation Plan](kb-manager/docs/REMEDIATION_PLAN.md) — This plan verifies every reported finding, maps system flows, and provides a phased implementation roadmap an engineer can execute safely. Untracked…
+- [KB Manager Technical Documentation](kb-manager/docs/index.md) — Persian RAG Knowledge Base — Technical Reports
+- [Synthetic Generation — Remote 2×GPU Gemma 30B Execution Guide](kb-manager/docs/reports/SYNTHETIC_GEMMA_REMOTE.md)
+- [Comprehensive Report — W1 Keyword-only & W5 Evaluation Coverage](kb-manager/docs/reports/W1_W5_comprehensive_report.md) — Keyword-only benchmark queries (format_keyword_only) have Hit@5 33-45% across v2→v4 (vs 90% overall). MRR 0.180→0.333 (+85% after v4 char n-grams) bu…
+- [Root-Cause Analysis — v10 1405-06-23 retrieval failures](kb-manager/docs/retrieval_training/RCA_v10_README.md) — This document analyses all 54 failures (46 A + 6 B + 2 C) sample-by-sample. Every failure was dumped with its full gold text, its actual retrieved te…
+- [Evaluation (design stub)](kb-manager/docs/retrieval_training/evaluation.md) — Reuse kb_manager/evaluation/metrics.py: RetrievalMetrics.compute_all
+- [Retrieval failure analysis (Agent 2 — v10 frozen baseline)](kb-manager/docs/retrieval_training/failure_analysis.md)
+- [Retrieval failure analysis (Agent 2 — v10_1405-06-23 corpus)](kb-manager/docs/retrieval_training/failure_analysis_v10_1405-06-23.md)
+- [Hard-Negative Mining (tier design + proportions + provenance)](kb-manager/docs/retrieval_training/hard_negative_mining.md) — Mined per query against the frozen pipeline
+- [Repository Audit (from code inspection, 2026-09-12)](kb-manager/docs/retrieval_training/repository_audit.md) — Source of truth is the code cited per row; the brief's "verified facts" were
+- [Training (design stub)](kb-manager/docs/retrieval_training/training.md) — Two fine-tuning tracks consume the stage-3 dataset; both are contract-only
+- [Synthetic Data Generation with Gemma 30B](kb-manager/docs/synthetic-generation.md) — Complete guide for generating synthetic Persian QA and conversational data using Gemma-2-27B on dual-GPU setup.
+- [Technical Report](kb-manager/docs/technical-report.md) — Embedding Model, Retrieval Methods & Evaluation Metrics for Persian RAG Knowledge Base
+- [KB Manager content packs](kb-manager/packs/README.md) — Versioned YAML packs served by GET /registry/api/ and loaded at ingest/search time.
+- [KB corpus 1405-08-20 — problems report](kb-manager/reports/1405-08-20/PROBLEMS_REPORT.md) — Generated during ingest-preflight. Supplementary material is listed for routing only; it must not be vectorized as general KB chunks.
+- [Off-topic patterns from سوالات نامربوط.xlsx](kb-manager/reports/1405-08-20/offtopic_summary_for_guardrails.md) — Use in guardrails judge prompts. Do not ingest these rows into the vector DB.
+- [Applied to code (2026-11-11)](kb-manager/reports/1405-08-20/subspace_distill/APPLIED.md)
+- [Method notes — subspace distill](kb-manager/reports/1405-08-20/subspace_distill/METHOD_NOTES.md) — Important confusion buckets were quota-filled first (cheque↔facilities_person, facilities_person↔facilities_legal, credit_ladder↔facilities_person, g…
+- [Subspace QA distill — 1405-08-20](kb-manager/reports/1405-08-20/subspace_distill/README.md) — 1. Walk all .xlsx under kb-source/1405-08-20/پایگاه دانش.
+- [Verification — subspace distill & draft prompts v1.0.4](kb-manager/reports/1405-08-20/subspace_distill/VERIFICATION.md) — 1. Mega-cluster (facilities_person_c00, size 330): ~73% of subspace in one blob; summaries collapse to generic «امتیاز/اقساط». Confirms METHOD_NOTES…
+- [Recursive subspace summaries](kb-manager/reports/1405-08-20/subspace_distill/recursive_summaries.md) — Per-subspace cluster summaries followed by a rollup paragraph.
+- [KB Version Snapshots](kb-manager/versions/README.md) — Archived KB exports — each v/ is a full kb_export.json + manifest.json at a pipeline checkpoint.
+- [KB Version v1](kb-manager/versions/v1/README.md)
+- [KB Version v10_1405-06-23](kb-manager/versions/v10_1405-06-23/README.md)
+- [v10 — KB 1405-06-23 ingest report (2026-09-16)](kb-manager/versions/v10_1405-06-23/V10_REPORT.md) — Source: 1405-06-23.zip (41 files) staged with cleanup:
+- [Knowledge Base Version 11 — 1405-06-23 (Post-Chunkfix Rebuild)](kb-manager/versions/v11_1405-06-23/README.md) — This is version 11 of the Persian RAG Knowledge Base, built from the source directory data/v10_source/1405-06-23 (41 xlsx files → 35 documents after…
+- [KB Version v2](kb-manager/versions/v2/README.md)
+- [KB Version v4_retrieval](kb-manager/versions/v4_retrieval/README.md)
+- [KB Version v6](kb-manager/versions/v6/README.md)
+- [IVA Test — v7 (1405-05-31 KB)](kb-manager/versions/v7_iva_1405-05-31/IVA_REPORT.md) — Source: kb-source/1405-05-31 (34 docs, 2074 chunks)
+- [KB Version v7_iva_1405-05-31](kb-manager/versions/v7_iva_1405-05-31/README.md)
+
+<!-- docs-toc:end -->
