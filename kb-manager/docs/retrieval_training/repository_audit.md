@@ -95,7 +95,7 @@ re-checked and confirmed unless noted.
 ## 5. Test layout
 
 - `tests/`: `conftest.py`, `test_characterization.py`, `test_chunker.py`,
-  `test_cli.py`, `test_embedder.py`, `test_evaluation.py`, `test_parsers.py`,
+  `test_cli.py`, `test_embedder.py`, `test_parsers.py`,
   `test_pipeline.py`, `test_preprocessor.py`, `test_qa_massive.py`.
 - `pyproject.toml [tool.pytest.ini_options]`: `testpaths=["tests"]`,
   `asyncio_mode="auto"`, NO custom markers — new tests use plain functions and
