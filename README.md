@@ -349,13 +349,17 @@ docker compose up -d   # pgvector on :5432 + kb-manager on :8000
 | `test_preprocessor.py` | Persian normalization, HTML/URL/whitespace, pipeline quality |
 | `test_pipeline.py` | orchestrator scan (full vs incremental) |
 | `test_embedder.py` | dims, query embed, content-hash cache |
-| `test_evaluation.py` | Ranx vs pure-Python fallback, Ragas availability |
 | `test_cli.py` | version, inspect |
 
 ```bash
 cd kb-manager
 pytest tests/ -v
 ```
+
+> Test suites are registered centrally in `components/evaluation/registry/suites.yaml`
+> and run with `python components/evaluation/scripts/run_suite.py --suite kb-unit`.
+> The `test_evaluation.py` stub was removed — evaluation tests live in
+> `Work_RAG-Evaluation-Suite`.
 
 Validated: `compileall` clean · `pytest` **116 passed**, 6 skipped, 1 pre-existing env-dependent failure (`test_qa_massive_count` — newest `kb-source/1405-*` folder exposes 4 QA files < 5).
 
