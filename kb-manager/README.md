@@ -138,13 +138,17 @@ Source ZIP hierarchy → `Document.doc_metadata.folder_hierarchy: list[str]` (`d
     └── لینک‌ها  (16, article/kv_pair)
 
 ضمیمه / Supplements — `EntityList` rows via `kb_manager/entity_lists.py` (NOT `Chunk`s)
-  Ingest builds structured `content_json` (`kind` + `subspace_ids` in `_meta`).
-  Search step 8: cosine ≥ 0.6 vs `description_embedding` + subspace score-table force-inject.
-  Tool path: `POST /search/supplement` (threshold 0.4, same subspace filter).
-  Orchestrator surfaces trimmed lists as `rag.supplemental`.
+  Ingest builds structured `content_json` (`kind` + `model` + `hierarchy` + `subspace_ids` in `_meta`).
+  Search step 8: cosine ≥ 0.6 vs `description_embedding` + score-table/reason-catalog force-inject + exact-code pin.
+  Tool path: `POST /search/supplement` (threshold 0.4, same subspace filter; returns `reason_code_membership`).
+  Orchestrator surfaces trimmed lists as `rag.supplemental`; a code in >1 model asks which model.
   ├── جدول امتیاز اعتباری اشخاص حقیقی  — kind=score_table (15 bands, subspace facilities_person)
   ├── جدول امتیاز اعتباری اشخاص حقوقی  — kind=score_table (15 bands, subspace facilities_legal / supplier)
   ├── جدول امتیاز اعتبارسنجی چک         — kind=score_table (15 bands, scale 1–100, subspace cheque)
+  ├── کدهای دلیل — چک                    — kind=reason_code_catalog (86, model=cheque)
+  ├── کدهای دلیل — اشخاص حقیقی (مدل اصلی)   — kind=reason_code_catalog (77, model=person_main)
+  ├── کدهای دلیل — اشخاص حقیقی (مدل جایگزین) — kind=reason_code_catalog (10, model=person_substitute)
+  ├── کدهای دلیل — اشخاص حقوقی            — kind=reason_code_catalog (23, model=legal)
   ├── لیست و عناوین وام ها              — kind=loan_catalog (~598 / 12 types)
   ├── سهامداران                         — kind=shareholders (~27)
   ├── تامین‌کنندگان دیتا                 — kind=data_providers (~68)
@@ -205,16 +209,16 @@ flowchart TB
 </details>
 
 <details>
-<summary>2) Supplements — 7 EntityList (ضمیمه، NOT chunks)</summary>
+<summary>2) Supplements — 11 EntityList (ضمیمه، NOT chunks)</summary>
 
 ```mermaid
 flowchart LR
-    XLSX["XLSX: score tables + catalogs under ضمیمه"] --> BUILD["entity_lists.py builders\nscore_table / loan_catalog / shareholders /\ndata_providers / report_consumers"]
-    BUILD --> TBL["entity_lists: list_name + description +\ndescription_embedding + content_json(_meta.kind, subspace_ids)"]
-    TBL --> STEP8["Search step 8: cosine ≥ 0.6\n+ force matching score_table by subspace"]
-    TBL --> SUP["POST /search/supplement threshold 0.4\nsubspace / filter_path aware"]
+    XLSX["XLSX: score tables + reason-code + catalogs under ضمیمه"] --> BUILD["entity_lists.py builders\nscore_table / reason_code_catalog /\nloan_catalog / shareholders /\ndata_providers / report_consumers"]
+    BUILD --> TBL["entity_lists: list_name + description +\ndescription_embedding + content_json(_meta.kind, model, hierarchy, subspace_ids)"]
+    TBL --> STEP8["Search step 8: cosine ≥ 0.6\n+ force matching score_table/reason catalog by subspace\n+ exact reason-code pin"]
+    TBL --> SUP["POST /search/supplement threshold 0.4\nsubspace / filter_path aware\n+ reason_code_membership"]
     STEP8 --> INJ["injected_entities on /search/api"]
-    SUP --> TOOL["orchestrator supplementary_search → rag.supplemental"]
+    SUP --> TOOL["orchestrator supplementary_search → rag.supplemental\n(cross-model code → clarify)"]
     INJ --> TOOL
 ```
 
@@ -721,7 +725,7 @@ This section documents the corpus, retrieval pipeline, model architecture, evalu
     └── لینک‌ها — 16
 ```
 
-**Supplements (EntityList tables, not chunks):** 7 lists on corpus `1405-08-20` — 3 subspace-tagged score tables + 4 catalogs (loans, shareholders, providers, consumers). Built by `entity_lists.py`, injected at search step 8 (cosine ≥ 0.6 + score-table force-inject) and via `POST /search/supplement` (0.4). Glossary/welcome/offtopic/limitations are not EntityLists.
+**Supplements (EntityList tables, not chunks):** 11 lists on corpus `1405-08-20` — 3 subspace-tagged score tables + 4 reason-code catalogs (چک، حقیقی مدل اصلی/جایگزین، حقوقی) + 4 catalogs (loans, shareholders, providers, consumers). Built by `entity_lists.py`, injected at search step 8 (cosine ≥ 0.6 + score-table force-inject + exact-code pin) and via `POST /search/supplement` (0.4). Glossary/welcome/offtopic/limitations are not EntityLists.
 
 ### Retrieval Pipeline Architecture
 

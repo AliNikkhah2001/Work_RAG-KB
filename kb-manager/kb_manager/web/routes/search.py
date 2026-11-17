@@ -764,6 +764,29 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
             bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + keyword_boost * s
     bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
     bm25_id_map = {cd[0]: cd for cd in chunk_data}
+    # Exact reason-code pin: a query carrying a code token (HAD1, DAG1-1) must
+    # surface the chunk that defines that exact code. Generic reason-text
+    # chunks otherwise outrank it (verified: «کد دلیل HAD1» returned ADY1…).
+    try:
+        from kb_manager.entity_lists import extract_reason_code as _extract_code
+
+        _rc = _extract_code(query)
+        if _rc:
+            _rc_pat = re.compile(
+                r"کد\s*دلیل\s*[:\s]*" + re.escape(_rc) + r"(?![\w-])", re.IGNORECASE
+            )
+            _pinned: list[str] = []
+            for cd in chunk_data:
+                if filter_path and filter_path not in cd[7]:
+                    continue
+                if _rc_pat.search(cd[4] or ""):
+                    _pinned.append(cd[0])
+            if _pinned:
+                for cid in _pinned:
+                    bm25_scores_combined[cid] = bm25_scores_combined.get(cid, 0.0) + 1_000_000.0
+                bm25_raw = sorted(bm25_scores_combined.items(), key=lambda x: x[1], reverse=True)[: top_k * 3]
+    except Exception:
+        pass
     bm25_results = []
     bm25_scores = {}
     for chunk_id, score in bm25_raw:
@@ -1195,6 +1218,48 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
                     },
                 )
                 have.add(ent.list_name)
+        # Reason-code catalogs: force-inject the catalog that actually defines
+        # the queried code. Generic reason asks fall back to the active
+        # subspace, so «کد دلیل HAD1» never returns another model's dictionary.
+        from kb_manager.entity_lists import is_reason_code_query as _is_rc_query
+
+        if _is_rc_query(query) and entity_lists:
+            _code_tokens = {m.group(1).upper() for m in _REASON_CODE_TOKEN_RE.finditer(query)}
+            _member_models: set[str] = set()
+            if _code_tokens:
+                for ent in entity_lists:
+                    meta = (ent.content_json or {}).get("_meta") or {}
+                    if meta.get("kind") != "reason_code_catalog":
+                        continue
+                    recs = (ent.content_json or {}).get("records") or []
+                    if any(
+                        str(r.get("reason_code") or "").upper() in _code_tokens
+                        for r in recs
+                        if isinstance(r, dict)
+                    ):
+                        _member_models.add(str(meta.get("model") or ""))
+            have = {e.get("list_name") for e in scored_ents}
+            for ent in entity_lists:
+                meta = (ent.content_json or {}).get("_meta") or {}
+                if meta.get("kind") != "reason_code_catalog":
+                    continue
+                ids = meta.get("subspace_ids") or []
+                if subspace and ids and subspace not in ids:
+                    continue
+                if _member_models and meta.get("model") not in _member_models:
+                    continue
+                if ent.list_name in have:
+                    continue
+                scored_ents.insert(
+                    0,
+                    {
+                        "list_name": ent.list_name,
+                        "description": ent.description,
+                        "content": ent.content_json,
+                        "similarity": 1.0,
+                    },
+                )
+                have.add(ent.list_name)
         injected_entities = filter_entities_for_context(
             scored_ents,
             query=query,
@@ -1406,6 +1471,46 @@ class SupplementRequest(BaseModel):
     threshold: float = 0.4
     subspace: str | None = None
     filter_path: str | None = None
+    # Model pick from a prior «کدام مدل؟» clarify turn (person_main,
+    # person_substitute, legal, cheque). Narrows reason-code catalogs.
+    reason_code_model: str | None = None
+
+
+_REASON_CODE_TOKEN_RE = re.compile(r"\b([A-Za-z]{2,6}\d{1,2}(?:-\d{1,2})?)\b")
+
+
+def _reason_code_membership(entity_lists, code_tokens: set[str]) -> list[dict]:
+    """Which reason-code catalogs define each queried code token.
+
+    Lets the orchestrator ask «کدام مدل؟» for a code that exists in more than
+    one model (AGE2 main/substitute, NGL1–3 main/legal) instead of guessing.
+    """
+    out: list[dict] = []
+    if not code_tokens:
+        return out
+    for ent in entity_lists:
+        meta = (ent.content_json or {}).get("_meta") or {}
+        if meta.get("kind") != "reason_code_catalog":
+            continue
+        records = (ent.content_json or {}).get("records") or []
+        have = {
+            str(r.get("reason_code") or "").upper()
+            for r in records
+            if isinstance(r, dict)
+        }
+        for tok in code_tokens:
+            if tok in have:
+                out.append(
+                    {
+                        "code": tok,
+                        "model": meta.get("model") or "",
+                        "model_label": meta.get("model_label") or "",
+                        "list_name": ent.list_name,
+                        "hierarchy": meta.get("hierarchy") or [],
+                        "subspace_ids": meta.get("subspace_ids") or [],
+                    }
+                )
+    return out
 
 
 async def _supplement_search_impl(
@@ -1414,6 +1519,7 @@ async def _supplement_search_impl(
     *,
     subspace: str | None = None,
     filter_path: str | None = None,
+    reason_code_model: str | None = None,
 ) -> dict:
     """Direct EntityList tool search (embedding against list_name+description).
 
@@ -1460,7 +1566,8 @@ async def _supplement_search_impl(
             if not entity_lists:
                 return {"results": [], "query": q, "threshold": thr, "count": 0, "subspace": sub}
 
-            code_tokens = {m.group(1).upper() for m in _CODE_TOKEN_RE.finditer(q)}
+            code_tokens = {m.group(1).upper() for m in _REASON_CODE_TOKEN_RE.finditer(q)}
+            reason_membership = _reason_code_membership(entity_lists, code_tokens)
 
             if q_emb is None:
                 q_low = q.lower()
@@ -1491,6 +1598,7 @@ async def _supplement_search_impl(
                     "threshold": thr,
                     "count": len(results),
                     "subspace": sub,
+                    "reason_code_membership": reason_membership,
                 }
 
             q_vec = np.array(q_emb)
@@ -1573,8 +1681,154 @@ async def _supplement_search_impl(
                         },
                     )
                     have.add(ent.list_name)
+            # Reason-code catalogs: when the query carries a code token, only the
+            # catalog(s) that actually define that code may be injected — a
+            # sibling model's catalog is dropped even if cosine matched it.
+            # Generic reason asks («کدهای دلیل») keep the subspace filter.
+            from kb_manager.entity_lists import is_reason_code_query as _is_rc_q
+
+            if _is_rc_q(q):
+                _code_tokens = {
+                    m.group(1).upper() for m in _REASON_CODE_TOKEN_RE.finditer(q)
+                }
+                _member_models = {m.get("model") for m in reason_membership if m.get("model")}
+                # A model pick from a prior «کدام مدل؟» turn overrides
+                # membership: only the chosen catalog may be injected.
+                if reason_code_model:
+                    _member_models = {reason_code_model}
+                _kept: list = []
+                for r in results:
+                    meta = (r.get("content") or {}).get("_meta") or {}
+                    if meta.get("kind") == "reason_code_catalog" and _member_models:
+                        if meta.get("model") not in _member_models:
+                            continue
+                    # Once a model is picked, drop the hierarchy index too: it
+                    # carries the "ask which model" note for ambiguous codes and
+                    # makes the model re-ask what the user already answered.
+                    if meta.get("kind") == "reason_code_index" and reason_code_model:
+                        continue
+                    _kept.append(r)
+                results = _kept
+                have = {r.get("list_name") for r in results}
+                for ent in entity_lists:
+                    meta = (ent.content_json or {}).get("_meta") or {}
+                    if meta.get("kind") != "reason_code_catalog":
+                        continue
+                    ids = meta.get("subspace_ids") or []
+                    # With a code token the code's own model wins over subspace;
+                    # without one, respect the active subspace.
+                    if _member_models:
+                        if meta.get("model") not in _member_models:
+                            continue
+                    elif sub and ids and sub not in ids:
+                        continue
+                    if ent.list_name in have:
+                        continue
+                    results.insert(
+                        0,
+                        {
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": 1.0,
+                        },
+                    )
+                    have.add(ent.list_name)
+                # Exact-code pin: when the query names a code (HAD1, DAG1-1,
+                # AGE2 …), emit the single matching row as its own tiny list so
+                # a large catalog (77 rows) cannot be truncated before it.
+                # With a model pick the pin is scoped to that model; otherwise
+                # it uses the model(s) whose catalog actually defines the code.
+                _pin_models: set[str] = set()
+                if reason_code_model:
+                    _pin_models = {reason_code_model}
+                else:
+                    _pin_models = {
+                        m.get("model") for m in reason_membership if m.get("model")
+                    }
+                if _code_tokens and _pin_models:
+                    _pin_code = sorted(_code_tokens)[0]
+                    _pinned = False
+                    for ent in entity_lists:
+                        meta = (ent.content_json or {}).get("_meta") or {}
+                        if meta.get("kind") != "reason_code_catalog":
+                            continue
+                        if meta.get("model") not in _pin_models:
+                            continue
+                        _rows = [
+                            r for r in ((ent.content_json or {}).get("records") or [])
+                            if str((r or {}).get("reason_code") or "").upper() == _pin_code
+                        ]
+                        if not _rows:
+                            continue
+                        # Drop the full catalogs: the pinned single row is the
+                        # only reason-code evidence the model needs, and a
+                        # 77-row catalog can crowd out the pinned row.
+                        results = [
+                            r for r in results
+                            if ((r.get("content") or {}).get("_meta") or {}).get("kind")
+                            != "reason_code_catalog"
+                        ]
+                        results.insert(
+                            0,
+                            {
+                                "list_name": f"کد دلیل {_pin_code} — {meta.get('model_label') or meta.get('model')}",
+                                "description": (
+                                    f"ردیف دقیق کد دلیل {_pin_code} در "
+                                    f"{meta.get('model_label') or meta.get('model')}."
+                                ),
+                                "content": {
+                                    "_meta": {
+                                        "kind": "reason_code_entry",
+                                        "model": meta.get("model"),
+                                        "model_label": meta.get("model_label") or meta.get("model"),
+                                        "hierarchy": meta.get("hierarchy") or [],
+                                        "reason_code": _pin_code,
+                                        "count": len(_rows),
+                                    },
+                                    "records": _rows,
+                                },
+                                "similarity": 1.0,
+                            },
+                        )
+                        _pinned = True
+                        break
+                    if _pinned:
+                        logging.getLogger(__name__).info(
+                            "Pinned exact reason-code row %s for model(s) %s",
+                            _pin_code, sorted(_pin_models),
+                        )
+                # Hierarchy index: derived overview of all reason-code
+                # dictionaries so «چه کدهای دلیلی داریم؟» can be answered
+                # across models in one shot. Subspace-agnostic on purpose.
+                # Only for GENERIC overview asks: when the query names a code
+                # (HAD1, DAG1-1) or a model was already picked, the code's own
+                # catalog is the answer and the index would crowd it out.
+                for ent in entity_lists:
+                    if reason_code_model or _code_tokens:
+                        break
+                    meta = (ent.content_json or {}).get("_meta") or {}
+                    if meta.get("kind") != "reason_code_index":
+                        continue
+                    if ent.list_name in have:
+                        break
+                    results.insert(
+                        0,
+                        {
+                            "list_name": ent.list_name,
+                            "description": ent.description,
+                            "content": ent.content_json,
+                            "similarity": 1.0,
+                        },
+                    )
+                    have.add(ent.list_name)
+                    break
             results = filter_entities_for_context(
-                results, query=q, subspace=sub, prefer_score=is_score_query(q)
+                results,
+                query=q,
+                subspace=sub,
+                prefer_score=is_score_query(q),
+                reason_code_model=reason_code_model,
             )
             return {
                 "results": results,
@@ -1582,6 +1836,7 @@ async def _supplement_search_impl(
                 "threshold": thr,
                 "count": len(results),
                 "subspace": sub,
+                "reason_code_membership": reason_membership,
             }
     except Exception as e:
         logging.getLogger(__name__).warning("supplement search failed: %s", e)
@@ -1596,6 +1851,7 @@ async def supplement_api(payload: SupplementRequest, request: Request):
         payload.threshold,
         subspace=payload.subspace,
         filter_path=payload.filter_path,
+        reason_code_model=getattr(payload, "reason_code_model", None),
     )
 
 
@@ -1605,8 +1861,10 @@ async def supplement_get(
     threshold: float = Query(0.4, description="cosine threshold 0.0-1.0"),
     subspace: str | None = Query(None),
     filter_path: str | None = Query(None),
+    reason_code_model: str | None = Query(None),
 ):
     """GET variant of supplement tool for direct tool calling."""
     return await _supplement_search_impl(
-        query, threshold, subspace=subspace, filter_path=filter_path
+        query, threshold, subspace=subspace, filter_path=filter_path,
+        reason_code_model=reason_code_model,
     )
