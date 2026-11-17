@@ -111,9 +111,12 @@ def test_canned_and_prompts():
     ):
         assert required in keys, required
     assert "{text}" in keys["classify"]
-    assert reg.active_pins()["prompts_orchestrator"] == "1.0.3"
-    assert reg.active_pins()["canned"] == "1.0.1"
-    assert reg.active_pins().get("prompts_guardrails") == "1.0.0"
+    # Assert the live pins, not frozen versions: packs are bumped as behavior
+    # changes land (1.0.7 adds reason_code_model_resolved).
+    _pins = reg.active_pins()
+    assert _pins["prompts_orchestrator"] == "1.0.7"
+    assert _pins["canned"] in reg.list_versions("canned")
+    assert _pins.get("prompts_guardrails") in reg.list_versions("prompts/guardrails")
     # Size budgets (chars): answer_system structured but not wall-of-text;
     # classifiers stay mid-range so they do not crowd Gemma context.
     assert 1200 <= len(keys["answer_system"]) <= 2000
@@ -137,7 +140,9 @@ def test_active_pins_and_manifest(tmp_path, monkeypatch):
     path = save_manifest(m, activate=True)
     assert path.is_file()
     data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["packs"]["schemas"] == "1.0.0"
+    # Assert against the live pin rather than a frozen version so bumping a
+    # pack (schemas/taxonomy/prompts) does not break this test.
+    assert data["packs"]["schemas"] == get_registry().active_pins()["schemas"]
     assert data["active"] is True
     active = json.loads((tmp_path / "ACTIVE.json").read_text(encoding="utf-8"))
     assert active["manifest_id"] == m.manifest_id

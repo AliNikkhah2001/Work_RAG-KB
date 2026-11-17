@@ -180,10 +180,18 @@ Flow: `POST /search/api` (`kb_manager/web/routes/search.py`). Query is normalize
 | Kind | Source sheets | Structured fields | Notes |
 |---|---|---|---|
 | `score_table` | جداول امتیاز حقیقی / حقوقی / چک | `bands`, `color_groups`, `full_table_text` | 15 grades A1–E3; `subspace_ids` bind model to cheque vs person vs legal |
+| `reason_code_catalog` | توضیحات تشریحی دلایل کاهش امتیاز … | `records`, `groups`, `full_list_text` | 4 catalogs: چک (86), حقیقی مدل اصلی (77), حقیقی مدل جایگزین (10), حقوقی (23). `_meta.model` + `_meta.hierarchy` + `subspace_ids`; exact-code ask pins the defining catalog |
 | `loan_catalog` | لیست و عناوین وام ها | `records`, `groups`, `full_list_text` | ~598 titles / 12 types |
 | `shareholders` | سهامداران | `records`, `groups` | ~27 rows |
 | `data_providers` | تامین‌کنندگان دیتا | `records`, `groups` | ~68 rows; neo/mobile columns preserved |
 | `report_consumers` | استفاده کنندگان گزارش | `records`, `groups` | ~114 rows; openpyxl path keeps «لندتک/ریسلر» columns |
+
+Spec matching is by **exact (normalized) stem**, not substring: `_match_spec` in
+`entity_lists.py`. A substring match on «امتیاز چک» once made the reason-code
+workbook «… دلایل کاهش امتیاز چک …» overwrite the cheque score table. Reason-code
+records that collide across models (`AGE2` main/substitute, `NGL1`–`NGL3`
+main/legal) are listed in `AMBIGUOUS_REASON_CODES`; `/search/supplement` returns
+`reason_code_membership` and the orchestrator asks which model before answering.
 
 </details>
 
@@ -421,7 +429,7 @@ See parent repository `LICENSE` and the submodule's own obligations (`kb-manager
 <!-- docs-toc:start -->
 ## Documentation Index
 
-> Auto-generated from this repository's tracked Markdown notes (**49** files). Refresh with `python scripts/gen_readme_toc.py` — the `docs-toc` workflow does this automatically on push.
+> Auto-generated from this repository's tracked Markdown notes (**51** files). Refresh with `python scripts/gen_readme_toc.py` — the `docs-toc` workflow does this automatically on push.
 
 ### Repository root
 
@@ -451,6 +459,7 @@ See parent repository `LICENSE` and the submodule's own obligations (`kb-manager
 - [LLM-judge corpus — A_individual (12 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_individual.md)
 - [LLM-judge corpus — A_public (10 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_A_public.md)
 - [LLM-judge corpus — BC (8 failures)](kb-manager/artifacts/retrieval_training/rca_judge/judge_BC.md)
+- [Evaluation quality improvement plan](kb-manager/docs/EVAL_QUALITY_IMPROVEMENT_PLAN.md) — Related:
 - [KV / Tree / Variable Chunking Plan — KB 1405-06-23 (41 files)](kb-manager/docs/KV_CHUNKING_PLAN.md) — Audit tool: kb_manager/parsers/{xlsx_parser,docx_parser,pdf_parser}.py (existing code).
 - [KB Manager — Evidence-Based Remediation Plan](kb-manager/docs/REMEDIATION_PLAN.md) — This plan verifies every reported finding, maps system flows, and provides a phased implementation roadmap an engineer can execute safely. Untracked…
 - [KB Manager Technical Documentation](kb-manager/docs/index.md) — Persian RAG Knowledge Base — Technical Reports
@@ -465,6 +474,7 @@ See parent repository `LICENSE` and the submodule's own obligations (`kb-manager
 - [Training (design stub)](kb-manager/docs/retrieval_training/training.md) — Two fine-tuning tracks consume the stage-3 dataset; both are contract-only
 - [Synthetic Data Generation with Gemma 30B](kb-manager/docs/synthetic-generation.md) — Complete guide for generating synthetic Persian QA and conversational data using Gemma-2-27B on dual-GPU setup.
 - [Technical Report](kb-manager/docs/technical-report.md) — Embedding Model, Retrieval Methods & Evaluation Metrics for Persian RAG Knowledge Base
+- [Evaluation (deprecated package)](kb-manager/kb_manager/evaluation/README.md) — This package no longer runs benchmarks. Work_RAG-Evaluation_Suite is the sole backend:
 - [KB Manager content packs](kb-manager/packs/README.md) — Versioned YAML packs served by GET /registry/api/ and loaded at ingest/search time.
 - [KB corpus 1405-08-20 — problems report](kb-manager/reports/1405-08-20/PROBLEMS_REPORT.md) — Generated during ingest-preflight. Supplementary material is listed for routing only; it must not be vectorized as general KB chunks.
 - [Off-topic patterns from سوالات نامربوط.xlsx](kb-manager/reports/1405-08-20/offtopic_summary_for_guardrails.md) — Use in guardrails judge prompts. Do not ingest these rows into the vector DB.

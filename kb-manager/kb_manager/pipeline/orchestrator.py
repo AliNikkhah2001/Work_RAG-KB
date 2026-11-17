@@ -174,6 +174,13 @@ class PipelineOrchestrator:
                     await session.delete(doc)
             await session.flush()
 
+            # Reason-code hierarchy index — derived from REASON_CODE_SPECS, so
+            # it is re-derived on every rebuild (no hardcoded code lists).
+            try:
+                await self._store_reason_code_index(session)
+            except Exception:
+                logger.exception("Failed to store reason-code hierarchy index")
+
             await self._finalize_job(job, summary, session, status="completed")
 
 
@@ -240,6 +247,12 @@ class PipelineOrchestrator:
                     await session.delete(doc)
             await session.flush()
 
+            # Keep the reason-code hierarchy index current after incremental runs.
+            try:
+                await self._store_reason_code_index(session)
+            except Exception:
+                logger.exception("Failed to store reason-code hierarchy index")
+
             await self._finalize_job(job, summary, session, status="completed")
 
 
@@ -275,6 +288,47 @@ class PipelineOrchestrator:
                 files.append(str(path.resolve()))
         files.sort()
         return files
+
+    async def _store_reason_code_index(self, session: AsyncSession) -> None:
+        """Upsert the derived reason-code hierarchy index EntityList.
+
+        The index is fully derived from ``REASON_CODE_SPECS`` +
+        ``AMBIGUOUS_REASON_CODES`` — nothing is hardcoded — so it stays in
+        lockstep with the four per-model catalogs across rebuilds.
+        """
+        import uuid
+
+        from sqlalchemy import delete
+
+        from kb_manager.entity_lists import build_reason_code_index_entity
+        from kb_manager.models.database import EntityList
+
+        payload = build_reason_code_index_entity()
+        list_name = str(payload["list_name"])
+        desc = str(payload["description"])
+        content_json = payload["content_json"]
+
+        emb = None
+        if self._embedder:
+            try:
+                emb_list = self._embedder.embed_texts([desc])
+                if emb_list:
+                    emb = emb_list[0]
+            except Exception as e:
+                logger.warning("Failed to embed reason-code index: %s", e)
+
+        await session.execute(delete(EntityList).where(EntityList.list_name == list_name))
+        session.add(
+            EntityList(
+                id=str(uuid.uuid4()),
+                list_name=list_name,
+                description=desc,
+                description_embedding=emb,
+                content_json=content_json,
+            )
+        )
+        await session.flush()
+        logger.info("Stored EntityList %r kind=reason_code_index", list_name)
 
     # ------------------------------------------------------------------
     # Per-file processing
@@ -353,15 +407,24 @@ class PipelineOrchestrator:
             self.artifact_mgr.save("raw", file_path, {"title": parsed.title, "metadata": parsed.metadata, "content": parsed.content, "sheets": parsed.sheets})
 
         # --- Check for Entity Bypass ---
-        # Match folder markers OR known score/catalog filenames (temp ingest
-        # paths may not contain «ضمیمه پایگاه دانش»).
-        from kb_manager.entity_lists import build_catalog_entity, build_score_entity, match_list_spec, match_score_spec
+        # Match folder markers OR known score/catalog/reason-code filenames
+        # (temp ingest paths may not contain «ضمیمه پایگاه دانش»).
+        from kb_manager.entity_lists import (
+            build_catalog_entity,
+            build_reason_code_entity,
+            build_reason_code_index_entity,
+            build_score_entity,
+            match_list_spec,
+            match_reason_spec,
+            match_score_spec,
+        )
 
         is_entity_list = (
             "ضمیمه پایگاه دانش" in file_path
             or "/لیست/" in file_path.replace("\\", "/")
             or match_score_spec(file_path) is not None
             or match_list_spec(file_path) is not None
+            or match_reason_spec(file_path) is not None
         )
         if is_entity_list:
             logger.info("Processing Supplementary Entity List: %s", file_path)
@@ -397,6 +460,8 @@ class PipelineOrchestrator:
             import uuid
 
             payload = build_score_entity(file_path, parsed.sheets, title=parsed.title)
+            if payload is None:
+                payload = build_reason_code_entity(file_path, parsed.sheets, title=parsed.title)
             if payload is None:
                 payload = build_catalog_entity(file_path, parsed.sheets, title=parsed.title)
             if payload is None:

@@ -1,20 +1,20 @@
 {
   "corpus_date": "1405-08-20",
-  "manifest_id": "kb-20261112T092512Z",
-  "documents": 21,
-  "chunks": 1319,
-  "entity_lists": 8,
+  "manifest_id": "kb-20261117T132201Z",
+  "documents": 18,
+  "chunks": 1204,
+  "entity_lists": 12,
   "vectors": {
-    "sentence-transformers__paraphrase-multilingual-MiniLM-L12-v2-384": 1319
+    "sentence-transformers__paraphrase-multilingual-MiniLM-L12-v2-384": 1204
   },
   "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   "embedding_dim": 384,
   "packs": {
-    "schemas": "1.0.1",
-    "taxonomy": "1.0.2",
+    "schemas": "1.0.2",
+    "taxonomy": "1.0.3",
     "canned": "1.0.2",
-    "prompts_orchestrator": "1.0.5",
+    "prompts_orchestrator": "1.0.7",
     "prompts_guardrails": "1.0.1",
-    "retrieval": "1.0.1"
+    "retrieval": "1.0.3"
   }
 }
