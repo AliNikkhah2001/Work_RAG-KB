@@ -34,6 +34,20 @@ def test_tokenize_zwnj_normalized():
     assert all("\u200c" not in t for t in tokens)
 
 
+def test_tokenize_normalizes_persian_and_arabic_digits():
+    assert _tokenize("۶۱۰") == _tokenize("610")
+    assert _tokenize("٦١٠") == _tokenize("610")
+
+    bm = BM25()
+    bm.index([("persian", "امتیاز ۶۱۰"), ("arabic", "امتیاز ٦١٠"), ("ascii", "امتیاز 610")])
+    assert {doc_id for doc_id, _ in bm.search("610", top_k=3)} == {
+        "persian", "arabic", "ascii"
+    }
+    assert {doc_id for doc_id, _ in bm.search("۶۱۰", top_k=3)} == {
+        "persian", "arabic", "ascii"
+    }
+
+
 def test_bm25_keyword_boost_length_dependent():
     # Documents differing only by keyword dup currently change dl — will become field-weighted in Phase 4
     bm = BM25()

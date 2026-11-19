@@ -288,9 +288,13 @@ def _expand_query_for_bm25(query: str) -> list[str]:
 
 def _tokenize(text: str) -> list[str]:
     """Tokenize text into lowercase words + Persian char 3-grams, removing stopwords."""
-    from kb_manager.preprocessor.regex_persian import DIACRITICS_RE, TOKEN_RE
+    from kb_manager.preprocessor.regex_persian import (
+        DIACRITICS_RE,
+        TOKEN_RE,
+        normalize_digits,
+    )
 
-    text = text.lower().translate(_PERSIAN_TRANSLATE_TABLE)
+    text = normalize_digits(text).lower().translate(_PERSIAN_TRANSLATE_TABLE)
     text = DIACRITICS_RE.sub("", text)  # parsitext: strip harakat before tokenize
     word_tokens = TOKEN_RE.findall(text)
     word_tokens = [t for t in word_tokens if t not in _STOPWORDS and len(t) > 1]
@@ -660,7 +664,9 @@ async def search_knowledge_base(query: str, top_k: int = 10, keyword_boost: floa
     start = time.monotonic()
     stage_ms: dict[str, float] = {}
     t_mark = start
-    normalized = query.strip()
+    from kb_manager.preprocessor.regex_persian import normalize_digits
+
+    normalized = normalize_digits(query.strip(), to="ascii")
     tokens = _tokenize(normalized)
     # resolve keyword boost: explicit arg > env default > 3.0
     if keyword_boost is None:
