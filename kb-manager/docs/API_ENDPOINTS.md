@@ -118,9 +118,12 @@ admin UI. Those are marked `HTML` below and are not meant for programmatic use.
 
 | Method | Path | Notes |
 |---|---|---|
+| GET | `/` | HTML dashboard (doc/chunk counts, job status) |
 | GET | `/health` | Liveness. `{"status":"ok"}` |
 | GET | `/api/health` | Same, JSON |
 | GET | `/ready` | Readiness, includes index/reranker state |
+| GET | `/metrics` | Prometheus exposition |
+| GET | `/metrics/healthz` | Prometheus scrape health |
 
 ```bash
 curl -s http://127.0.0.1:8000/health

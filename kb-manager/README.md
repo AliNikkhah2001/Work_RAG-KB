@@ -448,7 +448,27 @@ Defaults from `kb_manager/config.py` (all overridable via `KB_*` env):
 
 ## API & UI
 
-Routers mounted in `kb_manager/web/app.py:90-101` — `/documents`, `/chunks`, `/pipeline`, `/versions`, `/monitoring`, `/search`, `/benchmarks`, `/cleanup`, `/transparency` (+ zip browser), `/ingestion` (+ KB history) — plus `/health`, `/api/health`, `/ready` and `/` dashboard. The UI ships Persian RTL views (`Vazirmatn`) and a live massive-benchmark page.
+Routers mounted in `kb_manager/web/app.py:155-173` — `/documents`, `/chunks`, `/pipeline`, `/versions`, `/monitoring`, `/search`, `/benchmarks`, `/cleanup`, `/transparency` (+ zip browser), `/ingestion` (+ KB history), `/registry`, `/settings` — plus `/health`, `/api/health`, `/ready`, `/metrics` and `/` dashboard. The UI ships Persian RTL views (`Vazirmatn`) and a live massive-benchmark page.
+
+**Full endpoint reference: [`docs/API_ENDPOINTS.md`](docs/API_ENDPOINTS.md)** — all **92 paths / 102 operations** with request and response schemas, error codes, sample `curl` calls and integration recipes. A rendered PDF lives at [`docs/kb-manager-api-report.pdf`](docs/kb-manager-api-report.pdf).
+
+### API key (opt-in)
+
+The service is open by default. Set `KB_API_KEY` on the KB process and every
+endpoint except the probes requires the key, supplied as `X-API-Key: <key>`,
+`Authorization: Bearer <key>`, or `?api_key=<key>`:
+
+```bash
+curl -s -H "X-API-Key: $KB_API_KEY" http://127.0.0.1:8000/registry/api/active
+curl -s -H "X-API-Key: $KB_API_KEY" -X POST http://127.0.0.1:8000/search/api \
+  -H 'Content-Type: application/json' -d '{"query":"چک","top_k":3}'
+```
+
+`/health`, `/api/health`, `/ready`, `/metrics`, `/metrics/healthz` and `/static/*`
+stay public so probes and Prometheus keep working. Comparison is constant-time
+(`hmac.compare_digest`) in `kb_manager/web/auth.py`; unset means no-op. Enabling
+it also requires the orchestrator to send the header in
+`components/orchestrator/src/work_rag_orchestrator/clients/knowledgebase.py`.
 
 ## Version history
 
