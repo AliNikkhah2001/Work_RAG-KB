@@ -126,6 +126,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Optional API-key gate. No-op unless KB_API_KEY is set (see kb_manager.web.auth).
+from kb_manager.web.auth import ApiKeyMiddleware  # noqa: E402
+
+app.add_middleware(ApiKeyMiddleware)
+
 app.mount("/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static")
 
 from kb_manager.web.routes import (
